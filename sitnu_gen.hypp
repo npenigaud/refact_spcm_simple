@@ -1,0 +1,212 @@
+#:def sitnu (gp, openmp)
+#:if gp
+#:set dims = ["KLON", "KLEV"]
+#:set inds = ["JLON", "JLEV"]
+#:set dimp = "KLON"
+#:set indp = "JLON"
+#:set suff = "_GP"
+#:else
+#:set dims = ["KLEV", "KSPEC"]
+#:set inds = ["JLEV", "JSPEC"]
+#:set suff = "_SP"
+#:set dimp = "KSPEC"
+#:set indp = "JSPEC"
+#:endif
+#:if openmp
+#:set suff = suff + "_OPENMP"
+#:endif
+SUBROUTINE SITNU${suff}$ (YDGEOMETRY, YDCST, YDDYN, ${dims[0]}$, ${dims[1]}$, PD, PT, PSP)
+
+!**** *SITNU${suff}$*   - Continuity equation for semi-implicit.
+
+!     Purpose.
+!     --------
+!           Evaluate operators Tau and Nu in semi-implicit.
+
+!**   Interface.
+!     ----------
+!        *CALL* *SITNU${suff}$(...)
+
+!        Explicit arguments :
+!        --------------------
+!        KLEV   : DISTANCE IN MEMORY BETWEEN VALUES OF THE DIVERGENCE
+!                OR TEMPERATURE AT THE SAME VERTICAL
+!        KLON   : DISTANCE IN MEMORY BETWEEN VALUES OF THE DIVERGENCE
+!                OR TEMPERATURE AT THE SAME LEVEL
+
+!           TYPICAL VALUES ARE  NDLSUR,1  FOR GRID POINT ARRAY
+!                               1,NFLSUR  FOR SPECTRAL ARRAY
+
+!        PD    : DIVERGENCE
+!        PT    : TEMPERATURE
+!        PSP   : SURFACE PRESSURE
+
+!        Implicit arguments :
+!        --------------------
+
+!     Method.
+!     -------
+!        See documentation
+
+!     Externals.   None.
+!     ----------
+
+!     Reference.
+!     ----------
+!        ECMWF Research Department documentation of the IFS
+
+!     Author.
+!     -------
+!      Mats Hamrud and Philippe Courtier  *ECMWF*
+!      Original : 87-10-15
+
+!     Modifications.
+!     --------------
+!      Modified : 09-Oct-2007 by K. YESSAD: possibility to have a specific
+!                 value of LVERTFE in the SI NH linear model.
+!      F. Vana + NEC 28-Apr-2009: OpenMP + optimization
+!      P. Smolikova and J. Vivoda (Oct 2013): new options for VFE-NH
+!      G. Mozdzynski Oct 2012: OpenMP optimization
+!      K. Yessad (Dec 2016): Prune obsolete options.
+!      J. Vivoda and P. Smolikova (Sep 2017): new options for VFE-NH
+!      R.Brozkova + NEC: Mar 2021: Optimization for vector (NEC)
+!     ------------------------------------------------------------------
+
+USE GEOMETRY_MOD , ONLY : GEOMETRY
+USE PARKIND1     , ONLY : JPIM, JPRB
+USE YOMHOOK      , ONLY : LHOOK, DR_HOOK, JPHOOK
+USE YOMCST       , ONLY : TCST
+USE YOMDYN       , ONLY : TDYN
+
+
+!     ------------------------------------------------------------------
+
+IMPLICIT NONE
+
+TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
+TYPE(TCST)        ,INTENT(IN)    :: YDCST
+TYPE(TDYN)        ,INTENT(IN)    :: YDDYN
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
+INTEGER(KIND=JPIM),INTENT(IN)    :: ${dimp}$
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PD(${dims[0]}$,${dims[1]}$)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PT(${dims[0]}$,${dims[1]}$)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSP(${dimp}$) 
+
+!     ------------------------------------------------------------------
+
+REAL(KIND=JPRB) :: ZSDIV(${dimp}$,0:KLEV+1)
+REAL(KIND=JPRB) :: ZOUT(${dimp}$,0:KLEV)
+
+#:def zsdivx (i, j)
+#:if gp
+#:set z = "ZSDIVX(" + i + ", " + j + ")"
+#:else
+#:set z = "ZSDIVX(" + j + ", " + i + ")"
+#:endif
+$:z
+#:enddef
+
+#:set z = zsdivx (dimp, "0:KLEV")
+REAL(KIND=JPRB) :: ${z}$
+INTEGER(KIND=JPIM) :: JLEV, ${indp}$
+REAL(KIND=JPRB) :: ZREC
+REAL(KIND=JPRB) :: ZDETAH
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+!     ------------------------------------------------------------------
+
+#include "verdisint.intfb.h"
+
+!     ------------------------------------------------------------------
+
+IF (LHOOK) CALL DR_HOOK('SITNU${suff}$',0,ZHOOK_HANDLE)
+
+ASSOCIATE( YDVETA=>YDGEOMETRY%YRVETA, YDVFE=>YDGEOMETRY%YRVFE, YDCVER=>YDGEOMETRY%YRCVER) 
+ASSOCIATE(SIALPH=>YDDYN%SIALPH, SIDELP=>YDDYN%SIDELP, SILNPR=>YDDYN%SILNPR, SIRDEL=>YDDYN%SIRDEL, &
+ & SIRPRN=>YDDYN%SIRPRN, SITLAF=>YDDYN%SITLAF, SITR=>YDDYN%SITR, YDDIMV=>YDGEOMETRY%YRDIMV)
+
+!     ------------------------------------------------------------------
+
+!*       1.    SUM DIVERGENCE AND COMPUTES TEMPERATURE.
+!              ----------------------------------------
+
+IF(YDCVER%LVERTFE) THEN
+
+#:if openmp
+!$OMP PARALLEL PRIVATE(JLEV,${indp}$,ZDETAH)
+!$OMP DO SCHEDULE(STATIC) 
+#:endif
+  DO JLEV=1,KLEV
+    ZDETAH=YDVETA%VFE_RDETAH(JLEV)
+    DO ${indp}$=1,${dimp}$
+      ZSDIV(${indp}$,JLEV)=PD(${inds[0]}$,${inds[1]}$)*SIDELP(JLEV)*ZDETAH
+    ENDDO
+  ENDDO
+#:if openmp
+!$OMP END DO
+!$OMP END PARALLEL
+#:endif
+
+  IF (${dimp}$>=1) THEN
+!DEC$ IVDEP
+    ZSDIV(1:${dimp}$,0)=0.0_JPRB
+    ZSDIV(1:${dimp}$,KLEV+1)=0.0_JPRB
+    CALL VERDISINT(YDVFE,YDCVER,'ITOP','11',${dimp}$,1,${dimp}$,KLEV,ZSDIV,ZOUT,KCHUNK=YDGEOMETRY%YRDIM%NPROMA)
+  ENDIF
+
+#:if openmp
+!$OMP PARALLEL PRIVATE(JLEV,${indp}$,ZREC)
+!$OMP DO SCHEDULE(STATIC) 
+#:endif
+  DO JLEV=1,KLEV
+    DO ${indp}$=1,${dimp}$
+      ZREC=1.0_JPRB/SITLAF(JLEV)
+      PT(${inds[0]}$,${inds[1]}$)=YDCST%RKAPPA*SITR*ZOUT(${indp}$,JLEV-1)*ZREC
+    ENDDO
+  ENDDO
+#:if openmp
+!$OMP END DO
+!$OMP END PARALLEL
+#:endif
+  DO ${indp}$=1,${dimp}$
+    PSP(${indp}$)=ZOUT(${indp}$,KLEV)*SIRPRN
+  ENDDO
+
+ELSE
+
+#:set z = zsdivx (":", "0")
+  ${z}$=0.0_JPRB
+
+#:if openmp
+!$OMP PARALLEL PRIVATE(JLEV,${indp}$)
+!$OMP DO SCHEDULE(STATIC)
+#:endif
+  DO ${inds[1]}$=1,${dims[1]}$
+    DO ${inds[0]}$=1,${dims[0]}$
+#:set z0 = zsdivx (indp, "JLEV")
+#:set z1 = zsdivx (indp, "JLEV-1")
+      ${z0}$=${z1}$+PD(${inds[0]}$,${inds[1]}$)*SIDELP(JLEV)
+      PT(${inds[0]}$,${inds[1]}$)=YDCST%RKAPPA*SITR*(SIRDEL(JLEV)*SILNPR(JLEV)*${z1}$&
+       & +SIALPH(JLEV)*PD(${inds[0]}$,${inds[1]}$))
+    ENDDO
+  ENDDO
+#:if openmp
+!$OMP END DO
+!$OMP END PARALLEL
+#:endif
+
+  DO ${indp}$=1,${dimp}$
+#:set z = zsdivx (indp, "KLEV")
+    PSP(${indp}$)=${z}$*SIRPRN
+  ENDDO
+
+ENDIF
+!     ------------------------------------------------------------------
+
+END ASSOCIATE
+END ASSOCIATE
+
+IF (LHOOK) CALL DR_HOOK('SITNU${suff}$',1,ZHOOK_HANDLE)
+
+END SUBROUTINE SITNU${suff}$
+#:enddef

@@ -1,0 +1,2 @@
+#:include "sigam_gen.hypp"
+$:sigam (gp=False, openmp=True)
