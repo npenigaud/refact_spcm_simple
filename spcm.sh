@@ -12,7 +12,7 @@ cd /home/gmap/mrpm/marguina/pack/48t3_sidyn-spcm.05.IMPIIFC2018.x/spcm_simple
 \rm *.grb
 
 #xport MPIAUTOCONFIG=mpiauto.DDT.conf
-/opt/softs/mpiauto/mpiauto --verbose -np 8 --wrap --wrap-stdeo -- ./spcm.x --case t31_8 --verbose --write
+/opt/softs/mpiauto/mpiauto --verbose -np 8 --wrap --wrap-stdeo -- ./spcm.x --case t31_8 --verbose --write-grib-1 --write-grib-2 --stat
 
 
 
