@@ -10,3 +10,4 @@ slurm-*.out
 stdeo.*
 *.grb
 .mpiauto*
+linux_bind.txt
