@@ -1,0 +1,3 @@
+#:include "sitnu_gen.hypp"
+$:sitnu (gp=True, openmp=False)
+
