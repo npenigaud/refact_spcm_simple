@@ -4,6 +4,8 @@
 #SBATCH --exclusive
 #SBATCH --export="NONE"
 
+module load nvhpc/22.11
+
 set -x
 
 ulimit -s unlimited
@@ -17,7 +19,8 @@ export SLURM_EXPORT_ENV=ALL
 export MPIAUTOCONFIG=mpiauto.PGI.conf
 #xport MPIAUTOCONFIG=mpiauto.DDT.conf
 
- /opt/softs/mpiauto/mpiauto --nouse-slurm-mpi --verbose -np 8 --wrap --wrap-stdeo -- ./spcm.x --case t0031l015-008mpi --write-grib-1 --write-grib-2 --stat-gp
+ /opt/softs/mpiauto/mpiauto --prefix-command ./nvprof.sh --nouse-slurm-mpi --verbose -np 8 --wrap --wrap-stdeo -- ./spcm.x --case t0031l015-008mpi --write-grib-1 --write-grib-2 --stat-gp
+#/opt/softs/mpiauto/mpiauto --prefix-command ./nsys.sh --nouse-slurm-mpi --verbose -np 8 --wrap --wrap-stdeo -- ./spcm.x --case t0031l015-008mpi --write-grib-1 --write-grib-2 --stat-gp
 #/opt/softs/mpiauto/mpiauto --nouse-slurm-mpi --verbose -np 8 --wrap --wrap-stdeo -- ./spcm.x --case t0107l070-008mpi --stat-gp
 #/opt/softs/mpiauto/mpiauto --nouse-slurm-mpi --verbose -np 1 --wrap --wrap-stdeo -- ./spcm.x --case t0031l015-001mpi --stat-gp
 
