@@ -170,11 +170,8 @@ ZBDT2=(ZBDT*RSTRET)**2
 
 !*        2.3  Computes right-hand side of Helmholtz equation.
 
-IF( .NOT.LDONEM ) CALL GSTATS(1655,0) ! Main routines and loops in SIGAM chain are parallel
 CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG,PSPSPG)
-IF( .NOT.LDONEM ) CALL GSTATS(1655,1)
 
-IF( .NOT.LDONEM ) CALL GSTATS(1656,0)
 
 IF (LSIDG) THEN
 
@@ -229,15 +226,12 @@ IF (LIMPF) THEN
   ENDDO
 !$OMP END PARALLEL DO
 ENDIF
-IF( .NOT.LDONEM ) CALL GSTATS(1656,1)
 
 !*        2.4  Solve Helmholtz equation
 
 !           Current space --> vertical eigenmodes space.
 
-IF( .NOT.LDONEM ) CALL GSTATS(1660,0) ! MXMAOP Call to SGEMMX Parallelised
 CALL MXMAOP(SIMI,1,NFLEVG,ZSDIV,1,NFLEVG,ZSDIVP,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2V)  
-IF( .NOT.LDONEM ) CALL GSTATS(1660,1)
 
 IF (LSIDG) THEN
 
@@ -274,9 +268,7 @@ ENDIF
 
 !           Vertical eigenmodes space --> current space.
 
-IF( .NOT.LDONEM ) CALL GSTATS(1660,0) ! MXMAOP Calls SGEMMX in parallel region
 CALL MXMAOP(SIMO,1,NFLEVG,ZSPDIVP,1,NFLEVG,PSPDIVG,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2V)  
-IF( .NOT.LDONEM ) CALL GSTATS(1660,1)
 
 IF (LSIDG) THEN
 
@@ -291,7 +283,6 @@ ELSE
 
   !       ZSPDIV=(DIVprim(t+dt)) --> ZSPDIVG=(GMBAR**2 * DIVprim(t+dt)) .
 
-  IF( .NOT.LDONEM ) CALL GSTATS(1656,0)
 !$OMP PARALLEL DO PRIVATE(JSP,JLEV)
   DO JSP=1,KSPEC2V
     DO JLEV=1,NFLEVG
@@ -299,7 +290,6 @@ ELSE
     ENDDO
   ENDDO
 !$OMP END PARALLEL DO
-  IF( .NOT.LDONEM ) CALL GSTATS(1656,1)
 
 ENDIF
 
@@ -310,13 +300,10 @@ ENDIF
 !         (GMBAR**2 * DIVprim(t+dt)) --> [ tau * (GMBAR**2 * DIVprim(t+dt)) ]
 !                                    and [  nu * (GMBAR**2 * DIVprim(t+dt)) ]
 
-IF( .NOT.LDONEM ) CALL GSTATS(1657,0)  ! Main routines and loops in SITNU chain are parallel
 CALL SITNU_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZHELP,ZST,ZSP)
-IF( .NOT.LDONEM ) CALL GSTATS(1657,1)
 
 !*       2.5  Increment Temperature and surface pressure
 
-IF( .NOT.LDONEM ) CALL GSTATS(1656,0)
 !$OMP PARALLEL DO PRIVATE(JSP,JLEV)
 DO JSP=1,KSPEC2V
   DO JLEV=1,NFLEVG
@@ -325,7 +312,6 @@ DO JSP=1,KSPEC2V
   PSPSPG(JSP)=PSPSPG(JSP)-ZBDT*ZSP(JSP)
 ENDDO
 !$OMP END PARALLEL DO
-IF( .NOT.LDONEM ) CALL GSTATS(1656,1)
 
 !     ------------------------------------------------------------------
 

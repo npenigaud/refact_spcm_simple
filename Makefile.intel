@@ -1,8 +1,6 @@
 
 SRC=..
 
-=======
->>>>>>> f606083afdaffdfa0017ef9d540dde3635f0095d:Makefile.inc
 # Intel
 
 FIAT=/home/gmap/mrpm/marguina/pack/48t3_mrg48R1.05.IMPIIFC2018.x/hub/local/install/Fiat
