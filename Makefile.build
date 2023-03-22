@@ -1,0 +1,450 @@
+include ../Makefile.$(ARCH)
+
+./abor1.intfb.ok: $(SRC)/./abor1.intfb.h 
+	touch ./abor1.intfb.ok
+
+./mxmaop.intfb.ok: $(SRC)/./mxmaop.intfb.h 
+	touch ./mxmaop.intfb.ok
+
+./mxptma.intfb.ok: $(SRC)/./mxptma.intfb.h 
+	touch ./mxptma.intfb.ok
+
+./mxture.intfb.ok: $(SRC)/./mxture.intfb.h 
+	touch ./mxture.intfb.ok
+
+./mxturs.intfb.ok: $(SRC)/./mxturs.intfb.h 
+	touch ./mxturs.intfb.ok
+
+./set2pe.intfb.ok: $(SRC)/./set2pe.intfb.h yommp0.o yomlun.o
+	touch ./set2pe.intfb.ok
+
+./sgemmx.intfb.ok: $(SRC)/./sgemmx.intfb.h 
+	touch ./sgemmx.intfb.ok
+
+./sigam_sp_openmp.intfb.ok: $(SRC)/./sigam_sp_openmp.intfb.h geometry_mod.o yomcst.o yomdyn.o
+	touch ./sigam_sp_openmp.intfb.ok
+
+./simplico.intfb.ok: $(SRC)/./simplico.intfb.h 
+	touch ./simplico.intfb.ok
+
+./sitnu_sp_openmp.intfb.ok: $(SRC)/./sitnu_sp_openmp.intfb.h geometry_mod.o yomcst.o yomdyn.o
+	touch ./sitnu_sp_openmp.intfb.ok
+
+./spcimpfinit.intfb.ok: $(SRC)/./spcimpfinit.intfb.h geometry_mod.o yomcst.o yomdyn.o yomrip.o
+	touch ./spcimpfinit.intfb.ok
+
+./spcimpfpost.intfb.ok: $(SRC)/./spcimpfpost.intfb.h geometry_mod.o yomcst.o yomdyn.o yomrip.o
+	touch ./spcimpfpost.intfb.ok
+
+./spcimpfsolve.intfb.ok: $(SRC)/./spcimpfsolve.intfb.h geometry_mod.o yomdyn.o yomrip.o yomcst.o
+	touch ./spcimpfsolve.intfb.ok
+
+./spcm_simple.intfb.ok: $(SRC)/./spcm_simple.intfb.h type_model.o geometry_mod.o
+	touch ./spcm_simple.intfb.ok
+
+./spcsi.intfb.ok: $(SRC)/./spcsi.intfb.h geometry_mod.o yommp0.o yomdyn.o yomlddh.o yomrip.o yomcst.o
+	touch ./spcsi.intfb.ok
+
+./spcsidg_part1.intfb.ok: $(SRC)/./spcsidg_part1.intfb.h geometry_mod.o yomdyn.o
+	touch ./spcsidg_part1.intfb.ok
+
+./spcsidg_part2.intfb.ok: $(SRC)/./spcsidg_part2.intfb.h geometry_mod.o
+	touch ./spcsidg_part2.intfb.ok
+
+./trmtos.intfb.ok: $(SRC)/./trmtos.intfb.h geometry_mod.o yommp0.o yomtag.o
+	touch ./trmtos.intfb.ok
+
+./trstom.intfb.ok: $(SRC)/./trstom.intfb.h geometry_mod.o yommp0.o yomtag.o
+	touch ./trstom.intfb.ok
+
+./verder.intfb.ok: $(SRC)/./verder.intfb.h 
+	touch ./verder.intfb.ok
+
+./verdisint.intfb.ok: $(SRC)/./verdisint.intfb.h yomcver.o yomlun.o yomvert.o
+	touch ./verdisint.intfb.ok
+
+./verint.intfb.ok: $(SRC)/./verint.intfb.h yomlun.o
+	touch ./verint.intfb.ok
+
+mxmaop.ok: $(SRC)/mxmaop.h
+	touch mxmaop.ok
+mxptma.ok: $(SRC)/mxptma.h
+	touch mxptma.ok
+mxture.ok: $(SRC)/mxture.h
+	touch mxture.ok
+mxturs.ok: $(SRC)/mxturs.h
+	touch mxturs.ok
+simplico.ok: $(SRC)/simplico.h
+	touch simplico.ok
+abor1.o: $(SRC)/abor1.F90 
+	$(FC) -c $(SRC)/abor1.F90
+
+geometry_mod.o: $(SRC)/geometry_mod.F90 type_geometry.o yomlun.o
+	$(FC) -c $(SRC)/geometry_mod.F90
+
+intdyn_mod.o: $(SRC)/intdyn_mod.F90 
+	$(FC) -c $(SRC)/intdyn_mod.F90
+
+model_diagnostics_mod.o: $(SRC)/model_diagnostics_mod.F90 yomlddh.o yomspddh.o
+	$(FC) -c $(SRC)/model_diagnostics_mod.F90
+
+model_dynamics_mod.o: $(SRC)/model_dynamics_mod.F90 yomdyna.o yomdyn.o
+	$(FC) -c $(SRC)/model_dynamics_mod.F90
+
+model_general_conf_mod.o: $(SRC)/model_general_conf_mod.F90 yomrip.o
+	$(FC) -c $(SRC)/model_general_conf_mod.F90
+
+mxmaop.o: $(SRC)/mxmaop.F90 
+	$(FC) -c $(SRC)/mxmaop.F90
+
+mxptma.o: $(SRC)/mxptma.F90 
+	$(FC) -c $(SRC)/mxptma.F90
+
+mxture.o: $(SRC)/mxture.F90 
+	$(FC) -c $(SRC)/mxture.F90
+
+mxturs.o: $(SRC)/mxturs.F90 mxture.ok
+	$(FC) -c $(SRC)/mxturs.F90
+
+myrecvset.o: $(SRC)/myrecvset.F90 abor1.intfb.ok
+	$(FC) -c $(SRC)/myrecvset.F90
+
+mysendset.o: $(SRC)/mysendset.F90 abor1.intfb.ok
+	$(FC) -c $(SRC)/mysendset.F90
+
+reglatlon_field_mix.o: $(SRC)/reglatlon_field_mix.F90 yomlun.o
+	$(FC) -c $(SRC)/reglatlon_field_mix.F90
+
+set2pe.o: $(SRC)/set2pe.F90 yommp0.o yomlun.o abor1.intfb.ok
+	$(FC) -c $(SRC)/set2pe.F90
+
+sgemmx.o: $(SRC)/sgemmx.F90 
+	$(FC) -c $(SRC)/sgemmx.F90
+
+sigam_sp_openmp.o: $(SRC)/sigam_sp_openmp.F90 geometry_mod.o yomcst.o yomdyn.o verdisint.intfb.ok
+	$(FC) -c $(SRC)/sigam_sp_openmp.F90
+
+simplico.o: $(SRC)/simplico.F90 
+	$(FC) -c $(SRC)/simplico.F90
+
+sitnu_sp_openmp.o: $(SRC)/sitnu_sp_openmp.F90 geometry_mod.o yomcst.o yomdyn.o verdisint.intfb.ok
+	$(FC) -c $(SRC)/sitnu_sp_openmp.F90
+
+spcimpfinit.o: $(SRC)/spcimpfinit.F90 geometry_mod.o yomcst.o yomdyn.o yomrip.o
+	$(FC) -c $(SRC)/spcimpfinit.F90
+
+spcimpfpost.o: $(SRC)/spcimpfpost.F90 geometry_mod.o yomcst.o yomdyn.o yomrip.o
+	$(FC) -c $(SRC)/spcimpfpost.F90
+
+spcimpfsolve.o: $(SRC)/spcimpfsolve.F90 geometry_mod.o yomdyn.o yomrip.o yomcst.o simplico.ok trmtos.intfb.ok trstom.intfb.ok
+	$(FC) -c $(SRC)/spcimpfsolve.F90
+
+spcm.o: $(SRC)/spcm.F90 xrd_getoptions.o type_model.o geometry_mod.o util_model_mod.o util_geometry_mod.o util_yommp0_mod.o spcm_simple.intfb.ok abor1.intfb.ok
+	$(FC) -c $(SRC)/spcm.F90
+
+spcm_simple.o: $(SRC)/spcm_simple.F90 type_model.o geometry_mod.o spcsi.intfb.ok trmtos.intfb.ok trstom.intfb.ok spcimpfinit.intfb.ok spcimpfpost.intfb.ok
+	$(FC) -c $(SRC)/spcm_simple.F90
+
+spcsi.o: $(SRC)/spcsi.F90 geometry_mod.o yommp0.o yomdyn.o yomlddh.o yomrip.o yomcst.o mxmaop.ok mxptma.ok mxture.ok mxturs.ok abor1.intfb.ok sigam_sp_openmp.intfb.ok spcimpfsolve.intfb.ok sitnu_sp_openmp.intfb.ok spcsidg_part1.intfb.ok spcsidg_part2.intfb.ok
+	$(FC) -c $(SRC)/spcsi.F90
+
+spcsidg_part1.o: $(SRC)/spcsidg_part1.F90 geometry_mod.o yomdyn.o mxture.ok mxturs.ok
+	$(FC) -c $(SRC)/spcsidg_part1.F90
+
+spcsidg_part2.o: $(SRC)/spcsidg_part2.F90 geometry_mod.o mxptma.ok
+	$(FC) -c $(SRC)/spcsidg_part2.F90
+
+trmtos.o: $(SRC)/trmtos.F90 geometry_mod.o yommp0.o yomtag.o abor1.intfb.ok set2pe.intfb.ok
+	$(FC) -c $(SRC)/trmtos.F90
+
+trstom.o: $(SRC)/trstom.F90 geometry_mod.o yommp0.o yomtag.o abor1.intfb.ok set2pe.intfb.ok
+	$(FC) -c $(SRC)/trstom.F90
+
+type_geometry.o: $(SRC)/type_geometry.F90 yomvert.o yomsta.o yomlap.o yomleg.o yomdim.o yomdimv.o yommp.o yomgem.o yomcsgeom.o yomgsgeom.o yomorog.o type_spgeom.o yemdim.o yemgeo.o yemmp.o yemlap.o yemgsl.o yemlbc_geo.o yomcver.o
+	$(FC) -c $(SRC)/type_geometry.F90
+
+type_model.o: $(SRC)/type_model.F90 model_general_conf_mod.o model_dynamics_mod.o model_diagnostics_mod.o yomcst.o
+	$(FC) -c $(SRC)/type_model.F90
+
+type_spgeom.o: $(SRC)/type_spgeom.F90 
+	$(FC) -c $(SRC)/type_spgeom.F90
+
+util_geometry_mod.o: $(SRC)/util_geometry_mod.F90 type_geometry.o util_tcsgeom_blocked_mod.o util_tcsgeom_mod.o util_tcsgleg_mod.o util_tcver_mod.o util_tdimv_mod.o util_tdim_mod.o util_tedim_mod.o util_tegeo_mod.o util_tegsl_mod.o util_telbc_geo_mod.o util_temmp_mod.o util_tgem_mod.o util_tgsgeom_blocked_mod.o util_tgsgeom_mod.o util_tlap_mod.o util_tlep_mod.o util_tmp_mod.o util_torog_blocked_mod.o util_torog_mod.o util_tspgeom_mod.o util_tsta_mod.o util_tvab_mod.o util_tvertical_geom_mod.o util_tveta_mod.o util_tvfe_mod.o
+	$(FC) -c $(SRC)/util_geometry_mod.F90
+
+util_model_diagnostics_type_mod.o: $(SRC)/util_model_diagnostics_type_mod.F90 model_diagnostics_mod.o util_tlddh_mod.o util_tspddh_mod.o
+	$(FC) -c $(SRC)/util_model_diagnostics_type_mod.F90
+
+util_model_dynamics_type_mod.o: $(SRC)/util_model_dynamics_type_mod.F90 model_dynamics_mod.o util_tdyna_mod.o util_tdyn_mod.o
+	$(FC) -c $(SRC)/util_model_dynamics_type_mod.F90
+
+util_model_general_conf_type_mod.o: $(SRC)/util_model_general_conf_type_mod.F90 model_general_conf_mod.o util_trip_mod.o
+	$(FC) -c $(SRC)/util_model_general_conf_type_mod.F90
+
+util_model_mod.o: $(SRC)/util_model_mod.F90 type_model.o util_model_diagnostics_type_mod.o util_model_dynamics_type_mod.o util_model_general_conf_type_mod.o util_tcst_mod.o
+	$(FC) -c $(SRC)/util_model_mod.F90
+
+util_reglatlon_field_mod.o: $(SRC)/util_reglatlon_field_mod.F90 reglatlon_field_mix.o
+	$(FC) -c $(SRC)/util_reglatlon_field_mod.F90
+
+util_tcsgeom_blocked_mod.o: $(SRC)/util_tcsgeom_blocked_mod.F90 yomcsgeom.o
+	$(FC) -c $(SRC)/util_tcsgeom_blocked_mod.F90
+
+util_tcsgeom_mod.o: $(SRC)/util_tcsgeom_mod.F90 yomcsgeom.o
+	$(FC) -c $(SRC)/util_tcsgeom_mod.F90
+
+util_tcsgleg_mod.o: $(SRC)/util_tcsgleg_mod.F90 yomleg.o
+	$(FC) -c $(SRC)/util_tcsgleg_mod.F90
+
+util_tcst_mod.o: $(SRC)/util_tcst_mod.F90 yomcst.o
+	$(FC) -c $(SRC)/util_tcst_mod.F90
+
+util_tcty_mod.o: $(SRC)/util_tcty_mod.F90 intdyn_mod.o
+	$(FC) -c $(SRC)/util_tcty_mod.F90
+
+util_tcver_mod.o: $(SRC)/util_tcver_mod.F90 yomcver.o
+	$(FC) -c $(SRC)/util_tcver_mod.F90
+
+util_tdim_mod.o: $(SRC)/util_tdim_mod.F90 yomdim.o
+	$(FC) -c $(SRC)/util_tdim_mod.F90
+
+util_tdimv_mod.o: $(SRC)/util_tdimv_mod.F90 yomdimv.o
+	$(FC) -c $(SRC)/util_tdimv_mod.F90
+
+util_tdyn_mod.o: $(SRC)/util_tdyn_mod.F90 yomdyn.o
+	$(FC) -c $(SRC)/util_tdyn_mod.F90
+
+util_tdyna_mod.o: $(SRC)/util_tdyna_mod.F90 yomdyna.o util_tgflt_mod.o util_tgmvt_mod.o util_ttnd_mod.o
+	$(FC) -c $(SRC)/util_tdyna_mod.F90
+
+util_teaerc_macc_mod.o: $(SRC)/util_teaerc_macc_mod.F90 yoeaerc.o
+	$(FC) -c $(SRC)/util_teaerc_macc_mod.F90
+
+util_teaerc_tegen_mod.o: $(SRC)/util_teaerc_tegen_mod.F90 yoeaerc.o
+	$(FC) -c $(SRC)/util_teaerc_tegen_mod.F90
+
+util_tecmip_mod.o: $(SRC)/util_tecmip_mod.F90 yoecmip.o
+	$(FC) -c $(SRC)/util_tecmip_mod.F90
+
+util_tedim_mod.o: $(SRC)/util_tedim_mod.F90 yemdim.o
+	$(FC) -c $(SRC)/util_tedim_mod.F90
+
+util_tegeo_mod.o: $(SRC)/util_tegeo_mod.F90 yemgeo.o
+	$(FC) -c $(SRC)/util_tegeo_mod.F90
+
+util_tegsl_mod.o: $(SRC)/util_tegsl_mod.F90 yemgsl.o
+	$(FC) -c $(SRC)/util_tegsl_mod.F90
+
+util_telbc_geo_mod.o: $(SRC)/util_telbc_geo_mod.F90 yemlbc_geo.o
+	$(FC) -c $(SRC)/util_telbc_geo_mod.F90
+
+util_temmp_mod.o: $(SRC)/util_temmp_mod.F90 yemmp.o
+	$(FC) -c $(SRC)/util_temmp_mod.F90
+
+util_teozoc_mod.o: $(SRC)/util_teozoc_mod.F90 yoeozoc.o
+	$(FC) -c $(SRC)/util_teozoc_mod.F90
+
+util_tgem_mod.o: $(SRC)/util_tgem_mod.F90 yomgem.o
+	$(FC) -c $(SRC)/util_tgem_mod.F90
+
+util_tgflt_mod.o: $(SRC)/util_tgflt_mod.F90 intdyn_mod.o
+	$(FC) -c $(SRC)/util_tgflt_mod.F90
+
+util_tgmvt_mod.o: $(SRC)/util_tgmvt_mod.F90 intdyn_mod.o
+	$(FC) -c $(SRC)/util_tgmvt_mod.F90
+
+util_tgsgeom_blocked_mod.o: $(SRC)/util_tgsgeom_blocked_mod.F90 yomgsgeom.o
+	$(FC) -c $(SRC)/util_tgsgeom_blocked_mod.F90
+
+util_tgsgeom_mod.o: $(SRC)/util_tgsgeom_mod.F90 yomgsgeom.o
+	$(FC) -c $(SRC)/util_tgsgeom_mod.F90
+
+util_thwind_mod.o: $(SRC)/util_thwind_mod.F90 intdyn_mod.o
+	$(FC) -c $(SRC)/util_thwind_mod.F90
+
+util_tlap_mod.o: $(SRC)/util_tlap_mod.F90 yomlap.o
+	$(FC) -c $(SRC)/util_tlap_mod.F90
+
+util_tlddh_mod.o: $(SRC)/util_tlddh_mod.F90 yomlddh.o
+	$(FC) -c $(SRC)/util_tlddh_mod.F90
+
+util_tlep_mod.o: $(SRC)/util_tlep_mod.F90 yemlap.o
+	$(FC) -c $(SRC)/util_tlep_mod.F90
+
+util_tmp_mod.o: $(SRC)/util_tmp_mod.F90 yommp.o
+	$(FC) -c $(SRC)/util_tmp_mod.F90
+
+util_torog_blocked_mod.o: $(SRC)/util_torog_blocked_mod.F90 yomorog.o
+	$(FC) -c $(SRC)/util_torog_blocked_mod.F90
+
+util_torog_mod.o: $(SRC)/util_torog_mod.F90 yomorog.o
+	$(FC) -c $(SRC)/util_torog_mod.F90
+
+util_tpg_type_mod.o: $(SRC)/util_tpg_type_mod.F90 intdyn_mod.o
+	$(FC) -c $(SRC)/util_tpg_type_mod.F90
+
+util_tradghg_mod.o: $(SRC)/util_tradghg_mod.F90 yoeradghg.o
+	$(FC) -c $(SRC)/util_tradghg_mod.F90
+
+util_trcp_mod.o: $(SRC)/util_trcp_mod.F90 intdyn_mod.o
+	$(FC) -c $(SRC)/util_trcp_mod.F90
+
+util_trip_mod.o: $(SRC)/util_trip_mod.F90 yomrip.o util_reglatlon_field_mod.o util_teaerc_macc_mod.o util_teaerc_tegen_mod.o util_tecmip_mod.o util_teozoc_mod.o util_tradghg_mod.o
+	$(FC) -c $(SRC)/util_trip_mod.F90
+
+util_tspddh_mod.o: $(SRC)/util_tspddh_mod.F90 yomspddh.o
+	$(FC) -c $(SRC)/util_tspddh_mod.F90
+
+util_tspgeom_mod.o: $(SRC)/util_tspgeom_mod.F90 type_spgeom.o
+	$(FC) -c $(SRC)/util_tspgeom_mod.F90
+
+util_tsta_mod.o: $(SRC)/util_tsta_mod.F90 yomsta.o
+	$(FC) -c $(SRC)/util_tsta_mod.F90
+
+util_ttnd_mod.o: $(SRC)/util_ttnd_mod.F90 intdyn_mod.o
+	$(FC) -c $(SRC)/util_ttnd_mod.F90
+
+util_tvab_mod.o: $(SRC)/util_tvab_mod.F90 yomvert.o
+	$(FC) -c $(SRC)/util_tvab_mod.F90
+
+util_tvertical_geom_mod.o: $(SRC)/util_tvertical_geom_mod.F90 yomvert.o util_tcver_mod.o util_tvab_mod.o util_tveta_mod.o util_tvfe_mod.o
+	$(FC) -c $(SRC)/util_tvertical_geom_mod.F90
+
+util_tveta_mod.o: $(SRC)/util_tveta_mod.F90 yomvert.o
+	$(FC) -c $(SRC)/util_tveta_mod.F90
+
+util_tvfe_mod.o: $(SRC)/util_tvfe_mod.F90 yomvert.o
+	$(FC) -c $(SRC)/util_tvfe_mod.F90
+
+util_txyb_mod.o: $(SRC)/util_txyb_mod.F90 intdyn_mod.o
+	$(FC) -c $(SRC)/util_txyb_mod.F90
+
+util_txybder_mod.o: $(SRC)/util_txybder_mod.F90 intdyn_mod.o
+	$(FC) -c $(SRC)/util_txybder_mod.F90
+
+util_yommp0_mod.o: $(SRC)/util_yommp0_mod.F90 yommp0.o
+	$(FC) -c $(SRC)/util_yommp0_mod.F90
+
+verder.o: $(SRC)/verder.F90 
+	$(FC) -c $(SRC)/verder.F90
+
+verdisint.o: $(SRC)/verdisint.F90 yomcver.o yomlun.o yomvert.o abor1.intfb.ok verder.intfb.ok verint.intfb.ok
+	$(FC) -c $(SRC)/verdisint.F90
+
+verint.o: $(SRC)/verint.F90 yomlun.o abor1.intfb.ok
+	$(FC) -c $(SRC)/verint.F90
+
+xrd_getoptions.o: $(SRC)/xrd_getoptions.F90 xrd_unix_env.o
+	$(FC) -c $(SRC)/xrd_getoptions.F90
+
+xrd_unix_env.o: $(SRC)/xrd_unix_env.F90 
+	$(FC) -c $(SRC)/xrd_unix_env.F90
+
+yemdim.o: $(SRC)/yemdim.F90 
+	$(FC) -c $(SRC)/yemdim.F90
+
+yemgeo.o: $(SRC)/yemgeo.F90 
+	$(FC) -c $(SRC)/yemgeo.F90
+
+yemgsl.o: $(SRC)/yemgsl.F90 
+	$(FC) -c $(SRC)/yemgsl.F90
+
+yemlap.o: $(SRC)/yemlap.F90 
+	$(FC) -c $(SRC)/yemlap.F90
+
+yemlbc_geo.o: $(SRC)/yemlbc_geo.F90 
+	$(FC) -c $(SRC)/yemlbc_geo.F90
+
+yemmp.o: $(SRC)/yemmp.F90 
+	$(FC) -c $(SRC)/yemmp.F90
+
+yoeaerc.o: $(SRC)/yoeaerc.F90 
+	$(FC) -c $(SRC)/yoeaerc.F90
+
+yoecmip.o: $(SRC)/yoecmip.F90 
+	$(FC) -c $(SRC)/yoecmip.F90
+
+yoeozoc.o: $(SRC)/yoeozoc.F90 
+	$(FC) -c $(SRC)/yoeozoc.F90
+
+yoeradghg.o: $(SRC)/yoeradghg.F90 yomcst.o
+	$(FC) -c $(SRC)/yoeradghg.F90
+
+yomcsgeom.o: $(SRC)/yomcsgeom.F90 
+	$(FC) -c $(SRC)/yomcsgeom.F90
+
+yomcst.o: $(SRC)/yomcst.F90 
+	$(FC) -c $(SRC)/yomcst.F90
+
+yomcver.o: $(SRC)/yomcver.F90 yomlun.o
+	$(FC) -c $(SRC)/yomcver.F90
+
+yomdim.o: $(SRC)/yomdim.F90 
+	$(FC) -c $(SRC)/yomdim.F90
+
+yomdimv.o: $(SRC)/yomdimv.F90 
+	$(FC) -c $(SRC)/yomdimv.F90
+
+yomdyn.o: $(SRC)/yomdyn.F90 
+	$(FC) -c $(SRC)/yomdyn.F90
+
+yomdyna.o: $(SRC)/yomdyna.F90 intdyn_mod.o
+	$(FC) -c $(SRC)/yomdyna.F90
+
+yomgem.o: $(SRC)/yomgem.F90 
+	$(FC) -c $(SRC)/yomgem.F90
+
+yomgsgeom.o: $(SRC)/yomgsgeom.F90 
+	$(FC) -c $(SRC)/yomgsgeom.F90
+
+yomlap.o: $(SRC)/yomlap.F90 
+	$(FC) -c $(SRC)/yomlap.F90
+
+yomlddh.o: $(SRC)/yomlddh.F90 
+	$(FC) -c $(SRC)/yomlddh.F90
+
+yomleg.o: $(SRC)/yomleg.F90 
+	$(FC) -c $(SRC)/yomleg.F90
+
+yomlun.o: $(SRC)/yomlun.F90 yomlun_ifsaux.o
+	$(FC) -c $(SRC)/yomlun.F90
+
+yomlun_ifsaux.o: $(SRC)/yomlun_ifsaux.F90 
+	$(FC) -c $(SRC)/yomlun_ifsaux.F90
+
+yommp.o: $(SRC)/yommp.F90 
+	$(FC) -c $(SRC)/yommp.F90
+
+yommp0.o: $(SRC)/yommp0.F90 
+	$(FC) -c $(SRC)/yommp0.F90
+
+yomorog.o: $(SRC)/yomorog.F90 
+	$(FC) -c $(SRC)/yomorog.F90
+
+yomrip.o: $(SRC)/yomrip.F90 yoeozoc.o yoecmip.o yoeradghg.o yoeaerc.o reglatlon_field_mix.o
+	$(FC) -c $(SRC)/yomrip.F90
+
+yomspddh.o: $(SRC)/yomspddh.F90 
+	$(FC) -c $(SRC)/yomspddh.F90
+
+yomsta.o: $(SRC)/yomsta.F90 
+	$(FC) -c $(SRC)/yomsta.F90
+
+yomtag.o: $(SRC)/yomtag.F90 
+	$(FC) -c $(SRC)/yomtag.F90
+
+yomvert.o: $(SRC)/yomvert.F90 yomcver.o
+	$(FC) -c $(SRC)/yomvert.F90
+
+spcm.x: spcm.o abor1.o geometry_mod.o intdyn_mod.o model_diagnostics_mod.o model_dynamics_mod.o model_general_conf_mod.o mxmaop.o mxptma.o mxture.o mxturs.o myrecvset.o mysendset.o reglatlon_field_mix.o set2pe.o sgemmx.o sigam_sp_openmp.o simplico.o sitnu_sp_openmp.o spcimpfinit.o spcimpfpost.o spcimpfsolve.o spcm_simple.o spcsi.o spcsidg_part1.o spcsidg_part2.o trmtos.o trstom.o type_geometry.o type_model.o type_spgeom.o util_geometry_mod.o util_model_diagnostics_type_mod.o util_model_dynamics_type_mod.o util_model_general_conf_type_mod.o util_model_mod.o util_reglatlon_field_mod.o util_tcsgeom_blocked_mod.o util_tcsgeom_mod.o util_tcsgleg_mod.o util_tcst_mod.o util_tcty_mod.o util_tcver_mod.o util_tdim_mod.o util_tdimv_mod.o util_tdyn_mod.o util_tdyna_mod.o util_teaerc_macc_mod.o util_teaerc_tegen_mod.o util_tecmip_mod.o util_tedim_mod.o util_tegeo_mod.o util_tegsl_mod.o util_telbc_geo_mod.o util_temmp_mod.o util_teozoc_mod.o util_tgem_mod.o util_tgflt_mod.o util_tgmvt_mod.o util_tgsgeom_blocked_mod.o util_tgsgeom_mod.o util_thwind_mod.o util_tlap_mod.o util_tlddh_mod.o util_tlep_mod.o util_tmp_mod.o util_torog_blocked_mod.o util_torog_mod.o util_tpg_type_mod.o util_tradghg_mod.o util_trcp_mod.o util_trip_mod.o util_tspddh_mod.o util_tspgeom_mod.o util_tsta_mod.o util_ttnd_mod.o util_tvab_mod.o util_tvertical_geom_mod.o util_tveta_mod.o util_tvfe_mod.o util_txyb_mod.o util_txybder_mod.o util_yommp0_mod.o verder.o verdisint.o verint.o xrd_getoptions.o xrd_unix_env.o yemdim.o yemgeo.o yemgsl.o yemlap.o yemlbc_geo.o yemmp.o yoeaerc.o yoecmip.o yoeozoc.o yoeradghg.o yomcsgeom.o yomcst.o yomcver.o yomdim.o yomdimv.o yomdyn.o yomdyna.o yomgem.o yomgsgeom.o yomlap.o yomlddh.o yomleg.o yomlun.o yomlun_ifsaux.o yommp.o yommp0.o yomorog.o yomrip.o yomspddh.o yomsta.o yomtag.o yomvert.o
+	$(FC) -o spcm.x spcm.o abor1.o geometry_mod.o intdyn_mod.o model_diagnostics_mod.o model_dynamics_mod.o model_general_conf_mod.o mxmaop.o mxptma.o mxture.o mxturs.o myrecvset.o mysendset.o reglatlon_field_mix.o set2pe.o sgemmx.o sigam_sp_openmp.o simplico.o sitnu_sp_openmp.o spcimpfinit.o spcimpfpost.o spcimpfsolve.o spcm_simple.o spcsi.o spcsidg_part1.o spcsidg_part2.o trmtos.o trstom.o type_geometry.o type_model.o type_spgeom.o util_geometry_mod.o util_model_diagnostics_type_mod.o util_model_dynamics_type_mod.o util_model_general_conf_type_mod.o util_model_mod.o util_reglatlon_field_mod.o util_tcsgeom_blocked_mod.o util_tcsgeom_mod.o util_tcsgleg_mod.o util_tcst_mod.o util_tcty_mod.o util_tcver_mod.o util_tdim_mod.o util_tdimv_mod.o util_tdyn_mod.o util_tdyna_mod.o util_teaerc_macc_mod.o util_teaerc_tegen_mod.o util_tecmip_mod.o util_tedim_mod.o util_tegeo_mod.o util_tegsl_mod.o util_telbc_geo_mod.o util_temmp_mod.o util_teozoc_mod.o util_tgem_mod.o util_tgflt_mod.o util_tgmvt_mod.o util_tgsgeom_blocked_mod.o util_tgsgeom_mod.o util_thwind_mod.o util_tlap_mod.o util_tlddh_mod.o util_tlep_mod.o util_tmp_mod.o util_torog_blocked_mod.o util_torog_mod.o util_tpg_type_mod.o util_tradghg_mod.o util_trcp_mod.o util_trip_mod.o util_tspddh_mod.o util_tspgeom_mod.o util_tsta_mod.o util_ttnd_mod.o util_tvab_mod.o util_tvertical_geom_mod.o util_tveta_mod.o util_tvfe_mod.o util_txyb_mod.o util_txybder_mod.o util_yommp0_mod.o verder.o verdisint.o verint.o xrd_getoptions.o xrd_unix_env.o yemdim.o yemgeo.o yemgsl.o yemlap.o yemlbc_geo.o yemmp.o yoeaerc.o yoecmip.o yoeozoc.o yoeradghg.o yomcsgeom.o yomcst.o yomcver.o yomdim.o yomdimv.o yomdyn.o yomdyna.o yomgem.o yomgsgeom.o yomlap.o yomlddh.o yomleg.o yomlun.o yomlun_ifsaux.o yommp.o yommp0.o yomorog.o yomrip.o yomspddh.o yomsta.o yomtag.o yomvert.o $(LIBS)
+
+
+subclean:
+	\rm -f abor1.o mxmaop.o mxptma.o mxture.o mxturs.o myrecvset.o mysendset.o set2pe.o sgemmx.o sigam_sp_openmp.o simplico.o sitnu_sp_openmp.o spcimpfinit.o spcimpfpost.o spcimpfsolve.o spcm.o spcm_simple.o spcsi.o spcsidg_part1.o spcsidg_part2.o trmtos.o trstom.o verder.o verdisint.o verint.o
+
+clean: 
+	\rm -f *.o *.xml *.a *.x *.mod *.optrpt 
+
+tidy:
+	\rm -f *.xml *.optrpt
