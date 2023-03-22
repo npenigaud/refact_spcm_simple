@@ -8,6 +8,9 @@ set -x
 
 ulimit -s unlimited
 export OMP_STACK_SIZE=4G
+export MKL_CBWR=AUTO,STRICT
+export MKL_DEBUG_CPU_TYPE=5
+export MKL_NUM_THREADS=1
 
 cd $SLURM_SUBMIT_DIR
 
