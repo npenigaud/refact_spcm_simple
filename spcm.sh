@@ -20,7 +20,14 @@ cd $SLURM_SUBMIT_DIR
 #xport MPIAUTOCONFIG=mpiauto.PGI.conf
 #xport MPIAUTOCONFIG=mpiauto.DDT.conf
 
- /opt/softs/mpiauto/mpiauto --verbose -np 1 --wrap --wrap-stdeo -- ./intel/spcm.x --case t0031l015c2.4-001mpi --stat-gp
+for test in t0149l105c1.0-008mpi+cor t0149l105c2.4-008mpi t0149l105c1.0-008mpi
+do
+ /opt/softs/mpiauto/mpiauto --verbose -np 8 --wrap --wrap-stdeo -- ./intel/spcm.x --case $test --stat-gp
+done
+
+
+
+#/opt/softs/mpiauto/mpiauto --verbose -np 1 --wrap --wrap-stdeo -- ./intel/spcm.x --case t0031l015c2.4-001mpi --stat-gp
 #/opt/softs/mpiauto/mpiauto --verbose -np 8 --wrap --wrap-stdeo -- ./intel/spcm.x --case t0031l015c2.4-008mpi --stat-gp
 #/opt/softs/mpiauto/mpiauto --verbose -np 1 --wrap --wrap-stdeo -- ./intel/spcm.x --case t0031l015c1.0-001mpi+cor --stat-gp
 #/opt/softs/mpiauto/mpiauto --verbose -np 8 --wrap --wrap-stdeo -- ./intel/spcm.x --case t0031l015c1.0-008mpi+cor --stat-gp
