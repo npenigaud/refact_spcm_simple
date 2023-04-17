@@ -1,11 +1,9 @@
-SUBROUTINE SPCSI(&
+SUBROUTINE SPCSI_STR(&
  ! --- INPUT -----------------------------------------------------------------
  & YDGEOMETRY,YDCST,YDLDDH,YDRIP,YDDYN,KSPEC2V,LDONEM,&
  ! --- INOUT -----------------------------------------------------------------
  & PSPVORG,PSPDIVG,PSPTG,PSPSPG,&
- & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG,&
- ! --- INPUT OPTIONAL --------------------------------------------------------
- & PSPAUXG)
+ & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG)
 
 !**** *SPCSI* - SPECTRAL SPACE SEMI-IMPLICIT COMPUTATIONS FOR HYD MODEL.
 
@@ -90,7 +88,6 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPSPG(KSPEC2V)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_VORG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_DIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_TG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-REAL(KIND=JPRB)   ,INTENT(IN), OPTIONAL :: PSPAUXG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
 
 !     ------------------------------------------------------------------
 
@@ -116,27 +113,19 @@ REAL (KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "mxturs.h"
 #include "abor1.intfb.h"
 #include "sigam_sp_openmp.intfb.h"
-#include "spcimpfsolve.intfb.h"
 #include "sitnu_sp_openmp.intfb.h"
 #include "spcsidg_part1.intfb.h"
 #include "spcsidg_part2.intfb.h"
 
 !     ------------------------------------------------------------------
-IF (LHOOK) CALL DR_HOOK('SPCSI',0,ZHOOK_HANDLE)
+IF (LHOOK) CALL DR_HOOK('SPCSI_STR',0,ZHOOK_HANDLE)
 ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,YDGEM=>YDGEOMETRY%YRGEM, YDMP=>YDGEOMETRY%YRMP,   &
 & YDLAP=>YDGEOMETRY%YRLAP, YDSPGEOM=>YDGEOMETRY%YSPGEOM)
-ASSOCIATE(NFLEVG=>YDDIMV%NFLEVG, LIMPF=>YDDYN%LIMPF, LSIDG=>YDDYN%LSIDG, RBTS2=>YDDYN%RBTS2,            &
+ASSOCIATE(NFLEVG=>YDDIMV%NFLEVG, LSIDG=>YDDYN%LSIDG, RBTS2=>YDDYN%RBTS2,                                &
 & SIMI=>YDDYN%SIMI, SIMO=>YDDYN%SIMO, SIVP=>YDDYN%SIVP, RSTRET=>YDGEM%RSTRET, LRSIDDH=>YDLDDH%LRSIDDH,  &
 & NPTRSV=>YDMP%NPTRSV, NPTRSVF=>YDMP%NPTRSVF, NSPEC2V=>YDMP%NSPEC2V, NSPEC2VF=>YDMP%NSPEC2VF,           &
 & TDT=>YDRIP%TDT,NPTRMF=>YDMP%NPTRMF,NSPSTAF=>YDMP%NSPSTAF,NSMAX=>YDDIM%NSMAX)
 !     ------------------------------------------------------------------
-
-!*       0.    TESTINGS.
-!              ---------
-
-IF (LIMPF .AND. .NOT.PRESENT(PSPAUXG)) THEN
-  CALL ABOR1(' SPCSI: If LIMPF=T, argument PSPAUXG must be present!')
-ENDIF
 
 !     ------------------------------------------------------------------
 
@@ -145,7 +134,6 @@ ENDIF
 
 IF (LRSIDDH) THEN
   ! DDH memory transfer
-  IF (LIMPF) PSPTNDSI_VORG=-PSPVORG
   PSPTNDSI_DIVG=-PSPDIVG
   PSPTNDSI_TG  =-PSPTG  
   !the case of surface pressure has not been treated yet
@@ -215,18 +203,6 @@ ELSE
 !$OMP END PARALLEL DO
 ENDIF
 
-!        Add [F] * result to rhs of Helmholtz equation
-
-IF (LIMPF) THEN
-!$OMP PARALLEL DO PRIVATE(JSP,JLEV)
-  DO JSP=1,KSPEC2V
-    DO JLEV=1,NFLEVG
-      ZSDIV(JLEV,JSP)=ZSDIV(JLEV,JSP) + PSPAUXG(JLEV,JSP)
-    ENDDO
-  ENDDO
-!$OMP END PARALLEL DO
-ENDIF
-
 !*        2.4  Solve Helmholtz equation
 
 !           Current space --> vertical eigenmodes space.
@@ -243,27 +219,15 @@ IF (LSIDG) THEN
   ENDDO
 
 ELSE
+  !                 Inversion of a diagonal system (Helmholtz equation)
+  !                 --> (SIMI*DIVprim(t+dt)).
 
-  !             Case with NO Stretching :
-
-  IF (LIMPF) THEN
-
-    !               Solve complex pentadiagonal system
-
-    CALL SPCIMPFSOLVE(YDGEOMETRY,YDCST,YDRIP,YDDYN,.FALSE.,.FALSE.,LDONEM,ZSDIVP,ZSPDIVP)
-
-  ELSE
-
-    !                 Inversion of a diagonal system (Helmholtz equation)
-    !                 --> (SIMI*DIVprim(t+dt)).
-
-    DO JSP=1,KSPEC2V
-      DO JLEV=1,NFLEVG
-        ZSPDIVP(JLEV,JSP)=ZSDIVP(JLEV,JSP)&
-         & /(1.0_JPRB-ZBDT2*SIVP(JLEV)*YDLAP%RLAPDI(YDLAP%NVALUE(JSP+IOFF)))  
-      ENDDO
+  DO JSP=1,KSPEC2V
+    DO JLEV=1,NFLEVG
+      ZSPDIVP(JLEV,JSP)=ZSDIVP(JLEV,JSP)&
+       & /(1.0_JPRB-ZBDT2*SIVP(JLEV)*YDLAP%RLAPDI(YDLAP%NVALUE(JSP+IOFF)))  
     ENDDO
-  ENDIF
+  ENDDO
 ENDIF
 
 !           Vertical eigenmodes space --> current space.
@@ -319,7 +283,6 @@ ENDDO
 !              ---------------------------------------
 
 IF (LRSIDDH) THEN
-  IF (LIMPF) PSPTNDSI_VORG=PSPTNDSI_VORG + PSPVORG
   PSPTNDSI_DIVG=PSPTNDSI_DIVG + PSPDIVG
   PSPTNDSI_TG=PSPTNDSI_TG + PSPTG
 ENDIF
@@ -328,6 +291,6 @@ ENDIF
 
 END ASSOCIATE
 END ASSOCIATE
-IF (LHOOK) CALL DR_HOOK('SPCSI',1,ZHOOK_HANDLE)
-END SUBROUTINE SPCSI
+IF (LHOOK) CALL DR_HOOK('SPCSI_STR',1,ZHOOK_HANDLE)
+END SUBROUTINE SPCSI_STR
 
