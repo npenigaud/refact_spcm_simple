@@ -1,6 +1,6 @@
 SUBROUTINE SPCSI_STR(&
  ! --- INPUT -----------------------------------------------------------------
- & YDGEOMETRY,YDCST,YDLDDH,YDRIP,YDDYN,KSPEC2V,LDONEM,&
+ & YDGEOMETRY,YDCST,YDLDDH,YDRIP,YDDYN,KSPEC2V,&
  ! --- INOUT -----------------------------------------------------------------
  & PSPVORG,PSPDIVG,PSPTG,PSPSPG,&
  & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG)
@@ -19,7 +19,6 @@ SUBROUTINE SPCSI_STR(&
 !                              KMLOC   - Zonal wavenumber (DM-local numbering)
 !                              KSTA    - First column processed
 !                              KEND    - Last column processed
-!                              LDONEM  - T if only one m if processed
 !                              PSPVORG - Vorticity columns
 !                              PSPDIVG - Divergence columns
 !                              PSPTG   - Temperature columns
@@ -80,7 +79,6 @@ TYPE(TDYN)        ,INTENT(IN)    :: YDDYN
 INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC2V
 TYPE(TLDDH)       ,INTENT(IN)    :: YDLDDH
 TYPE(TRIP)        ,INTENT(IN)    :: YDRIP
-LOGICAL           ,INTENT(IN)    :: LDONEM 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPVORG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPDIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
@@ -114,6 +112,7 @@ REAL (KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "abor1.intfb.h"
 #include "sigam_sp_openmp.intfb.h"
 #include "sitnu_sp_openmp.intfb.h"
+#include "spcsidg_part0.intfb.h"
 #include "spcsidg_part1.intfb.h"
 #include "spcsidg_part2.intfb.h"
 
@@ -146,11 +145,7 @@ ENDIF
 
 !*        2.1  Preliminary initialisations.
 
-IF (LDONEM) THEN
-  IOFF=NPTRSVF(MYSETV)-1
-ELSE
-  IOFF=NPTRSV(MYSETV)-1
-ENDIF
+IOFF=NPTRSVF(MYSETV)-1
 
 ZBDT=RBTS2*TDT
 ZBDT2=(ZBDT*RSTRET)**2
@@ -164,6 +159,8 @@ CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG,PSPSPG)
 IF (LSIDG) THEN
 
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
+    CALL SPCSIDG_PART0 (YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, JMLOC, ZSDIV, PSPDIVG)
+#ifdef UNDEF
     IM=YDLAP%MYMS(JMLOC)
     ISTA=NSPSTAF(IM)
     IEND=ISTA+2*(NSMAX+1-IM)-1
@@ -187,6 +184,7 @@ IF (LSIDG) THEN
       ENDDO
 !$OMP END PARALLEL DO
     ENDIF
+#endif
   
   ENDDO
 
