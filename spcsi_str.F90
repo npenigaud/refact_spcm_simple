@@ -5,7 +5,7 @@ SUBROUTINE SPCSI_STR(&
  ! --- INOUT -----------------------------------------------------------------
  & PSPVORG,PSPDIVG,PSPTG,PSPSPG,&
  & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG,&
- & zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout)
+ & zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout,inter1,inter2)
 #else
 SUBROUTINE SPCSI_STR(&
  ! --- INPUT -----------------------------------------------------------------
@@ -110,9 +110,9 @@ REAL(KIND=JPRB)   ,intent(inout) :: ZSDIVP (max(kspec2v,YDGEOMETRY%YRMP%NSPEC2VF
 REAL(KIND=JPRB)   ,intent(inout) :: ZSPDIVP(max(kspec2v,YDGEOMETRY%YRMP%NSPEC2VF),YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB)   ,intent(inout) :: ZSPHI  (kspec2v,0:YDGEOMETRY%YRDIMV%NFLEVG+1)
 REAL(KIND=JPRB)   ,intent(inout) :: ZOUT  (kspec2v,0:YDGEOMETRY%YRDIMV%NFLEVG)
+real(kind=jprb)   ,intent(inout) :: inter1(ydgeometry%yrdimv%nflevg)
+real(kind=jprb)   ,intent(inout) :: inter2(ydgeometry%yrdimv%nflevg)
 real(kind=jprb)                  :: intermediaire
-real(kind=jprb)                  :: inter1(ydgeometry%yrdimv%nflevg)
-real(kind=jprb)                  :: inter2(ydgeometry%yrdimv%nflevg)
 #else
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPVORG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPDIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
@@ -192,7 +192,7 @@ ZBDT2=(ZBDT*RSTRET)**2
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',0,ZHOOK_HANDLE2)
 !$acc data present(YDGEOMETRY,YDGEOMETRY%YRLAP,YDGEOMETRY%YRLAP%NVALUE,YDGEOMETRY%YRLAP%RLAPIN,YDGEOMETRY%YRLAP%RLAPDI,nflevg,nsmax,YDDYN,YDDYN%SIVP,rstret)
 !$acc data present(pspdivg,psptg,pspspg)
-!$acc data present(zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout)
+!$acc data present(zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout,inter1,inter2)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',1,ZHOOK_HANDLE2)
 #endif
 

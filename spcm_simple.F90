@@ -34,6 +34,8 @@ REAL(KIND=JPRB)  :: zsdivp(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF)
 REAL(KIND=JPRB)  :: zspdivp(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB)  :: zsphi(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),0:YDGEOMETRY%YRDIMV%NFLEVG+1)
 REAL(KIND=JPRB)  :: zout(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),0:YDGEOMETRY%YRDIMV%NFLEVG)
+real(kind=jprb)  :: inter1(ydgeometry%yrdimv%nflevg)
+real(kind=jprb)  :: inter2(ydgeometry%yrdimv%nflevg)
 #endif
 
 REAL(KIND=JPRB), ALLOCATABLE :: ZSPVORG2(:,:)
@@ -182,12 +184,12 @@ ELSE
     !$acc data copy(zspdivg,zsptg,zspspg)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',1,zhook_handle2)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',0,zhook_handle2)
-    !$acc data create(zsdiv,zhelp,zsp,zst,zsphi,zout,zsdivp,zspdivp)
+    !$acc data create(zsdiv,zhelp,zsp,zst,zsphi,zout,zsdivp,zspdivp,inter1,inter2)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',1,zhook_handle2)
 
   CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
   & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
-  & zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout)
+  & zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout,inter1,inter2)
 
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',0,zhook_handle2)
     !$acc end data
