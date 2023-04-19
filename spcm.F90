@@ -13,6 +13,10 @@ USE UTIL_MODEL_MOD
 USE UTIL_GEOMETRY_MOD
 USE UTIL_YOMMP0_MOD, ONLY : LOAD_YOMMP0
 
+#if defined(_OPENACC)
+use cublas
+#endif
+
 IMPLICIT NONE
 
 TYPE(GEOMETRY)      :: YDGEOMETRY
@@ -24,6 +28,13 @@ REAL(KIND=JPRB), ALLOCATABLE :: PSPDIV(:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: PSPT  (:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: PSPSPD(:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: PSPSVD(:,:)
+
+REAL(KIND=JPRB), ALLOCATABLE :: PSPSP2 (:)
+REAL(KIND=JPRB), ALLOCATABLE :: PSPVOR2(:,:)
+REAL(KIND=JPRB), ALLOCATABLE :: PSPDIV2(:,:)
+REAL(KIND=JPRB), ALLOCATABLE :: PSPT2  (:,:)
+REAL(KIND=JPRB), ALLOCATABLE :: PSPSPD2(:,:)
+REAL(KIND=JPRB), ALLOCATABLE :: PSPSVD2(:,:)
 
 REAL(KIND=JPRB), ALLOCATABLE :: ZSPSP (:)
 REAL(KIND=JPRB), ALLOCATABLE :: ZSPVOR(:,:)
@@ -45,6 +56,10 @@ INTEGER :: IREQUIRED, IPROVIDED
 INTEGER :: IPRINTLEV
 CHARACTER (LEN=64) :: CLFILE, CLPROC, CLCASE
 LOGICAL :: LLVERBOSE, LLWRITEGRIB1, LLWRITETEXT1, LLWRITEGRIB2, LLWRITETEXT2, LLSTATGP, LLSTATSP
+
+REAL(KIND=JPHOOK)  :: zhook_handle,zhook_handle2
+integer            :: repetition,repetition2
+#define repetitif 1
 
 CALL INITOPTIONS
 CALL GETOPTION ("--verbose", LLVERBOSE)
@@ -92,6 +107,13 @@ ALLOCATE (PSPT  (YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY%YRDIM%NSPEC2))
 ALLOCATE (PSPSPD(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY%YRDIM%NSPEC2))
 ALLOCATE (PSPSVD(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY%YRDIM%NSPEC2))
 
+ALLOCATE (PSPSP2 (YDGEOMETRY%YRDIM%NSPEC2))
+ALLOCATE (PSPVOR2(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY%YRDIM%NSPEC2))
+ALLOCATE (PSPDIV2(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY%YRDIM%NSPEC2))
+ALLOCATE (PSPT2  (YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY%YRDIM%NSPEC2))
+ALLOCATE (PSPSPD2(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY%YRDIM%NSPEC2))
+ALLOCATE (PSPSVD2(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY%YRDIM%NSPEC2))
+
 READ (ILUN) PSPSP 
 READ (ILUN) PSPVOR
 READ (ILUN) PSPDIV
@@ -99,13 +121,78 @@ READ (ILUN) PSPT
 READ (ILUN) PSPSPD
 READ (ILUN) PSPSVD
 
+pspsp2(:)=pspsp(:)
+pspvor2(:,:)=pspvor(:,:)
+pspdiv2(:,:)=pspdiv(:,:)
+pspt2(:,:)=pspt(:,:)
+pspspd2(:,:)=pspspd(:,:)
+pspsvd2(:,:)=pspsvd(:,:)
+
 CLOSE (ILUN)
 
 IF (LLWRITETEXT1) CALL WRTEXT (PSPT, 'PSPT-1')
 IF (LLWRITEGRIB1) CALL WRGRIB (PSPT, 'PSPT-1')
 
+#if defined(_OPENACC)
+!!dummy operations to ensure card is initialised
+  call copy(ydmodel)
+  call copy(ydgeometry)
+  associate(simi=>ydmodel%yrml_dyn%yrdyn%simi,nflevg=>ydgeometry%yrdimv%nflevg)
+  !$acc data copy(pspdiv2)
+  do repetition=1,3
+    !$acc host_data use_device(simi,pspdiv2)
+    call cublasDgemm('N','N',nflevg,nflevg,nflevg,1.0_JPRB,&
+        &SIMI,nflevg,simi,nflevg,0.0_JPRB,pspdiv2(1,1),nflevg)
+    !$acc end host_data
+  enddo
+  !$acc end data
+  end associate
+  call wipe(ydgeometry)
+  call wipe(ydmodel)
+
+pspsp2(:)=pspsp(:)
+pspvor2(:,:)=pspvor(:,:)
+pspdiv2(:,:)=pspdiv(:,:)
+pspt2(:,:)=pspt(:,:)
+pspspd2(:,:)=pspspd(:,:)
+pspsvd2(:,:)=pspsvd(:,:)
+#endif
+
+if (lhook) call dr_hook('SPCM',0,zhook_handle)
+
+#if defined(_OPENACC)
+if (lhook) call dr_hook('SPCM_transferts1',0,zhook_handle2)
+call copy(YDMODEL)
+call copy(YDGEOMETRY)
+if (lhook) call dr_hook('SPCM_transferts1',1,zhook_handle2)
+#endif
+
+#if repetitif
+do repetition2=1,20
+if (lhook) call dr_hook('SPCM_repetitif',0,zhook_handle2)
+pspsp(:)=pspsp2(:)
+pspvor(:,:)=pspvor2(:,:)
+pspdiv(:,:)=pspdiv2(:,:)
+pspt(:,:)=pspt2(:,:)
+pspspd(:,:)=pspspd2(:,:)
+pspsvd(:,:)=pspsvd2(:,:)
+if (lhook) call dr_hook('SPCM_repetitif',1,zhook_handle2)
+#endif
 
 CALL SPCM_SIMPLE (YDGEOMETRY,YDMODEL,PSPSP,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD)
+
+#if repetitif
+enddo !repetition2
+#endif
+
+#if defined(_OPENACC)
+if (lhook) call dr_hook('SPCM_transferts2',0,zhook_handle2)
+call wipe(YDGEOMETRY)
+call wipe(YDMODEL)
+if (lhook) call dr_hook('SPCM_transferts2',1,zhook_handle2)
+#endif
+
+if (lhook) call dr_hook('SPCM',1,zhook_handle)
 
 ILUN = 77
 

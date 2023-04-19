@@ -72,6 +72,10 @@ USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN   , ONLY : NULERR
 USE OML_MOD  , ONLY : OML_IN_PARALLEL
 
+#if defined(_OPENACC)
+use cublas
+#endif
+
 IMPLICIT NONE
 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KPROMA,KLEVIN,KLEVOUT,KSTART,KPROF,KTYPE
@@ -86,7 +90,7 @@ LOGICAL :: LPAR
 INTEGER(KIND=JPIM) ::  JLEV, JROF
 REAL(KIND=JPRD),CONTIGUOUS,POINTER :: ZIN(:,:)
 REAL(KIND=JPRD),CONTIGUOUS,POINTER :: ZOUT(:,:)
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,ZHOOK_HANDLE_XGEMM
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,ZHOOK_HANDLE_XGEMM,zhook_handle2
 
 #include "abor1.intfb.h"
 
@@ -105,6 +109,8 @@ IF (LHOOK) CALL DR_HOOK('VERINT',0,ZHOOK_HANDLE)
 
 LPAR = OML_IN_PARALLEL()
 
+!$acc data present(pin,pout,pinte)
+
 IF (LPAR) THEN
   IF (LHOOK) CALL DR_HOOK('VERINT_DGEMM_1',0,ZHOOK_HANDLE_XGEMM)
 
@@ -116,7 +122,14 @@ ELSE
   IF (LHOOK) CALL DR_HOOK('VERINT_DGEMM_2',0,ZHOOK_HANDLE_XGEMM)
 
   if (.true.) then
-    ! Chunking across KPROMA
+#if defined(_OPENACC)
+  !$acc host_data use_device(PIN,POUT,PINTE)
+    call cublasDGEMM('N','T',KPROMA,KLEVOUT,KLEVIN,&
+         & 1.0_JPRD,PIN,KPROMA,PINTE,KLEVOUT,0.0_JPRD,POUT,KPROMA)
+  !$acc end host_data
+  !$acc wait
+#else
+   ! Chunking across KPROMA
 !$OMP PARALLEL DO PRIVATE(JROF,JLEN)
     DO JROF=KSTART,KPROF,KCHUNK
       JLEN=MIN(KCHUNK,KPROF-JROF+1)
@@ -124,6 +137,7 @@ ELSE
            & 1.0_JPRD,ZIN(JROF,1),KPROMA,PINTE,KLEVOUT,0.0_JPRD,ZOUT(JROF,1),KPROMA)
     ENDDO
 !$OMP END PARALLEL DO
+#endif
   else
     ! Chunking across KLEVOUT
 !$OMP PARALLEL DO PRIVATE(JLEV,JLEN)
@@ -138,8 +152,29 @@ ELSE
   IF (LHOOK) CALL DR_HOOK('VERINT_DGEMM_2',1,ZHOOK_HANDLE_XGEMM)
 ENDIF
 
+!!parcouru par SIGAM, cas test de base
 IF(KTYPE == 1) THEN
   ! warning: dependence on last level in OMP case, last level is done separately
+if (lhook) call dr_hook('VERINT_calcul',0,zhook_handle2)
+#if defined(_OPENACC)
+!$acc PARALLEL PRIVATE(JLEV,JROF) if (.not.lpar) default(none)
+!$acc loop collapse(2)
+  DO JLEV=1,KLEVOUT-1
+    DO JROF=KSTART,KPROF
+      POUT(JROF,JLEV)=pout(JROF,JLEV)-pout(JROF,KLEVOUT)  !!changement zout =>pout à droite
+    ENDDO
+  ENDDO
+!$acc END PARALLEL 
+
+  ! last level substraction summarizes to zeroing
+  !$acc parallel private(jrof) default(none)
+  !$acc loop 
+  do jrof=kstart,kprof
+    POUT(jrof,KLEVOUT)=0._JPRB
+  enddo
+  !$acc end parallel
+#else
+
 !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(JLEV,JROF) if (.not.lpar)
   DO JLEV=1,KLEVOUT-1
     DO JROF=KSTART,KPROF
@@ -150,6 +185,9 @@ IF(KTYPE == 1) THEN
 
   ! last level substraction summarizes to zeroing
   POUT(KSTART:KPROF,KLEVOUT)=0._JPRB
+#endif
+if (lhook) call dr_hook('VERINT_calcul',1,zhook_handle2)
+
 ELSEIF (KTYPE /= 0) THEN
   WRITE(NULERR,*) ' INVALID KTYPE IN VERINT =',KTYPE
   CALL ABOR1(' VERINT: ABOR1 CALLED')
@@ -160,6 +198,8 @@ else if (llsingle) then
   ENDDO
 !$OMP END PARALLEL DO
 ENDIF
+
+!$acc end data
 
 IF (LLSINGLE) THEN
   DEALLOCATE(ZOUT)

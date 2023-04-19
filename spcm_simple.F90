@@ -25,7 +25,23 @@ REAL(KIND=JPRB)     ,INTENT(INOUT) :: PSPSVD(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY
 #include "spcimpfinit.intfb.h"
 #include "spcimpfpost.intfb.h"
 
+#if defined(_OPENACC)
+REAL(KIND=JPRB)  :: zsdiv(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB)  :: zhelp(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB)  :: zst(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB)  :: zsp(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB)  :: zsdivp(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB)  :: zspdivp(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB)  :: zsphi(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),0:YDGEOMETRY%YRDIMV%NFLEVG+1)
+REAL(KIND=JPRB)  :: zout(max(YDGEOMETRY%YRMP%NSPEC2V,YDGEOMETRY%YRMP%NSPEC2VF),0:YDGEOMETRY%YRDIMV%NFLEVG)
+#endif
 
+REAL(KIND=JPRB), ALLOCATABLE :: ZSPVORG2(:,:)
+REAL(KIND=JPRB), ALLOCATABLE :: ZSPDIVG2(:,:)
+REAL(KIND=JPRB), ALLOCATABLE :: ZSPTG2  (:,:)
+REAL(KIND=JPRB), ALLOCATABLE :: ZSPSPDG2(:,:)
+REAL(KIND=JPRB), ALLOCATABLE :: ZSPSVDG2(:,:)
+REAL(KIND=JPRB), ALLOCATABLE :: ZSPSPG2 (:)
 REAL(KIND=JPRB), ALLOCATABLE :: ZSPVORG(:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: ZSPDIVG(:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: ZSPTG  (:,:)
@@ -43,7 +59,8 @@ LOGICAL :: LLONEM
 INTEGER(KIND=JPIM) :: IM, ISPEC2V
 INTEGER (KIND=JPIM) :: JMLOC, ISTA, IEND
 
-REAL(KIND=JPHOOK) ::  ZHOOK_HANDLE
+REAL(KIND=JPHOOK) ::  ZHOOK_HANDLE,zhook_handle2
+integer(kind=jpim)::  compteur1,compteur2
 
 IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE',0,ZHOOK_HANDLE)
 
@@ -62,12 +79,28 @@ ELSE
   ISPEC2V=NSPEC2V
 ENDIF
 
+ALLOCATE(ZSPVORG2(NFLEVG,ISPEC2V))
+ALLOCATE(ZSPDIVG2(NFLEVG,ISPEC2V))
+ALLOCATE(ZSPTG2  (NFLEVG,ISPEC2V))
+ALLOCATE(ZSPSPDG2(NFLEVG,ISPEC2V))
+ALLOCATE(ZSPSVDG2(NFLEVG,ISPEC2V))
+ALLOCATE(ZSPSPG2 (ISPEC2V))
+
+#if defined(_OPENACC)
+ALLOCATE(ZSPVORG(ISPEC2V,nflevg))
+ALLOCATE(ZSPDIVG(ISPEC2V,nflevg))
+ALLOCATE(ZSPTG  (ISPEC2V,nflevg))
+ALLOCATE(ZSPSPDG(ISPEC2V,nflevg))
+ALLOCATE(ZSPSVDG(ISPEC2V,nflevg))
+ALLOCATE(ZSPSPG (ISPEC2V))
+#else
 ALLOCATE(ZSPVORG(NFLEVG,ISPEC2V))
 ALLOCATE(ZSPDIVG(NFLEVG,ISPEC2V))
 ALLOCATE(ZSPTG  (NFLEVG,ISPEC2V))
 ALLOCATE(ZSPSPDG(NFLEVG,ISPEC2V))
 ALLOCATE(ZSPSVDG(NFLEVG,ISPEC2V))
 ALLOCATE(ZSPSPG (ISPEC2V))
+#endif
 
 ALLOCATE(ZSPTNDSI_VORG(1,1))
 ALLOCATE(ZSPTNDSI_DIVG(1,1))
@@ -118,21 +151,109 @@ ELSE
   CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,&
-    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
-    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
+    & PSPVORG=ZSPVORG2,PSPDIVG=ZSPDIVG2,PSPTG=ZSPTG2,PSPSPDG=ZSPSPDG2,&
+    & PSPSVDG=ZSPSVDG2,PSPSPG=ZSPSPG2,&
     & LDFULLM=LLONEM)
+
+    if (lhook) call dr_hook('SPCM_SIMPLE_transpose1',0,zhook_handle2)
+#if defined(_OPENACC)
+    zspspg(:)=zspspg2(:)
+    do compteur1=1,ispec2v
+      do compteur2=1,nflevg
+        zspvorg(compteur1,compteur2)=zspvorg2(compteur2,compteur1)
+        zspdivg(compteur1,compteur2)=zspdivg2(compteur2,compteur1)
+        zsptg(compteur1,compteur2)=zsptg2(compteur2,compteur1)
+        zspspdg(compteur1,compteur2)=zspspdg2(compteur2,compteur1)
+        zspsvdg(compteur1,compteur2)=zspsvdg2(compteur2,compteur1)
+      enddo
+    enddo
+#else
+      zspspg(:)=zspspg2(:)
+      zspvorg(:,:)=zspvorg2(:,:)
+      zspdivg(:,:)=zspdivg2(:,:)
+      zsptg(:,:)=zsptg2(:,:)
+      zspspdg(:,:)=zspspdg2(:,:)
+      zspsvdg(:,:)=zspsvdg2(:,:)
+#endif
+    if (lhook) call dr_hook('SPCM_SIMPLE_transpose1',1,zhook_handle2)
+
+#if defined(_OPENACC)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',0,zhook_handle2)
+    !$acc data copy(zspdivg,zsptg,zspspg)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',1,zhook_handle2)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',0,zhook_handle2)
+    !$acc data create(zsdiv,zhelp,zsp,zst,zsphi,zout,zsdivp,zspdivp)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',1,zhook_handle2)
+
+  CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
+  & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
+  & zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout)
+
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',0,zhook_handle2)
+    !$acc end data
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',1,zhook_handle2)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',0,zhook_handle2)
+    !$acc end data
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',1,zhook_handle2)
+
+#else
 
   CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
   & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG)
 
+#endif
+
+    if (lhook) call dr_hook('SPCM_SIMPLE_transpose2',0,zhook_handle2)
+#if defined(_OPENACC)
+    zspspg(:)=zspspg2(:)
+    do compteur2=1,ispec2v
+      do compteur1=1,nflevg
+        zspvorg2(compteur1,compteur2)=zspvorg(compteur2,compteur1)
+        zspdivg2(compteur1,compteur2)=zspdivg(compteur2,compteur1)
+        zsptg2(compteur1,compteur2)=zsptg(compteur2,compteur1)
+        zspspdg2(compteur1,compteur2)=zspspdg(compteur2,compteur1)
+        zspsvdg2(compteur1,compteur2)=zspsvdg(compteur2,compteur1)
+      enddo
+    enddo
+#else
+      zspspg2(:)=zspspg(:)
+      zspvorg2(:,:)=zspvorg(:,:)
+      zspdivg2(:,:)=zspdivg(:,:)
+      zsptg2(:,:)=zsptg(:,:)
+      zspspdg2(:,:)=zspspdg(:,:)
+      zspsvdg2(:,:)=zspsvdg(:,:)
+#endif
+
+    if (lhook) call dr_hook('SPCM_SIMPLE_transpose2',1,zhook_handle2)
+
+
   CALL TRSTOM(&
     & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
-    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
-    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
+    & PSPVORG=ZSPVORG2,PSPDIVG=ZSPDIVG2,PSPTG=ZSPTG2,PSPSPDG=ZSPSPDG2,&
+    & PSPSVDG=ZSPSVDG2,PSPSPG=ZSPSPG2,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,&
     & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
 ENDIF
+
+IF (ALLOCATED(ZSPVORG)) DEALLOCATE(ZSPVORG)
+IF (ALLOCATED(ZSPDIVG)) DEALLOCATE(ZSPDIVG)
+IF (ALLOCATED(ZSPTG))   DEALLOCATE(ZSPTG)
+IF (ALLOCATED(ZSPSPDG)) DEALLOCATE(ZSPSPDG)
+IF (ALLOCATED(ZSPSVDG)) DEALLOCATE(ZSPSVDG)
+IF (ALLOCATED(ZSPSPG))  DEALLOCATE(ZSPSPG)
+
+IF (ALLOCATED(ZSPVORG2)) DEALLOCATE(ZSPVORG2)
+IF (ALLOCATED(ZSPDIVG2)) DEALLOCATE(ZSPDIVG2)
+IF (ALLOCATED(ZSPTG2))   DEALLOCATE(ZSPTG2)
+IF (ALLOCATED(ZSPSPDG2)) DEALLOCATE(ZSPSPDG2)
+IF (ALLOCATED(ZSPSVDG2)) DEALLOCATE(ZSPSVDG2)
+IF (ALLOCATED(ZSPSPG2))  DEALLOCATE(ZSPSPG2)
+
+
+IF (ALLOCATED(ZSPTNDSI_VORG)) DEALLOCATE(ZSPTNDSI_VORG)
+IF (ALLOCATED(ZSPTNDSI_DIVG)) DEALLOCATE(ZSPTNDSI_DIVG)
+IF (ALLOCATED(ZSPTNDSI_TG))   DEALLOCATE(ZSPTNDSI_TG)
 
 END ASSOCIATE
 END ASSOCIATE

@@ -158,9 +158,11 @@ ZBDT2=(ZBDT*RSTRET)**2
 
 
 !*        2.3  Computes right-hand side of Helmholtz equation.
+#if defined(_OPENACC)
 
+#else
 CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG,PSPSPG)
-
+#endif
 
 ! Case of No Stretching
 !$OMP PARALLEL DO PRIVATE(JSP,JLEV,IN)
@@ -201,8 +203,11 @@ CALL MXMAOP(SIMO,1,NFLEVG,ZSPDIVP,1,NFLEVG,PSPDIVG,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2
     ENDDO
   ENDDO
 !$OMP END PARALLEL DO
+#if defined(_OPENACC)
 
+#else
 CALL SITNU_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZHELP,ZST,ZSP)
+#endif
 
 !*       2.5  Increment Temperature and surface pressure
 

@@ -1,4 +1,8 @@
+#if defined(_OPENACC)
+SUBROUTINE SITNU_SP_OPENMP (YDGEOMETRY, YDCST, YDDYN, KLEV, KSPEC, PD, PT,PSP,zsdiv,zout)
+#else
 SUBROUTINE SITNU_SP_OPENMP (YDGEOMETRY, YDCST, YDDYN, KLEV, KSPEC, PD, PT, PSP)
+#endif
 
 !**** *SITNU_SP_OPENMP*   - Continuity equation for semi-implicit.
 
@@ -71,6 +75,13 @@ TYPE(TCST)        ,INTENT(IN)    :: YDCST
 TYPE(TDYN)        ,INTENT(IN)    :: YDDYN
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC
+#if defined(_OPENACC)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PD(KSPEC,klev)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PT(KSPEC,klev)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSP(KSPEC) 
+REAL(KIND=JPRB)   ,INTENT(inout) :: zsdiv(KSPEC,0:klev+1)
+REAL(KIND=JPRB)   ,INTENT(inout) :: zout(KSPEC,0:klev)
+#else
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PD(KLEV,KSPEC)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PT(KLEV,KSPEC)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSP(KSPEC) 
@@ -79,13 +90,13 @@ REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSP(KSPEC)
 
 REAL(KIND=JPRB) :: ZSDIV(KSPEC,0:KLEV+1)
 REAL(KIND=JPRB) :: ZOUT(KSPEC,0:KLEV)
-
+#endif
 
 REAL(KIND=JPRB) :: ZSDIVX(0:KLEV, KSPEC)
 INTEGER(KIND=JPIM) :: JLEV, JSPEC
 REAL(KIND=JPRB) :: ZREC
 REAL(KIND=JPRB) :: ZDETAH
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,zhook_handle2
 
 !     ------------------------------------------------------------------
 
@@ -105,7 +116,22 @@ ASSOCIATE(SIALPH=>YDDYN%SIALPH, SIDELP=>YDDYN%SIDELP, SILNPR=>YDDYN%SILNPR, SIRD
 !              ----------------------------------------
 
 IF(YDCVER%LVERTFE) THEN
+!$acc data present(pd,psp,pt,YDDYN%SIDELP,YDDYN%SITLAF,YDGEOMETRY%YRVETA,ydcst,YDDYN%SIRPRN)
+!$acc data present(zsdiv,zout) 
 
+if (lhook) call dr_hook('SITNU_transpose1',0,zhook_handle2)
+#if defined(_OPENACC)
+!$acc PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH) default(none)
+!$acc loop gang 
+  DO JLEV=1,KLEV
+    zdetah=YDGEOMETRY%YRVETA%VFE_RDETAH(JLEV)*YDDYN%SIDELP(JLEV)
+    !$acc loop vector
+    DO JSPEC=1,KSPEC
+      ZSDIV(JSPEC,JLEV)=PD(JSPEC,jlev)*zdetah
+    ENDDO
+  ENDDO
+!$acc END PARALLEL
+#else
 !$OMP PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH)
 !$OMP DO SCHEDULE(STATIC) 
   DO JLEV=1,KLEV
@@ -116,14 +142,43 @@ IF(YDCVER%LVERTFE) THEN
   ENDDO
 !$OMP END DO
 !$OMP END PARALLEL
+#endif
+if (lhook) call dr_hook('SITNU_transpose1',1,zhook_handle2)
 
   IF (KSPEC>=1) THEN
 !DEC$ IVDEP
+if (lhook) call dr_hook('SITNU_cond_lim',0,zhook_handle2)
+#if defined(_OPENACC)
+    !$acc parallel private(jspec) default(none)
+    !$acc loop gang
+    do jspec=1,kspec
+      ZSDIV(jspec,0)=0.0_JPRB
+      ZSDIV(jspec,KLEV+1)=0.0_JPRB
+    enddo
+    !$acc end parallel
+#else
     ZSDIV(1:KSPEC,0)=0.0_JPRB
     ZSDIV(1:KSPEC,KLEV+1)=0.0_JPRB
+#endif
+if (lhook) call dr_hook('SITNU_cond_lim',1,zhook_handle2)
+
     CALL VERDISINT(YDVFE,YDCVER,'ITOP','11',KSPEC,1,KSPEC,KLEV,ZSDIV,ZOUT,KCHUNK=YDGEOMETRY%YRDIM%NPROMA)
   ENDIF
 
+if (lhook) call dr_hook('SITNU_transpose2',0,zhook_handle2)
+#if defined(_OPENACC)
+!$acc PARALLEL PRIVATE(JLEV,JSPEC,ZREC) default(none)
+!$acc loop gang
+  DO JLEV=1,KLEV
+    zrec=(1.0_JPRB/YDDYN%SITLAF(JLEV))*YDCST%RKAPPA*YDDYN%SITR
+    !$acc loop vector
+    DO JSPEC=1,KSPEC
+      
+      PT(JSPEC,jlev)=ZOUT(JSPEC,JLEV-1)*ZREC
+    ENDDO
+  ENDDO
+!$acc END PARALLEL
+#else
 !$OMP PARALLEL PRIVATE(JLEV,JSPEC,ZREC)
 !$OMP DO SCHEDULE(STATIC) 
   DO JLEV=1,KLEV
@@ -134,9 +189,25 @@ IF(YDCVER%LVERTFE) THEN
   ENDDO
 !$OMP END DO
 !$OMP END PARALLEL
+#endif
+if (lhook) call dr_hook('SITNU_transpose2',1,zhook_handle2)
+
+if (lhook) call dr_hook('SITNU_calcul1',0,zhook_handle2)
+#if defined(_OPENACC)
+  !$acc parallel loop private(jspec) default(none)
+  DO JSPEC=1,KSPEC
+    PSP(JSPEC)=ZOUT(JSPEC,KLEV)*YDDYN%SIRPRN
+  ENDDO
+  !$acc end parallel
+#else
   DO JSPEC=1,KSPEC
     PSP(JSPEC)=ZOUT(JSPEC,KLEV)*SIRPRN
   ENDDO
+#endif
+if (lhook) call dr_hook('SITNU_calcul1',1,zhook_handle2)
+
+!$acc end data
+!$acc end data
 
 ELSE
 

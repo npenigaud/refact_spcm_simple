@@ -11,3 +11,10 @@ stdeo.*
 *.grb
 .mpiauto*
 linux_bind.txt
+nsys.*.nsys-rep
+*.qdrep
+nsys.*.sqlite
+drhook.prof.*
+intel/
+nvhpc/
+t0499l105-001mpi/
