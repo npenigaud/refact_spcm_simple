@@ -216,7 +216,7 @@ CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG,PSPSPG)
   ! Case of No Stretching
 
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JSP,JLEV,IN,intermediaire) default(none) vector_length(128) !!vector_length(32)
+!$acc PARALLEL PRIVATE(JSP,JLEV,IN,intermediaire) default(none) vector_length(32)
 !$acc loop gang vector private(inter1,inter2)
   DO jsp=1,kspec2v
     IN=YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)
@@ -247,9 +247,9 @@ CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG,PSPSPG)
 !!!!      &zsdiv,kspec2v,simi,nflevg,0.0_JPRB,ZSDIVP(1,1),kspec2v)  !!!!ispcol remplacé par kspec2V, ksta par 1, suppression de (1,1)?
 !!!!   !$acc end host_data
 !!!!   !$acc wait
-       inter1(:)=zsdiv(jsp,:)
+       inter1(1:nflevg)=zsdiv(jsp,1:nflevg)
        inter2=matmul(YDDYN%simi,inter1)
-       zsdivp(jsp,:)=inter2(:)
+       zsdivp(jsp,1:nflevg)=inter2(1:nflevg)
 
 #else
 CALL MXMAOP(SIMI,1,NFLEVG,ZSDIV,1,NFLEVG,ZSDIVP,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2V)  
@@ -266,11 +266,11 @@ CALL MXMAOP(SIMI,1,NFLEVG,ZSDIV,1,NFLEVG,ZSDIVP,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2V)
   !                 --> (SIMI*DIVprim(t+dt)).
 
 #if defined(_OPENACC)
-   
+     
       DO JLEV=1,NFLEVG
-      intermediaire=ZBDT2*YDDYN%SIVP(JLEV)
-      ZSPDIVP(JSP,jlev)=ZSDIVP(JSP,jlev)&
-       & /(1.0_JPRB-intermediaire*YDGEOMETRY%YRLAP%RLAPDI(YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)))  
+        intermediaire=ZBDT2*YDDYN%SIVP(JLEV)
+        ZSPDIVP(JSP,jlev)=ZSDIVP(JSP,jlev)&
+         & /(1.0_JPRB-intermediaire*YDGEOMETRY%YRLAP%RLAPDI(YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)))  
       ENDDO
     
 #else
@@ -292,9 +292,9 @@ CALL MXMAOP(SIMI,1,NFLEVG,ZSDIV,1,NFLEVG,ZSDIVP,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2V)
 !!!!&ZSPDIVP(1,1),kspec2v,SIMO,NFLEVG,0.0_JPRB,PSPDIVG(1,1),kspec2v) !!2ksta remplacés par 1,pourrait partir
 !!!!!$acc end host_data
 !!!!!$acc wait
-     inter1(:)=zspdivp(jsp,:)
+     inter1(1:nflevg)=zspdivp(jsp,1:nflevg)
      inter2=matmul(YDDYN%simo,inter1)
-     pspdivg(jsp,:)=inter2(:)
+     pspdivg(jsp,1:nflevg)=inter2(1:nflevg)
   
 #else
 CALL MXMAOP(SIMO,1,NFLEVG,ZSPDIVP,1,NFLEVG,PSPDIVG,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2V)  
@@ -311,7 +311,7 @@ CALL MXMAOP(SIMO,1,NFLEVG,ZSPDIVP,1,NFLEVG,PSPDIVG,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2
   !       ZSPDIV=(DIVprim(t+dt)) --> ZSPDIVG=(GMBAR**2 * DIVprim(t+dt)) .
 
 #if defined(_OPENACC)
-
+   
     DO JLEV=1,NFLEVG
       ZHELP(JSP,jlev)=PSPDIVG(JSP,jlev)*RSTRET*RSTRET
     ENDDO
