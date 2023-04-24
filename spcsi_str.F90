@@ -188,7 +188,7 @@ ZBDT2=(ZBDT*RSTRET)**2
 #if defined(_OPENACC)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',0,ZHOOK_HANDLE2)
 !$acc data present(YDGEOMETRY,YDGEOMETRY%YRLAP,YDGEOMETRY%YRLAP%NVALUE,YDGEOMETRY%YRLAP%RLAPIN,YDGEOMETRY%YRLAP%RLAPDI,nflevg,nsmax,YDDYN,YDDYN%SIVP,rstret)
-!$acc data present(pspdivg,psptg,pspspg)
+!$acc data present(pspdivg,psptg,pspspg,NPTRMF)
 !$acc data present(zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',1,ZHOOK_HANDLE2)
 #endif
@@ -204,9 +204,13 @@ CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG,PSPSPG)
 
 IF (LSIDG) THEN
 
+if (lhook) CALL DR_HOOK('SPCSI_sidg0',0,zhook_handle2)  
+  !$acc parallel loop gang default(none)
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
     CALL SPCSIDG_PART0 (YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, JMLOC, ZSDIV, PSPDIVG)
   ENDDO
+  !$acc end parallel
+if (lhook) CALL DR_HOOK('SPCSI_sidg0',1,zhook_handle2) 
 
 ELSE
 
@@ -233,9 +237,8 @@ if (lhook) call dr_hook('SPCSI_boucle1',0,zhook_handle2)
   ENDDO
 !$OMP END PARALLEL DO
 #endif
-ENDIF
-
 if (lhook) call dr_hook('SPCSI_boucle1',1,zhook_handle2)
+ENDIF
 
 !*        2.4  Solve Helmholtz equation
 
@@ -255,9 +258,13 @@ IF (LHOOK) CALL DR_HOOK('SPCSI_mxmaop1',1,ZHOOK_HANDLE2)
 
 IF (LSIDG) THEN
 
+if (lhook) CALL DR_HOOK('SPCSI_sidg1',0,zhook_handle2) 
+  !$acc parallel loop gang default(none)
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
     CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, JMLOC, ZSDIVP, ZSPDIVP)
   ENDDO
+  !$acc end parallel
+if (lhook) CALL DR_HOOK('SPCSI_sidg1',1,zhook_handle2) 
 
 ELSE
   !                 Inversion of a diagonal system (Helmholtz equation)
@@ -304,9 +311,13 @@ if (lhook) call dr_hook('SPCSI_mxmaop2',1,zhook_handle2)
 
 IF (LSIDG) THEN
 
+if (lhook) CALL DR_HOOK('SPCSI_sidg2',0,zhook_handle2) 
+  !$acc parallel loop gang default(none)
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
     CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, JMLOC, PSPDIVG, ZHELP)
   ENDDO
+  !$acc end parallel
+if (lhook) CALL DR_HOOK('SPCSI_sidg2',1,zhook_handle2) 
 
 ELSE
 

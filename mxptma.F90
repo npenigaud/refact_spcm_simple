@@ -1,4 +1,5 @@
 SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,PA,PBI,PCI,PBS,PCS,PX,PY)
+!$acc routine vector
 
 !**** *MXPTMA*   - Multiplication of a pentadiagonal matrix by a matrix.
 
@@ -85,14 +86,16 @@ INTEGER(KIND=JPIM) :: JI, JL, JV
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !     ------------------------------------------------------------------
-IF (LHOOK) CALL DR_HOOK('MXPTMA',0,ZHOOK_HANDLE)
+!!IF (LHOOK) CALL DR_HOOK('MXPTMA',0,ZHOOK_HANDLE)
 !     ------------------------------------------------------------------
 
 !*       1.    COMPUTATION OF PY.
 !              ------------------
 
-IF (KLX >= 4) THEN
+!$acc data present(pa,pbi,pci,pbs,pcs,px,py)
 
+IF (KLX >= 4) THEN
+  !$acc loop collapse(2)
   DO JI=1,KIX
     DO JV=1,KVX
       PY(JV,1,JI) = PA (1)*PX(JV,1,JI)+PBS(1)*PX(JV,2,JI)+PCS(1)*PX(JV,3,JI)
@@ -102,9 +105,10 @@ IF (KLX >= 4) THEN
        & +PCS(2)*PX(JV,4,JI)  
     ENDDO
   ENDDO
-
+  !$acc loop collapse(2) private(jl)
   DO JI=1,KIX
     DO JV=1,KVX
+      !$acc loop seq
       DO JL=3,KLX-2
         PY(JV,JL,JI) = PCI(JL-2)*PX(JV,JL-2,JI)&
          & +PBI(JL-1)*PX(JV,JL-1,JI)&
@@ -114,7 +118,7 @@ IF (KLX >= 4) THEN
       ENDDO
     ENDDO
   ENDDO
-
+  !$acc loop collapse(2)
   DO JI=1,KIX
     DO JV=1,KVX
       PY(JV,KLX-1,JI) = PCI(KLX-3)*PX(JV,KLX-3,JI)&
@@ -128,7 +132,7 @@ IF (KLX >= 4) THEN
   ENDDO
 
 ELSEIF (KLX == 3) THEN
-
+  !$acc loop collapse(2)
   DO JI=1,KIX
     DO JV=1,KVX
       PY(JV,1,JI) = PA (1)*PX(JV,1,JI)+PBS(1)*PX(JV,2,JI)+PCS(1)*PX(JV,3,JI)
@@ -138,7 +142,7 @@ ELSEIF (KLX == 3) THEN
   ENDDO
 
 ELSEIF (KLX == 2) THEN
-
+  !$acc loop collapse(2)
   DO JI=1,KIX
     DO JV=1,KVX
       PY(JV,1,JI) = PA (1)*PX(JV,1,JI)+PBS(1)*PX(JV,2,JI)
@@ -147,7 +151,7 @@ ELSEIF (KLX == 2) THEN
   ENDDO
 
 ELSEIF (KLX == 1) THEN
-
+  !$acc loop collapse(2)
   DO JI=1,KIX
     DO JV=1,KVX
       PY(JV,1,JI) = PA (1)*PX(JV,1,JI)
@@ -156,8 +160,10 @@ ELSEIF (KLX == 1) THEN
 
 ENDIF
 
+!$acc end data
+
 !     ------------------------------------------------------------------
 
-IF (LHOOK) CALL DR_HOOK('MXPTMA',1,ZHOOK_HANDLE)
+!!IF (LHOOK) CALL DR_HOOK('MXPTMA',1,ZHOOK_HANDLE)
 END SUBROUTINE MXPTMA
 

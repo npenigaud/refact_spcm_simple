@@ -1,4 +1,5 @@
 SUBROUTINE MXTURS(KLX,KVX,KVXS,KIX,PA,PB,PC,PY,PX)
+!$acc routine vector
 
 !**** *MXTURS*   - Resolution of a set of pentadiagonal symmetric systems.
 
@@ -98,17 +99,17 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "mxture.h"
 
 !     ------------------------------------------------------------------
-IF (LHOOK) CALL DR_HOOK('MXTURS',0,ZHOOK_HANDLE)
+!!IF (LHOOK) CALL DR_HOOK('MXTURS',0,ZHOOK_HANDLE)
 !     ------------------------------------------------------------------
 
 !*       1.    INVERSION OF THE TWO TRIANGULAR TRIDIAGONAL MATRIXES.
 !              -----------------------------------------------------
-
+!$acc data present(pa,pb,pc,py,px)
 CALL MXTURE(KLX,KVX,KVXS,KIX,-2,.TRUE. ,PA,PB,PC,PY,PX)
 CALL MXTURE(KLX,KVX,KVXS,KIX, 1,.FALSE.,PA,PB,PC,PY,PX)
-
+!$acc end data
 !     ------------------------------------------------------------------
 
-IF (LHOOK) CALL DR_HOOK('MXTURS',1,ZHOOK_HANDLE)
+!!IF (LHOOK) CALL DR_HOOK('MXTURS',1,ZHOOK_HANDLE)
 END SUBROUTINE MXTURS
 

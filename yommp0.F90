@@ -186,6 +186,9 @@ INTEGER(KIND=JPIM) :: NSTROUT
 
 INTEGER(KIND=JPIM) :: M_BARRINC_DIWRGRID = 3 
 
+!!!$acc declare copyin(MYSETV,MYSETN,MYSETW)
+!$acc declare copyin(MYSETV)
+
 #ifdef RS6K
 LOGICAL :: L_GATHERV_WRGP = .FALSE.
 #else
