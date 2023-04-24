@@ -18,4 +18,4 @@ drhook.prof.*
 intel/
 nvhpc/
 t0499l105-001mpi/
-Makefile.nvhpc.sauv
+Makefile.nvhpc.sauv*
