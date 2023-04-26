@@ -4,7 +4,7 @@ SUBROUTINE SPCSI_STR(&
 & YDGEOMETRY,YDCST,YDLDDH,YDRIP,YDDYN,KSPEC2V,&
 & PSPVORG,PSPDIVG,PSPTG,PSPSPG,&
 & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG,&
-& zsdiv,zhelp,zst,zsp,zsdivp,zspdivp,zsphi,zout)
+& zsdiv,zhelp,zst,zsp,zsdivp,zspdivp,zsphi,zout,zsdivpl,zspdivpl)
 
 #else
 SUBROUTINE SPCSI_STR(&
@@ -46,6 +46,8 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: zsdivp(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: zspdivp(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: zsphi(KSPEC2V,0:YDGEOMETRY%YRDIMV%NFLEVG+1)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: zout(KSPEC2V,0:YDGEOMETRY%YRDIMV%NFLEVG)
+real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdimv%nflevg,ydgeometry%yrdim%nsmax+1,2)
+real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdimv%nflevg,ydgeometry%yrdim%nsmax+1,2)
 #else
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPVORG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPDIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)

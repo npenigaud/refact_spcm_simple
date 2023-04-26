@@ -5,7 +5,7 @@ SUBROUTINE SPCSI_STR(&
  ! --- INOUT -----------------------------------------------------------------
  & PSPVORG,PSPDIVG,PSPTG,PSPSPG,&
  & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG,&
- & zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout)
+ & zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout,zsdivpl,zspdivpl)
 #else
 SUBROUTINE SPCSI_STR(&
  ! --- INPUT -----------------------------------------------------------------
@@ -109,6 +109,9 @@ REAL(KIND=JPRB)   ,intent(inout) :: ZSDIVP (max(kspec2v,YDGEOMETRY%YRMP%NSPEC2VF
 REAL(KIND=JPRB)   ,intent(inout) :: ZSPDIVP(max(kspec2v,YDGEOMETRY%YRMP%NSPEC2VF),YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB)   ,intent(inout) :: ZSPHI  (kspec2v,0:YDGEOMETRY%YRDIMV%NFLEVG+1)
 REAL(KIND=JPRB)   ,intent(inout) :: ZOUT  (kspec2v,0:YDGEOMETRY%YRDIMV%NFLEVG)
+real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdimv%nflevg,ydgeometry%yrdim%nsmax+1,2)
+real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdimv%nflevg,ydgeometry%yrdim%nsmax+1,2)
+
 #else
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPVORG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPDIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
@@ -189,7 +192,7 @@ ZBDT2=(ZBDT*RSTRET)**2
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',0,ZHOOK_HANDLE2)
 !$acc data present(YDGEOMETRY,YDGEOMETRY%YRLAP,YDGEOMETRY%YRLAP%NVALUE,YDGEOMETRY%YRLAP%RLAPIN,YDGEOMETRY%YRLAP%RLAPDI,nflevg,nsmax,YDDYN,YDDYN%SIVP,rstret)
 !$acc data present(pspdivg,psptg,pspspg,YDRIP,NPTRMF)
-!$acc data present(zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout)
+!$acc data present(zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout,zsdivpl,zspdivpl)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',1,ZHOOK_HANDLE2)
 #endif
 
@@ -258,12 +261,18 @@ IF (LHOOK) CALL DR_HOOK('SPCSI_mxmaop1',1,ZHOOK_HANDLE2)
 
 IF (LSIDG) THEN
 
-if (lhook) CALL DR_HOOK('SPCSI_sidg1',0,zhook_handle2) 
-  !$acc parallel loop gang default(none)
+if (lhook) CALL DR_HOOK('SPCSI_sidg1',0,zhook_handle2)
+#if defined(_OPENACC) 
+  !$acc parallel loop gang private(zsdivpl,zspdivpl) default(none)
+  DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
+    CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, JMLOC, ZSDIVP,ZSPDIVP,zsdivpl,zspdivpl)
+  ENDDO
+  !$acc end parallel
+#else
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
     CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, JMLOC, ZSDIVP, ZSPDIVP)
   ENDDO
-  !$acc end parallel
+#endif
 if (lhook) CALL DR_HOOK('SPCSI_sidg1',1,zhook_handle2) 
 
 ELSE
@@ -311,12 +320,18 @@ if (lhook) call dr_hook('SPCSI_mxmaop2',1,zhook_handle2)
 
 IF (LSIDG) THEN
 
-if (lhook) CALL DR_HOOK('SPCSI_sidg2',0,zhook_handle2) 
-  !$acc parallel loop gang default(none)
+if (lhook) CALL DR_HOOK('SPCSI_sidg2',0,zhook_handle2)
+#if defined(_OPENACC) 
+  !$acc parallel loop gang private(zsdivpl,zspdivpl) default(none)
+  DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
+    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, JMLOC, PSPDIVG,ZHELP,zsdivpl,zspdivpl)
+  ENDDO
+  !$acc end parallel
+#else
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
     CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, JMLOC, PSPDIVG, ZHELP)
   ENDDO
-  !$acc end parallel
+#endif
 if (lhook) CALL DR_HOOK('SPCSI_sidg2',1,zhook_handle2) 
 
 ELSE

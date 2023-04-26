@@ -1,5 +1,9 @@
-SUBROUTINE MXTURS(KLX,KVX,KVXS,KIX,PA,PB,PC,PY,PX)
+#if defined(_OPENACC)
+SUBROUTINE MXTURS(KLX,KVX,KVXS,KIX,tnsmax,PA,PB,PC,PY,PX)
 !$acc routine vector
+#else
+SUBROUTINE MXTURS(KLX,KVX,KVXS,KIX,PA,PB,PC,PY,PX)
+#endif
 
 !**** *MXTURS*   - Resolution of a set of pentadiagonal symmetric systems.
 
@@ -83,12 +87,20 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLX 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVX 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVXS 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KIX 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KIX
+#if defined(_OPENACC)
+integer(kind=JPIM),intent(in)    :: tnsmax
+#endif 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(KVX,KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PB(KVX,KLX) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PC(KVX,KLX) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PC(KVX,KLX)
+#if defined(_OPENACC)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PY(KVXS,tnsmax,KIX) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PX(KVXS,tnsmax,KIX)
+#else 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PY(KVXS,KLX,KIX) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PX(KVXS,KLX,KIX) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PX(KVXS,KLX,KIX)
+#endif 
 
 !     ------------------------------------------------------------------
 
@@ -104,10 +116,15 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !*       1.    INVERSION OF THE TWO TRIANGULAR TRIDIAGONAL MATRIXES.
 !              -----------------------------------------------------
+#if defined(_OPENACC)
 !$acc data present(pa,pb,pc,py,px)
+CALL MXTURE(KLX,KVX,KVXS,KIX,tnsmax,-2,.TRUE. ,PA,PB,PC,PY,PX)
+CALL MXTURE(KLX,KVX,KVXS,KIX,tnsmax, 1,.FALSE.,PA,PB,PC,PY,PX)
+!$acc end data
+#else
 CALL MXTURE(KLX,KVX,KVXS,KIX,-2,.TRUE. ,PA,PB,PC,PY,PX)
 CALL MXTURE(KLX,KVX,KVXS,KIX, 1,.FALSE.,PA,PB,PC,PY,PX)
-!$acc end data
+#endif
 !     ------------------------------------------------------------------
 
 !!IF (LHOOK) CALL DR_HOOK('MXTURS',1,ZHOOK_HANDLE)

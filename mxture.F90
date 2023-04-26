@@ -1,5 +1,9 @@
-SUBROUTINE MXTURE(KLX,KVX,KVXS,KIX,KT,LDMT,PA,PB,PC,PY,PX)
+#if defined(_OPENACC)
+SUBROUTINE MXTURE(KLX,KVX,KVXS,KIX,tnsmax,KT,LDMT,PA,PB,PC,PY,PX)
 !$acc routine vector
+#else
+SUBROUTINE MXTURE(KLX,KVX,KVXS,KIX,KT,LDMT,PA,PB,PC,PY,PX)
+#endif
 
 !**** *MXTURE*   - Resolution of a set of triangular tridiagonal systems.
 
@@ -109,14 +113,22 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLX 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVX 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVXS 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KIX 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KIX
+#if defined(_OPENACC)
+integer(kind=JPIM),intent(in)    :: tnsmax
+#endif 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KT 
 LOGICAL           ,INTENT(IN)    :: LDMT 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(KVX,KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PB(KVX,KLX) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PC(KVX,KLX) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PC(KVX,KLX)
+#if defined(_OPENACC) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PY(KVXS,tnsmax+1,KIX) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PX(KVXS,tnsmax+1,KIX)
+#else
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PY(KVXS,KLX,KIX) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PX(KVXS,KLX,KIX) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PX(KVXS,KLX,KIX)
+#endif 
 
 !     ------------------------------------------------------------------
 
