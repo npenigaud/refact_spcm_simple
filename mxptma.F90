@@ -76,9 +76,14 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(KLX)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PBI(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PCI(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PBS(KLX) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PCS(KLX) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PCS(KLX)
+#if defined(_OPENACC) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KVXS,KLX,KIX) 
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KVXS,KLX,KIX) 
+#else
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KLX,KIX,kvxs) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KLX,KIX,kvxs) 
+#endif
 
 !     ------------------------------------------------------------------
 
@@ -91,7 +96,7 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !*       1.    COMPUTATION OF PY.
 !              ------------------
-
+#if defined(_OPENACC)
 !$acc data present(pa,pbi,pci,pbs,pcs,px,py)
 
 IF (KLX >= 4) THEN
@@ -161,6 +166,72 @@ ELSEIF (KLX == 1) THEN
 ENDIF
 
 !$acc end data
+#else
+IF (KLX >= 4) THEN
+  DO JI=1,KIX
+    DO JV=1,KVX
+      PY(1,JI,jv) = PA (1)*PX(1,JI,jv)+PBS(1)*PX(2,JI,jv)+PCS(1)*PX(3,JI,jv)
+      PY(2,JI,jv) = PBI(1)*PX(1,JI,jv)&
+       & +PA (2)*PX(2,JI,jv)&
+       & +PBS(2)*PX(3,JI,jv)&
+       & +PCS(2)*PX(4,JI,jv)  
+    ENDDO
+  ENDDO
+  DO JI=1,KIX
+    DO JV=1,KVX
+      DO JL=3,KLX-2
+        PY(JL,JI,jv) = PCI(JL-2)*PX(JL-2,JI,jv)&
+         & +PBI(JL-1)*PX(JL-1,JI,jv)&
+         & +PA (JL  )*PX(JL  ,JI,jv)&
+         & +PBS(JL  )*PX(JL+1,JI,jv)&
+         & +PCS(JL  )*PX(JL+2,JI,jv)  
+      ENDDO
+    ENDDO
+  ENDDO
+  DO JI=1,KIX
+    DO JV=1,KVX
+      PY(KLX-1,JI,jv) = PCI(KLX-3)*PX(KLX-3,JI,jv)&
+       & +PBI(KLX-2)*PX(KLX-2,JI,jv)&
+       & +PA (KLX-1)*PX(KLX-1,JI,jv)&
+       & +PBS(KLX-1)*PX(KLX  ,JI,jv)  
+      PY(KLX,JI,jv) = PCI(KLX-2)*PX(KLX-2,JI,jv)&
+       & +PBI(KLX-1)*PX(KLX-1,JI,jv)&
+       & +PA (KLX  )*PX(KLX  ,JI,jv)  
+    ENDDO
+  ENDDO
+
+ELSEIF (KLX == 3) THEN
+  DO JI=1,KIX
+    DO JV=1,KVX
+      PY(1,JI,jv) = PA (1)*PX(1,JI,jv)+PBS(1)*PX(2,JI,jv)+PCS(1)*PX(3,JI,jv)
+      PY(2,JI,jv) = PBI(1)*PX(1,JI,jv)+PA (2)*PX(2,JI,jv)+PBS(2)*PX(3,JI,jv)
+      PY(3,JI,jv) = PCI(1)*PX(1,JI,jv)+PBI(2)*PX(2,JI,jv)+PA (3)*PX(3,JI,jv)
+    ENDDO
+  ENDDO
+
+ELSEIF (KLX == 2) THEN
+  DO JI=1,KIX
+    DO JV=1,KVX
+      PY(1,JI,jv) = PA (1)*PX(1,JI,jv)+PBS(1)*PX(2,JI,jv)
+      PY(2,JI,jv) = PBI(1)*PX(1,JI,jv)+PA (2)*PX(2,JI,jv)
+    ENDDO
+  ENDDO
+
+ELSEIF (KLX == 1) THEN
+  DO JI=1,KIX
+    DO JV=1,KVX
+      PY(1,JI,jv) = PA (1)*PX(1,JI,jv)
+    ENDDO
+  ENDDO
+
+ENDIF
+
+!!do jl=1,klx
+!!  print *," ligne ",jl," : "
+!!  print *,py(jl,1,:)
+!!  print *,py(jl,2,:)
+!!enddo
+#endif
 
 !     ------------------------------------------------------------------
 

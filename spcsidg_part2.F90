@@ -19,8 +19,13 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PSPDIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PHELP(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 #endif
 
+#if defined(_OPENACC)
 REAL(KIND=JPRB) :: ZSDIVPL (YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRLAP%MYMS(KMLOC):YDGEOMETRY%YRDIM%NSMAX,2)
 REAL(KIND=JPRB) :: ZSPDIVPL(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRLAP%MYMS(KMLOC):YDGEOMETRY%YRDIM%NSMAX,2)
+#else
+REAL(KIND=JPRB) :: ZSDIVPL (YDGEOMETRY%YRDIM%NSMAX-ydgeometry%yrlap%myms(kmloc)+1,2,ydgeometry%yrdimv%nflevg)
+REAL(KIND=JPRB) :: ZSPDIVPL(YDGEOMETRY%YRDIM%NSMAX-ydgeometry%yrlap%myms(kmloc)+1,2,ydgeometry%yrdimv%nflevg)
+#endif
 
 INTEGER(KIND=JPIM) :: II, IS0, ISE, JN,compteur
 INTEGER(KIND=JPIM) :: IM, ISTA, IEND
@@ -64,7 +69,8 @@ ENDDO
 #else
 DO JN=IM,NSMAX
   ISE=ISTA+2*(JN-IM)
-  ZSDIVPL(:,JN,1:2)=PSPDIVG(:,ISE:ISE+1)
+  ZSDIVPL(JN-im+1,1,:)=PSPDIVG(:,ISE)
+  zsdivpl(jn-im+1,2,:)=pspdivg(:,ise+1)
 ENDDO
 #endif
 
@@ -88,8 +94,13 @@ ENDDO
 #else
 DO JN=IM,NSMAX
   ISE=ISTA+2*(JN-IM)
-  PHELP(:,ISE:ISE+1)=ZSPDIVPL(:,JN,1:2)
+  PHELP(:,ISE)=ZSPDIVPL(JN-im+1,1,:)
+  phelp(:,ise+1)=zspdivpl(jn-im+1,2,:)
 ENDDO
+!!do ise=ista,iend
+!!  print *,"ligne ",ise," : "
+!!  print *,phelp(:,ise)
+!!enddo
 #endif
 
 !$acc end data
