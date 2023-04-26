@@ -188,7 +188,7 @@ ZBDT2=(ZBDT*RSTRET)**2
 #if defined(_OPENACC)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',0,ZHOOK_HANDLE2)
 !$acc data present(YDGEOMETRY,YDGEOMETRY%YRLAP,YDGEOMETRY%YRLAP%NVALUE,YDGEOMETRY%YRLAP%RLAPIN,YDGEOMETRY%YRLAP%RLAPDI,nflevg,nsmax,YDDYN,YDDYN%SIVP,rstret)
-!$acc data present(pspdivg,psptg,pspspg,NPTRMF)
+!$acc data present(pspdivg,psptg,pspspg,YDRIP,NPTRMF)
 !$acc data present(zsdiv,zhelp,zsp,zst,zsdivp,zspdivp,zsphi,zout)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',1,ZHOOK_HANDLE2)
 #endif

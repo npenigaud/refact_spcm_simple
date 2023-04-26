@@ -122,7 +122,7 @@ IF (YDCVER%LVERTFE) THEN
 
   IF (YDCVER%LVFE_COMPATIBLE) CLOPER='INTG'
 !$acc data present(pt,psp,pd,klev)
-!$acc data present(ydveta%vfe_rdetah,YDDYN%SILNPR,YDDYN%SIALPH,YDDYN%SIRPRG,ydveta,ydcst)
+!$acc data present(ydveta%vfe_rdetah,yddyn,YDDYN%SILNPR,YDDYN%SIALPH,YDDYN%SIRPRG,ydveta,ydcst)
 !$acc data present(zsphi,zout)
 
 if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)

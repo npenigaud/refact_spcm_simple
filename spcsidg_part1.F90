@@ -66,7 +66,7 @@ ZSDIVPL(:,:,:)=0.0_JPRB
 ZSPDIVPL(:,:,:)=0.0_JPRB
 
 #if defined(_OPENACC)
-!$acc loop vector private(ise)
+!$acc loop vector private(ise,compteur)
 DO JN=IM,NSMAX
   ISE=ISTA+2*(JN-IM)
   do compteur=1,nflevg
@@ -100,7 +100,7 @@ ELSE
 ENDIF
 
 #if defined(_OPENACC)
-!$acc loop vector private(ise)
+!$acc loop vector private(ise,compteur)
 DO JN=IM,NSMAX
   ISE=ISTA+2*(JN-IM)
   do compteur=1,nflevg

@@ -117,7 +117,7 @@ ASSOCIATE(SIALPH=>YDDYN%SIALPH, SIDELP=>YDDYN%SIDELP, SILNPR=>YDDYN%SILNPR, SIRD
 
 IF(YDCVER%LVERTFE) THEN
 !$acc data present(pd,psp,pt,YDDYN%SIDELP,YDDYN%SITLAF,YDGEOMETRY%YRVETA,ydcst,YDDYN%SIRPRN)
-!$acc data present(zsdiv,zout) 
+!$acc data present(zsdiv,zout,yddyn,ydgeometry,ydgeometry%yrveta%vfe_rdetah) 
 
 if (lhook) call dr_hook('SITNU_transpose1',0,zhook_handle2)
 #if defined(_OPENACC)
