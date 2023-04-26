@@ -1,5 +1,9 @@
-SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,PA,PBI,PCI,PBS,PCS,PX,PY)
+#if defined(_OPENACC)
+SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,tnsmax,PA,PBI,PCI,PBS,PCS,PX,PY)
 !$acc routine vector
+#else
+SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,PA,PBI,PCI,PBS,PCS,PX,PY)
+#endif
 
 !**** *MXPTMA*   - Multiplication of a pentadiagonal matrix by a matrix.
 
@@ -71,14 +75,22 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLX 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVXS 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIX 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KVX 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KVX
+#if defined(_OPENACC)
+integer(kind=jpim),intent(in),value :: tnsmax
+#endif 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PBI(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PCI(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PBS(KLX) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PCS(KLX) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PCS(KLX)
+#if defined(_OPENACC)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KVXS,tnsmax+1,KIX) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KVXS,tnsmax+1,KIX) 
+#else 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KVXS,KLX,KIX) 
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KVXS,KLX,KIX) 
+#endif
 
 !     ------------------------------------------------------------------
 
