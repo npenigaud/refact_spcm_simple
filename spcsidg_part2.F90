@@ -19,12 +19,18 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PSPDIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PHELP(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 #endif
 
+#define inversion 0
 #if defined(_OPENACC)
 REAL(KIND=JPRB) :: ZSDIVPL (YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRLAP%MYMS(KMLOC):YDGEOMETRY%YRDIM%NSMAX,2)
 REAL(KIND=JPRB) :: ZSPDIVPL(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRLAP%MYMS(KMLOC):YDGEOMETRY%YRDIM%NSMAX,2)
 #else
+#if inversion
 REAL(KIND=JPRB) :: ZSDIVPL (YDGEOMETRY%YRDIM%NSMAX-ydgeometry%yrlap%myms(kmloc)+1,2,ydgeometry%yrdimv%nflevg)
 REAL(KIND=JPRB) :: ZSPDIVPL(YDGEOMETRY%YRDIM%NSMAX-ydgeometry%yrlap%myms(kmloc)+1,2,ydgeometry%yrdimv%nflevg)
+#else
+REAL(KIND=JPRB) :: ZSDIVPL (ydgeometry%yrdimv%nflevg,YDGEOMETRY%YRDIM%NSMAX-ydgeometry%yrlap%myms(kmloc)+1,2)
+REAL(KIND=JPRB) :: ZSPDIVPL(ydgeometry%yrdimv%nflevg,YDGEOMETRY%YRDIM%NSMAX-ydgeometry%yrlap%myms(kmloc)+1,2)
+#endif
 #endif
 
 INTEGER(KIND=JPIM) :: II, IS0, ISE, JN,compteur
@@ -50,6 +56,10 @@ IM=YDLAP%MYMS(KMLOC)
 ISTA=NSPSTAF(IM)
 IEND=ISTA+2*(NSMAX+1-IM)-1
 
+write (0,*), "IM = ",IM
+write (0,*), "ISTA = ",ISTA
+write (0,*), "IEND = ",IEND
+
 IS0=YDLAP%NSE0L(KMLOC)
 II=MIN(IM,1)+1
 !           ZSPDIV=(DIVprim(t+dt)) --> ZSPDIVG=(GM**2 * DIVprim(t+dt)) .
@@ -69,19 +79,46 @@ ENDDO
 #else
 DO JN=IM,NSMAX
   ISE=ISTA+2*(JN-IM)
+#if inversion
   ZSDIVPL(JN-im+1,1,:)=PSPDIVG(:,ISE)
   zsdivpl(jn-im+1,2,:)=pspdivg(:,ise+1)
+#else
+  ZSDIVPL(:,JN-im+1,1)=PSPDIVG(:,ISE)
+  zsdivpl(:,jn-im+1,2)=pspdivg(:,ise+1)
+#endif
 ENDDO
 #endif
 
+!!write (0,*), "zsdivpl avant mxptma"
+!!do compteur=1,nflevg
+!!  write (0,*), "niveau ",compteur
+!!#if inversion
+!!  write (0,*), zsdivpl(:,:,compteur)
+!!#else
+!!  write (0,*), zsdivpl(compteur,:,:)
+!!#endif
+!!enddo
+!!write (0,*), __FILE__,':',__LINE__  ; call flush(0)
+
 !        ZSPDIV=(DIVprim(t+dt)) --> ZPSPDIVG=(GMBAR**2 * DIVprim(t+dt)).
 
-CALL MXPTMA(NSMAX+1-IM,NFLEVG,NFLEVG,II,SCGMAP(IS0+1,1),&
+CALL MXPTMA(NSMAX+1-IM,NFLEVG,NFLEVG,II,2,SCGMAP(IS0+1,1),&
  & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
  & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
  & ZSDIVPL,ZSPDIVPL)  
 
 !           Reorganisation of ZSPDIVPL
+
+!!write (0,*), "zspdivpl apres mxptma"
+!!do compteur=1,nflevg
+!!  write (0,*), "niveau ",compteur
+!!#if inversion
+!!  write (0,*), zspdivpl(:,:,compteur)
+!!#else
+!!  write (0,*), zspdivpl(compteur,:,:)
+!!#endif
+!!enddo
+!!write (0,*), __FILE__,':',__LINE__ ; call flush(0)
 
 #if defined(_OPENACC)
 !$acc loop vector private(ISE)
@@ -94,14 +131,23 @@ ENDDO
 #else
 DO JN=IM,NSMAX
   ISE=ISTA+2*(JN-IM)
+#if inversion
   PHELP(:,ISE)=ZSPDIVPL(JN-im+1,1,:)
   phelp(:,ise+1)=zspdivpl(jn-im+1,2,:)
+#else
+  PHELP(:,ISE)=ZSPDIVPL(:,JN-im+1,1)
+  phelp(:,ise+1)=zspdivpl(:,jn-im+1,2)
+#endif
 ENDDO
 !!do ise=ista,iend
 !!  print *,"ligne ",ise," : "
 !!  print *,phelp(:,ise)
 !!enddo
 #endif
+
+!!write (0,*), "phelp apres mxptma"
+!!write (0,*), phelp(:,:)
+!!write (0,*), __FILE__,':',__LINE__ ; call flush(0)
 
 !$acc end data
 !$acc end data

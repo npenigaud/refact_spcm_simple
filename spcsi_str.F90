@@ -99,7 +99,7 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPDIVG(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTG(kspec2V,YDGEOMETRY%YRDIMV%NFLEVG) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPSPG(KSPEC2V) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_VORG(kspec2v,ydgeometry%yrdimv%nflevg)
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_DIVG(kspec2Vv,ydgeometry%yrdimv%nflevg) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_DIVG(kspec2v,ydgeometry%yrdimv%nflevg) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_TG(kspec2v,ydgeometry%yrdimv%nflevg)  
 REAL(KIND=JPRB)   ,intent(inout) :: ZSDIV  (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB)   ,intent(inout) :: ZHELP  (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
@@ -314,6 +314,7 @@ IF (LSIDG) THEN
 if (lhook) CALL DR_HOOK('SPCSI_sidg2',0,zhook_handle2) 
   !$acc parallel loop gang default(none)
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
+    write (0,*), "JMLOC = ",jmloc
     CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, JMLOC, PSPDIVG, ZHELP)
   ENDDO
   !$acc end parallel

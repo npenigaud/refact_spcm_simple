@@ -218,12 +218,12 @@ READ (ILUN) ZSPSVD
 
 CLOSE (ILUN)
 
-do repetition2=1,ydgeometry%yrdim%nspec2
-  print *,"ligne ",repetition2," pspt :"
-  print *,pspt(:,repetition2)-zspt(:,repetition2)
-  !!print *,"ligne ",repetition2," zspt :"
-  !!print *,zspt(:,repetition2)
-enddo
+!!do repetition2=1,ydgeometry%yrdim%nspec2
+!!  print *,"ligne ",repetition2," pspt :"
+!!  print *,pspt(:,repetition2)-zspt(:,repetition2)
+!!  !!print *,"ligne ",repetition2," zspt :"
+!!  !!print *,zspt(:,repetition2)
+!!enddo
 
 
 IF (LLSTATSP) THEN

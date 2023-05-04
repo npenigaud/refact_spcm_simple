@@ -1,4 +1,4 @@
-SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,PA,PBI,PCI,PBS,PCS,PX,PY)
+SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,kixs,PA,PBI,PCI,PBS,PCS,PX,PY)
 !$acc routine vector
 
 !**** *MXPTMA*   - Multiplication of a pentadiagonal matrix by a matrix.
@@ -63,7 +63,8 @@ SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,PA,PBI,PCI,PBS,PCS,PX,PY)
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
-
+#define inversion 0
+#define notinversion 1
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
@@ -71,18 +72,19 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLX 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVXS 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIX 
+integer(kind=jpim),intent(in)    :: kixs
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVX 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PBI(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PCI(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PBS(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PCS(KLX)
-#if defined(_OPENACC) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KVXS,KLX,KIX) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KVXS,KLX,KIX) 
+#if inversion 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KLX,kixs,kvxs) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KLX,kixs,kvxs) 
 #else
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KLX,KIX,kvxs) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KLX,KIX,kvxs) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KVXS,KLX,kixs) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KVXS,KLX,kixs) 
 #endif
 
 !     ------------------------------------------------------------------
@@ -97,6 +99,13 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !*       1.    COMPUTATION OF PY.
 !              ------------------
 #if defined(_OPENACC)
+!!#if notinversion
+!!write (0,*), "PX entree dans mxptma, noninv"
+!!do jv=1,KVX
+!!  write (0,*), "niveau ",jv
+!!  write (0,*), px(jv,:,:)
+!!enddo
+!!write (0,*) __FILE__,":",__LINE__;call flush(0)
 !$acc data present(pa,pbi,pci,pbs,pcs,px,py)
 
 IF (KLX >= 4) THEN
@@ -166,7 +175,21 @@ ELSEIF (KLX == 1) THEN
 ENDIF
 
 !$acc end data
+!!write (0,*), "PY sortie mxptma, non inv"
+!!do jv=1,KVX
+!!  write (0,*), "niveau ",jv
+!!  write (0,*), py(jv,:,:)
+!!enddo
+!!write (0,*) __FILE__,":",__LINE__;call flush(0)
+
 #else
+!!write (0,*), "PX entree dans mxptma, inv"
+!!do jv=1,KVX
+!!  write (0,*), "niveau ",jv
+!!  write (0,*), px(:,:,jv)
+!!enddo
+!!write (0,*) __FILE__,":",__LINE__;call flush(0)
+
 IF (KLX >= 4) THEN
   DO JI=1,KIX
     DO JV=1,KVX
@@ -225,6 +248,12 @@ ELSEIF (KLX == 1) THEN
   ENDDO
 
 ENDIF
+!!write (0,*), "PY sortie mxptma, inv"
+!!do jv=1,KVX
+!!  write (0,*), "niveau ",jv
+!!  write (0,*), py(:,:,jv)
+!!enddo
+!!write (0,*) __FILE__,":",__LINE__;call flush(0)
 
 !!do jl=1,klx
 !!  print *," ligne ",jl," : "
