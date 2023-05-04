@@ -91,6 +91,10 @@ ILUN = 77
 
 CALL SETUP
 
+#if defined(_OPENACC)
+call initialisegpu(myproc-1)
+#endif
+
 WRITE (CLPROC, '(I4.4)') MYPROC
 CLFILE = 'SPCM_SIMPLE.IN.'//TRIM (CLPROC)
 
@@ -264,6 +268,30 @@ CALL MPL_BARRIER ()
 CALL MPL_END ()
 
 CONTAINS
+
+#if defined(_OPENACC)
+subroutine initialisegpu(rang)
+!!use mpl_module
+!!use mpi
+use openacc
+implicit none
+integer, intent(in) :: rang
+integer :: dev,namelength,ierr
+!!character (len=MPL_MAX_PROCESSOR_NAME), allocatable :: hosts(:)
+!!character (len=MPI_MAX_PROCESSOR_NAME)              :: hostname
+
+!!print *, mpl_node(:)  !!ranks de 1 à 8 apparement
+!!call mpi_get_processor_name(hostname,namelength,ierr) !!trois lignes suivantes affichent le nom de la machine
+!!print *,"nom :",hostname
+!!print *,"statut ope:",ierr
+
+dev=mod(rang,4)
+call acc_set_device_num(dev,ACC_DEVICE_NVIDIA)
+call acc_init(ACC_DEVICE_NVIDIA)
+print *,"rang ",rang," utilise la carte ",dev
+
+end subroutine initialisegpu
+#endif
 
 SUBROUTINE STATSP (CDNAME, PSPL1, PSPL2)
 
