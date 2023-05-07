@@ -1,5 +1,5 @@
 #if defined(_OPENACC)
-SUBROUTINE TRMTOS(YDGEOMETRY,ldnhdyn,ldnhx,zbufsend,zbufrecv,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD,PSPSNHX, &
+SUBROUTINE TRMTOS(YDGEOMETRY,ldnhdyn,ldnhx,zbuf_m,zbuf_s,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD,PSPSNHX, &
  & PSPGFL,PSPSP,PSPAUX,PSPSEL3D,PSPSEL2D,&
  & PSPVORG,PSPDIVG,PSPTG,PSPSPDG,PSPSVDG,PSPSNHXG,&
  & PSPGFLG,PSPSPG,PSPAUXG,PSPSEL3DG,PSPSEL2DG,&
@@ -106,8 +106,8 @@ TYPE(GEOMETRY)    ,          INTENT(IN)    :: YDGEOMETRY
 logical           ,          intent(in)    :: ldnhdyn
 logical           ,          intent(in)    :: ldnhx
 #if defined(_OPENACC)
-real(kind=jprb), intent(inout) :: zbufsend(:,:)
-real(kind=jprb), intent(inout) :: zbufrecv(:,:)
+real(kind=jprb), intent(inout) :: zbuf_m(:,:)
+real(kind=jprb), intent(inout) :: zbuf_s(:,:)
 #endif
 REAL(KIND=JPRB)   ,OPTIONAL, INTENT(IN)    :: PSPVOR(:,:) 
 REAL(KIND=JPRB)   ,OPTIONAL, INTENT(IN)    :: PSPDIV(:,:) 
@@ -154,7 +154,7 @@ CALL ADD2DF (YLLIST, PSPSP, PSPSPG, "PSPSP")
 CALL ADD2DFL (YLLIST, PSPSEL2D, PSPSEL2DG, "PSPSEL2D", LDSELECT2D)
 
 #if defined(_OPENACC)
-CALL EXCHANGE_MS (YDGEOMETRY, YLLIST, zbufsend,zbufrecv,KDIR=NEXCHANGE_MTOS, LDFULLM=LDFULLM)
+CALL EXCHANGE_MS (YDGEOMETRY, YLLIST, zbuf_m,zbuf_s,KDIR=NEXCHANGE_MTOS, LDFULLM=LDFULLM)
 #else
 CALL EXCHANGE_MS (YDGEOMETRY, YLLIST, KDIR=NEXCHANGE_MTOS, LDFULLM=LDFULLM)
 

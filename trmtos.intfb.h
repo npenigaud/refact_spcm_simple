@@ -1,6 +1,6 @@
 INTERFACE
 #if defined(_OPENACC)
-SUBROUTINE TRMTOS(YDGEOMETRY,LDNHDYN,LDNHX,zbufsend,zbufrecv,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD,PSPSNHX, &
+SUBROUTINE TRMTOS(YDGEOMETRY,LDNHDYN,LDNHX,zbuf_m,zbuf_s,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD,PSPSNHX, &
 & PSPGFL,PSPSP,PSPAUX,PSPSEL3D,PSPSEL2D,&
 & PSPVORG,PSPDIVG,PSPTG,PSPSPDG,PSPSVDG,PSPSNHXG,&
 & PSPGFLG,PSPSPG,PSPAUXG,PSPSEL3DG,PSPSEL2DG,&
@@ -23,8 +23,8 @@ TYPE(GEOMETRY)    ,          INTENT(IN)    :: YDGEOMETRY
 LOGICAL           ,          INTENT(IN)    :: LDNHDYN
 LOGICAL           ,          INTENT(IN)    :: LDNHX
 #if defined(_OPENACC)
-real(kind=jprb),intent(inout) :: zbufsend(:,:)
-real(kind=jprb),intent(inout) :: zbufrecv(:,:)
+real(kind=jprb),intent(inout) :: zbuf_m(:,:)
+real(kind=jprb),intent(inout) :: zbuf_s(:,:)
 #endif
 REAL(KIND=JPRB)   ,OPTIONAL, INTENT(IN)    :: PSPVOR(:,:)
 REAL(KIND=JPRB)   ,OPTIONAL, INTENT(IN)    :: PSPDIV(:,:)
