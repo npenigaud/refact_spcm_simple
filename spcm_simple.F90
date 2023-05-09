@@ -211,7 +211,7 @@ ELSE
     !$acc data create(zsdiv,zhelp,zsp,zst,zsphi,zout,zsdivp,zspdivp)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',1,zhook_handle2)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1c',0,zhook_handle2)
-    !$acc data create(pspsp2,pspvor2,pspdiv2,pspt2,pspspd2,pspsvd2)
+    !$acc data create(pspsp2,pspvor2,pspdiv2,pspt2,pspspd2,pspsvd2,zbuf_m,zbuf_s)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1c',1,zhook_handle2)
  
 
