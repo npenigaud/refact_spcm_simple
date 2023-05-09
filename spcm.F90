@@ -279,6 +279,7 @@ CONTAINS
 subroutine initialisegpu(ydgeometry,ydmodel,rang,zbuf_m,zbuf_s)
 !!use mpl_module
 !!use mpi
+!!passe rangs MPI sur cartes, initialise buffers
 use yommp0, only : nprtrv,nprtrn,nprcids,mysetv,mysetn,mysetw,mysetm,myproc
 use openacc
 implicit none
