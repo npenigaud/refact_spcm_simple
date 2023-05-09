@@ -145,6 +145,7 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
 IF (LHOOK) CALL DR_HOOK('TRSTOM',0,ZHOOK_HANDLE)
 !$acc data present(pspvor,pspdiv,pspt,pspspd,pspsvd,pspsp,zbuf_s,zbuf_m) create(yllist)
+!$acc data present(pspvorg,pspdivg,psptg,pspspdg,pspsvdg,pspspg)
 CALL ADD3DF (YLLIST, PSPVOR, PSPVORG, "PSPVOR")
 CALL ADD3DF (YLLIST, PSPDIV, PSPDIVG, "PSPDIV")
 CALL ADD3DF (YLLIST, PSPT  , PSPTG,   "PSPT"  )
@@ -161,7 +162,7 @@ CALL EXCHANGE_MS (YDGEOMETRY, YLLIST, zbuf_m,zbuf_s,KDIR=NEXCHANGE_STOM, LDFULLM
 #else
 CALL EXCHANGE_MS (YDGEOMETRY, YLLIST, KDIR=NEXCHANGE_STOM, LDFULLM=LDFULLM)
 #endif
-
+!$acc end data
 !$acc end data
 IF (LHOOK) CALL DR_HOOK('TRSTOM',1,ZHOOK_HANDLE)
 

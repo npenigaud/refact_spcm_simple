@@ -215,7 +215,6 @@ ASSOCIATE(NFLEVL=>YDGEOMETRY%YRDIMV%NFLEVL, NPTRLL=>YDGEOMETRY%YRMP%NPTRLL, NPSP
 IF (NSPEC_SYNC_LEVEL == 0) THEN
   DO J=1,KPROCRECV
     JR=KRANKRECV(J)
-    !$acc update host(zbufrecv(:,J))
     CALL MPL_RECV (ZBUFRECV (:,J), KSOURCE=KPEERRECV (JR), KMP_TYPE=JP_NON_BLOCKING_STANDARD,&
      & KREQUEST=IRECVREQ(J), KTAG=KTAG, CDSTRING='EXCHANGE_MS:')
     !$acc update device(zbufrecv(:,J))
@@ -230,7 +229,6 @@ DO J=1,KPROCSEND
   !$acc update host(zbufsend(1:ksizesend(jr),j))
   CALL MPL_SEND (ZBUFSEND (1:KSIZESEND (JR),J), KDEST=KPEERSEND (JR), KMP_TYPE=JP_NON_BLOCKING_STANDARD, &
    & KREQUEST=ISENDREQ(J), KTAG=KTAG, CDSTRING='EXCHANGE_MS:')
-  !$acc update device(zbufsend(1:ksizesend(jr),j))
 ENDDO
 
 ! * Transpose data used on local processor .................................................
@@ -281,8 +279,8 @@ IF (NSPEC_SYNC_LEVEL == 0) THEN
   DO I=1,KPROCRECV
     CALL MPL_WAITANY (KREQUEST=IRECVREQ, KINDEX=J, CDSTRING='EXCHANGE_MS: WAIT FOR RECEIVES')
     JR=KRANKRECV (J)
-    !$acc update device(zbufrecv(:,J))
     CALL MESSAGE_RECV (YDGEOMETRY, KSPEC2V, KPTRSV, YDLIST, JR, ZBUFRECV (:,J), KWHAT=NUNPACK)
+    !$acc update device(zbufrecv(:,j))
   ENDDO
 
   CALL MPL_WAIT (KREQUEST=ISENDREQ, CDSTRING='EXCHANGE_MS: WAIT FOR SENDS')
