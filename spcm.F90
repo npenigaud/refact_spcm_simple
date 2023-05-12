@@ -59,8 +59,6 @@ LOGICAL :: LLVERBOSE, LLWRITEGRIB1, LLWRITETEXT1, LLWRITEGRIB2, LLWRITETEXT2, LL
 
 REAL(KIND=JPHOOK)  :: zhook_handle,zhook_handle2
 integer            :: repetition,repetition2
-integer(kind=jpim), allocatable :: zbufsend(:,:)
-integer(kind=jpim), allocatable :: zbufrecv(:,:)
 #define repetitif 1
 
 CALL INITOPTIONS
@@ -93,6 +91,10 @@ ILUN = 77
 
 CALL SETUP
 
+#if defined(_OPENACC)
+call initialisegpu(myproc-1)
+#endif
+
 WRITE (CLPROC, '(I4.4)') MYPROC
 CLFILE = 'SPCM_SIMPLE.IN.'//TRIM (CLPROC)
 
@@ -101,10 +103,6 @@ OPEN (ILUN, FILE=TRIM (CLCASE)//'/'//TRIM (CLFILE), FORM='UNFORMATTED')
 CALL LOAD_YOMMP0 (ILUN)
 CALL LOAD (ILUN, YDMODEL)
 CALL LOAD (ILUN, YDGEOMETRY)
-
-#if defined(_OPENACC)
-call initialisegpu(ydgeometry,ydmodel,myproc-1,zbufsend,zbufrecv)
-#endif
 
 ALLOCATE (PSPSP (YDGEOMETRY%YRDIM%NSPEC2))
 ALLOCATE (PSPVOR(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY%YRDIM%NSPEC2))
@@ -272,25 +270,13 @@ CALL MPL_END ()
 CONTAINS
 
 #if defined(_OPENACC)
-subroutine initialisegpu(ydgeometry,ydmodel,rang,zbufsend,zbufrecv)
+subroutine initialisegpu(rang)
 !!use mpl_module
 !!use mpi
-use yommp0, only : nprtrv,nprtrn,nprcids,mysetv,mysetn,mysetw,mysetm,myproc
 use openacc
 implicit none
-type(geometry), intent(in) :: ydgeometry
-type(model), intent(inout) :: ydmodel
 integer, intent(in) :: rang
-integer(kind=jpim), intent(inout), allocatable :: zbufsend(:,:)
-integer(kind=jpim), intent(inout), allocatable :: zbufrecv(:,:)
 integer :: dev,namelength,ierr
-integer(kind=jpim), external :: mysendset,myrecvset
-logical :: llfullm
-integer(kind=jpim) :: inproc_m,inproc_s,isendset,irecvset
-integer(kind=jpim) :: ispec2V,isizemax_m,isizemax_s,taille_m,taille_s
-integer(kind=jpim) :: iptrsv(nprtrv+1)
-integer(kind=jpim) :: ispe1,ispe2,ilev1,ilev2,ilevl,ispel,kpeer,jr
-#include "set2pe.intfb.h"
 !!character (len=MPL_MAX_PROCESSOR_NAME), allocatable :: hosts(:)
 !!character (len=MPI_MAX_PROCESSOR_NAME)              :: hostname
 
@@ -299,62 +285,10 @@ integer(kind=jpim) :: ispe1,ispe2,ilev1,ilev2,ilevl,ispel,kpeer,jr
 !!print *,"nom :",hostname
 !!print *,"statut ope:",ierr
 
-!!associate(yddimv=>ydgeometry%yrdimv,ydmp=>ydgeometry%yrmp,yddyn=>ydmodel%yrml_dyn%yrdyn)
-!!associate(nflevg=>yddimv%nflevg,nflevl=>yddimv%nflevl,nptrsv=>ydmp%nptrsv)
-!!associate(nptrsvf=>ydmp%nptrsvf,nspec2v=>ydmp%nspec2v,nspec2vf=>ydmp%nspec2vf)
-!!associate(limpf=>yddyn%limpf,nptrll=>ydmp%nptrll)
-
 dev=mod(rang,4)
 call acc_set_device_num(dev,ACC_DEVICE_NVIDIA)
 call acc_init(ACC_DEVICE_NVIDIA)
 print *,"rang ",rang," utilise la carte ",dev
-
-!!calcul de la taille et allocation des buffers
-LLFULLM=.not.(ydmodel%yrml_dyn%yrdyn%LIMPF)
-if (llfullm) then
-  ispec2v=ydgeometry%yrmp%nspec2vf
-  iptrsv(:)=ydgeometry%yrmp%nptrsvf(:)
-else
-  ispec2v=ydgeometry%yrmp%nspec2v
-  iptrsv(:)=ydgeometry%yrmp%nptrsv(:)
-endif
-
-isizemax_m=0
-isizemax_s=0
-inproc_m=0
-inproc_s=0
-
-do jr=1,nprtrv-1
-  isendset=mysendset(nprtrv,mysetv,jr)
-  call set2pe(kpeer,0,0,mysetw,isendset)
-  kpeer=nprcids(kpeer)
-  ispe1=iptrsv(isendset)
-  ispe2=iptrsv(isendset+1)-1
-  ispel=ispe2-ispe1+1
-  taille_m=ispel*(1+6*ydgeometry%yrdimv%nflevl)  !!on inclut coriolis dans cette version, et les champs NH
-  irecvset=myrecvset(nprtrn,mysetn,jr)
-  call set2pe(kpeer,0,0,mysetm,irecvset)
-  kpeer=nprcids(kpeer)
-  ilev1=ydgeometry%yrmp%nptrll(irecvset)
-  ilev2=ydgeometry%yrmp%nptrll(irecvset+1)-1
-  ilevl=ilev2-ilev1+1
-  taille_s=ispec2v*(1+6*ilevl)  !!on inclut coriolis et champs NH
-
-  isizemax_m=max(isizemax_m,taille_m)
-  isizemax_s=max(isizemax_s,taille_s)
-  if (taille_s>0) inproc_s=inproc_s+1
-  if (taille_m>0) inproc_m=inproc_m+1
-
-enddo
-
-print *,"isizemax_m",isizemax_m
-print *,"inproc_m",inproc_m
-print *,"isizemax_s",isizemax_s
-print *,"inproc_s",inproc_s
-
-
-allocate(zbufsend(max(isizemax_m,isizemax_s),max(inproc_s,inproc_m)))
-allocate(zbufrecv(max(isizemax_m,isizemax_s),max(inproc_s,inproc_m)))
 
 end subroutine initialisegpu
 #endif
