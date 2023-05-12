@@ -22,7 +22,6 @@ IMPLICIT NONE
 TYPE(GEOMETRY)    ,          INTENT(IN)    :: YDGEOMETRY
 LOGICAL           ,          INTENT(IN)    :: LDNHDYN
 LOGICAL           ,          INTENT(IN)    :: LDNHX
-
 #if defined(_OPENACC)
 real(kind=jprb),intent(inout) :: zbuf_m(:,:)
 real(kind=jprb),intent(inout) :: zbuf_s(:,:)
