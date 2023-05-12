@@ -205,13 +205,13 @@ ELSE
     enddo
 
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',0,zhook_handle2)
-    !$acc data copy(zspdivg,zsptg,zspspg,zspvorg,zspspdg,zspsvdg) create(zsdivpl,zspdivpl)
+    !$acc data copy(zspdivg,zsptg,zspspg) create(zsdivpl,zspdivpl)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',1,zhook_handle2)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',0,zhook_handle2)
     !$acc data create(zsdiv,zhelp,zsp,zst,zsphi,zout,zsdivp,zspdivp)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',1,zhook_handle2)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1c',0,zhook_handle2)
-    !$acc data copy(pspsp2,pspvor2,pspdiv2,pspt2,pspspd2,pspsvd2) create(zbuf_m,zbuf_s)
+    !$acc data create(pspsp2,pspvor2,pspdiv2,pspt2,pspspd2,pspsvd2,zbuf_m,zbuf_s)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1c',1,zhook_handle2)
  
 
@@ -234,16 +234,6 @@ ELSE
     & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
     & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
 
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2c',0,zhook_handle2)
-    !$acc end data
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2c',1,zhook_handle2)
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',0,zhook_handle2)
-    !$acc end data
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',1,zhook_handle2)
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',0,zhook_handle2)
-    !$acc end data
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',1,zhook_handle2)
-
     zspspg(:)=zspspg2(:)
     do compteur2=1,nspec2
       do compteur1=1,nflevl
@@ -254,6 +244,16 @@ ELSE
         pspsvd(compteur1,compteur2)=pspsvd2(compteur2,compteur1)
       enddo
     enddo
+
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2c',0,zhook_handle2)
+    !$acc end data
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2c',1,zhook_handle2)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',0,zhook_handle2)
+    !$acc end data
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',1,zhook_handle2)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',0,zhook_handle2)
+    !$acc end data
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',1,zhook_handle2)
 
 #else
 
