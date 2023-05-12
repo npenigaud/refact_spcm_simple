@@ -59,8 +59,8 @@ LOGICAL :: LLVERBOSE, LLWRITEGRIB1, LLWRITETEXT1, LLWRITEGRIB2, LLWRITETEXT2, LL
 
 REAL(KIND=JPHOOK)  :: zhook_handle,zhook_handle2
 integer            :: repetition,repetition2
-real(kind=jprb), allocatable :: zbuf_m(:,:)
-real(kind=jprb), allocatable :: zbuf_s(:,:)
+real(kind=jprb), allocatable :: zbufsend(:,:)
+real(kind=jprb), allocatable :: zbufrecv(:,:)
 #define repetitif 1
 
 CALL INITOPTIONS
@@ -103,7 +103,7 @@ CALL LOAD (ILUN, YDMODEL)
 CALL LOAD (ILUN, YDGEOMETRY)
 
 #if defined(_OPENACC)
-call initialisegpu(ydgeometry,ydmodel,myproc-1,zbuf_m,zbuf_s)
+call initialisegpu(ydgeometry,ydmodel,myproc-1,zbufsend,zbufrecv)
 #endif
 
 ALLOCATE (PSPSP (YDGEOMETRY%YRDIM%NSPEC2))
@@ -186,7 +186,7 @@ if (lhook) call dr_hook('SPCM_repetitif',1,zhook_handle2)
 #endif
 
 #if defined(_OPENACC)
-CALL SPCM_SIMPLE(YDGEOMETRY,YDMODEL,PSPSP,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD,zbuf_m,zbuf_s)
+CALL SPCM_SIMPLE(YDGEOMETRY,YDMODEL,PSPSP,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD,zbufsend,zbufrecv)
 #else
 CALL SPCM_SIMPLE (YDGEOMETRY,YDMODEL,PSPSP,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD)
 #endif
@@ -276,7 +276,7 @@ CALL MPL_END ()
 CONTAINS
 
 #if defined(_OPENACC)
-subroutine initialisegpu(ydgeometry,ydmodel,rang,zbuf_m,zbuf_s)
+subroutine initialisegpu(ydgeometry,ydmodel,rang,zbufsend,zbufrecv)
 !!use mpl_module
 !!use mpi
 use yommp0, only : nprtrv,nprtrn,nprcids,mysetv,mysetn,mysetw,mysetm,myproc
@@ -285,8 +285,8 @@ implicit none
 type(geometry), intent(in) :: ydgeometry
 type(model), intent(inout) :: ydmodel
 integer, intent(in) :: rang
-real(kind=jprb), intent(inout), allocatable :: zbuf_m(:,:)
-real(kind=jprb), intent(inout), allocatable :: zbuf_s(:,:)
+real(kind=jprb), intent(inout), allocatable :: zbufsend(:,:)
+real(kind=jprb), intent(inout), allocatable :: zbufrecv(:,:)
 integer :: dev,namelength,ierr
 integer(kind=jpim), external :: mysendset,myrecvset
 logical :: llfullm
@@ -357,8 +357,8 @@ print *,"isizemax_s",isizemax_s
 print *,"inproc_s",inproc_s
 
 
-allocate(zbuf_m(isizemax_m,inproc_m))
-allocate(zbuf_s(isizemax_s,inproc_s))
+allocate(zbufsend(max(isizemax_m,isizemax_s),max(inproc_s,inproc_m)))
+allocate(zbufrecv(max(isizemax_m,isizemax_s),max(inproc_s,inproc_m)))
 
 end subroutine initialisegpu
 #endif
