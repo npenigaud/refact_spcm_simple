@@ -140,7 +140,7 @@ TYPE (FIELDLIST) :: YLLIST
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
 IF (LHOOK) CALL DR_HOOK('TRMTOS',0,ZHOOK_HANDLE)
-!$acc data present(pspvor,pspdiv,pspt,pspsp,pspspd,pspsvd,zbuf_s,zbuf_m) create(yllist,yllist%yl3d,yllist%yl2d)
+!$acc data present(pspvor,pspdiv,pspt,pspsp,pspspd,pspsvd,zbuf_s,zbuf_m) create(yllist)
 !$acc data present(pspvorg,pspdivg,psptg,pspspg,pspspdg,pspsvdg)
 CALL ADD3DF (YLLIST, PSPVOR, PSPVORG, "PSPVOR")
 CALL ADD3DF (YLLIST, PSPDIV, PSPDIVG, "PSPDIV")

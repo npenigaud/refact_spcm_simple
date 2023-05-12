@@ -205,7 +205,7 @@ ELSE
     enddo
 
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',0,zhook_handle2)
-    !$acc data create(zspdivg,zsptg,zspspg,zspvorg,zspspdg,zspsvdg,zsdivpl,zspdivpl)
+    !$acc data copy(zspdivg,zsptg,zspspg,zspvorg,zspspdg,zspsvdg) create(zsdivpl,zspdivpl)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',1,zhook_handle2)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',0,zhook_handle2)
     !$acc data create(zsdiv,zhelp,zsp,zst,zsphi,zout,zsdivp,zspdivp)
