@@ -59,8 +59,8 @@ LOGICAL :: LLVERBOSE, LLWRITEGRIB1, LLWRITETEXT1, LLWRITEGRIB2, LLWRITETEXT2, LL
 
 REAL(KIND=JPHOOK)  :: zhook_handle,zhook_handle2
 integer            :: repetition,repetition2
-real(kind=jprb), allocatable :: zbufsend(:,:)
-real(kind=jprb), allocatable :: zbufrecv(:,:)
+integer(kind=jpim), allocatable :: zbufsend(:,:)
+integer(kind=jpim), allocatable :: zbufrecv(:,:)
 #define repetitif 1
 
 CALL INITOPTIONS
@@ -185,11 +185,7 @@ pspsvd(:,:)=pspsvd2(:,:)
 if (lhook) call dr_hook('SPCM_repetitif',1,zhook_handle2)
 #endif
 
-#if defined(_OPENACC)
-CALL SPCM_SIMPLE(YDGEOMETRY,YDMODEL,PSPSP,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD,zbufsend,zbufrecv)
-#else
 CALL SPCM_SIMPLE (YDGEOMETRY,YDMODEL,PSPSP,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD)
-#endif
 
 #if repetitif
 enddo !repetition2
@@ -285,8 +281,8 @@ implicit none
 type(geometry), intent(in) :: ydgeometry
 type(model), intent(inout) :: ydmodel
 integer, intent(in) :: rang
-real(kind=jprb), intent(inout), allocatable :: zbufsend(:,:)
-real(kind=jprb), intent(inout), allocatable :: zbufrecv(:,:)
+integer(kind=jpim), intent(inout), allocatable :: zbufsend(:,:)
+integer(kind=jpim), intent(inout), allocatable :: zbufrecv(:,:)
 integer :: dev,namelength,ierr
 integer(kind=jpim), external :: mysendset,myrecvset
 logical :: llfullm
