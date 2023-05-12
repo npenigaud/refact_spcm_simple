@@ -89,20 +89,16 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS',0,ZHOOK_HANDLE)
 ASSOCIATE(YDDIMV=>YDGEOMETRY%YRDIMV,YDMP=>YDGEOMETRY%YRMP)
 ASSOCIATE(NFLEVG=>YDDIMV%NFLEVG, NFLEVL=>YDDIMV%NFLEVL, NPTRLL=>YDMP%NPTRLL, NPSP=>YDMP%NPSP, NPSURF=>YDMP%NPSURF, &
 & NPTRSV=>YDMP%NPTRSV, NPTRSVF=>YDMP%NPTRSVF, NSPEC2V=>YDMP%NSPEC2V, NSPEC2VF=>YDMP%NSPEC2VF)
-!$acc data present(ydmp,ydlist,zbuf_m,zbuf_s,ydlist%yl3d,ydlist%yl2d) create(iptrsv)
+!$acc data present(ydlist,zbuf_m,zbuf_s,ydlist%yl3d,ydlist%yl2d)
 LLFULLM=.FALSE.
 IF(PRESENT(LDFULLM)) LLFULLM=LDFULLM
 
 IF (LLFULLM) THEN
   ISPEC2V=NSPEC2VF
-  !$acc kernels
   IPTRSV(:)=NPTRSVF(:)
-  !$acc end kernels
 ELSE
   ISPEC2V=NSPEC2V
-  !$acc kernels
   IPTRSV(:)=NPTRSV(:)
-  !$acc end kernels
 ENDIF
 
 ISIZEMAX_M = 0 
@@ -213,7 +209,7 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:EXCHANGE',0,ZHOOK_HANDLE)
 
 ASSOCIATE(NFLEVL=>YDGEOMETRY%YRDIMV%NFLEVL, NPTRLL=>YDGEOMETRY%YRMP%NPTRLL, NPSP=>YDGEOMETRY%YRMP%NPSP)
-!$acc data present(ydlist,ydlist%yl3d,ydlist%yl2d,zbufsend,zbufrecv,nflevl,npsp,kptrsv)
+!$acc data present(ydlist,ydlist%yl3d,ydlist%yl2d,zbufsend,zbufrecv)
 ! * Recv loop .................................................
 
 IF (NSPEC_SYNC_LEVEL == 0) THEN
@@ -239,12 +235,7 @@ ENDDO
 ILEV1=NPTRLL(MYSETV)
 ILEV2=ILEV1+NFLEVL-1
 
-#if defined(_OPENACC)
-!$acc parallel private (jversp,isp,jfld) default(none)
-!$acc loop gang vector
-#else
 !$OMP PARALLEL DO SCHEDULE (STATIC) PRIVATE (JVERSP,ISP,JFLD)
-#endif
 DO JVERSP = 1, KSPEC2V
   ISP=KPTRSV(MYSETV)-1+JVERSP
 
@@ -278,11 +269,7 @@ DO JVERSP = 1, KSPEC2V
   ENDDO
 
 ENDDO
-#if defined(_OPENACC)
-!$acc end parallel
-#else
 !$OMP END PARALLEL DO
-#endif
 
 ! * Recv + unpack loop .................................................
 
@@ -336,7 +323,7 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:MESSAGE_M',0,ZHOOK_HANDLE)
 
 ASSOCIATE(NFLEVL=>YDGEOMETRY%YRDIMV%NFLEVL, NPSP=>YDGEOMETRY%YRMP%NPSP)
-!$acc data present(nflevl,ydlist,ydlist%yl3d,ydlist%yl2d,pbuf_m)
+!$acc data present(ydlist,ydlist%yl3d,ydlist%yl2d,pbuf_m)
 
 ISENDSET=MYSENDSET(NPRTRV,MYSETV,KJR)
 
@@ -349,35 +336,24 @@ ISPE1=KPTRSV(ISENDSET)
 ISPE2=KPTRSV(ISENDSET+1)-1
 ISPEL=ISPE2-ISPE1+1 ! KSPEC2V on remote task
 
-!!!$acc parallel private(jfld,ioff) default(none)
-IOFF=0
-!!!$acc loop seq
+IOFF = 0
+
 DO JFLD = 1, YDLIST%N2D
   IF ((NPSP == 1) .OR. &
     &  YDLIST%YL2D (JFLD)%LBCAST) THEN ! Only for KWHAT == NUNPACK (KDIR=NEXCHANGE_STOM)
     IF (KWHAT == NPACK) THEN
-      !$acc kernels
       PBUF_M (IOFF+1:IOFF+ISPEL) = YDLIST%YL2D (JFLD)%ZSP (ISPE1:ISPE2) 
-      !$acc end kernels
     ELSEIF (KWHAT == NUNPACK) THEN
-      !$acc kernels
       YDLIST%YL2D (JFLD)%ZSP (ISPE1:ISPE2) = PBUF_M (IOFF+1:IOFF+ISPEL)
-      !$acc end kernels
     ENDIF
     IOFF = IOFF + ISPEL
   ENDIF
 ENDDO
-!!!$acc end parallel
 
 ILEN = NFLEVL * YDLIST%N3D
 
 IF (KWHAT /= NQUERY) THEN
-#if defined(_OPENACC)
-!$acc parallel private(ispe,ipos,jfld) default(none)
-!$acc loop gang vector
-#else
 !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE (ISPE,IPOS,JFLD)
-#endif
   DO ISPE = ISPE1,ISPE2
     IPOS=IOFF+(ISPE-ISPE1)*ILEN
     DO JFLD = 1, YDLIST%N3D
@@ -397,11 +373,7 @@ IF (KWHAT /= NQUERY) THEN
       IPOS = IPOS + NFLEVL
     ENDDO
   ENDDO
-#if defined(_OPENACC)
-!$acc end parallel
-#else
 !$OMP END PARALLEL DO
-#endif
 ENDIF
 
 IF (PRESENT (KSIZE)) KSIZE = IOFF + ISPEL * ILEN
@@ -447,35 +419,24 @@ ILEV1=NPTRLL(IRECVSET)
 ILEV2=NPTRLL(IRECVSET+1)-1
 ILEVL=ILEV2-ILEV1+1 ! NFLEVL on remote task
 
-!!!$acc parallel private(ioff,jfld) default(none)
 IOFF = 0
-!!!$acc loop seq
+
 DO JFLD = 1, YDLIST%N2D
   IF ((NPSURF (IRECVSET) == 1) .OR. &
     &  YDLIST%YL2D (JFLD)%LBCAST) THEN ! Only for KWHAT == NPACK (KDIR=NEXCHANGE_STOM)
     IF (KWHAT == NPACK) THEN
-      !$acc kernels
       PBUF_S(IOFF+1:IOFF+KSPEC2V) = YDLIST%YL2D (JFLD)%ZSPG (1:KSPEC2V) 
-      !$acc end kernels
     ELSEIF (KWHAT == NUNPACK) THEN
-      !$acc kernels
       YDLIST%YL2D (JFLD)%ZSPG (1:KSPEC2V) = PBUF_S(IOFF+1:IOFF+KSPEC2V)
-      !$acc end kernels
     ENDIF
     IOFF = IOFF + KSPEC2V
   ENDIF
 ENDDO
-!!!$acc end parallel
 
 ILEN = ILEVL * YDLIST%N3D
 
 IF (KWHAT /= NQUERY) THEN
-#if defined(_OPENACC)
-!$acc parallel private(ispe,ipos,jfld) default(none)
-!$acc loop gang vector
-#else
 !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(ISPE,IPOS,JFLD) 
-#endif
   DO ISPE = 1, KSPEC2V
     IPOS=IOFF+ILEN*(ISPE-1)
     DO JFLD = 1, YDLIST%N3D
@@ -495,11 +456,7 @@ IF (KWHAT /= NQUERY) THEN
       IPOS = IPOS + ILEVL
     ENDDO
   ENDDO
-#if defined(_OPENACC)
-!$acc end parallel
-#else
 !$OMP END PARALLEL DO
-#endif
 ENDIF
 
 IF (PRESENT (KSIZE)) KSIZE = IOFF + KSPEC2V * ILEN
@@ -527,7 +484,7 @@ IF (.NOT. PRESENT (PSP)) GOTO 999
 IF (PRESENT(PSP) .NEQV. PRESENT (PSPG)) THEN
   CALL ABOR1('EXCHANGE_MS: '//TRIM (CDNAME)//' AND '//TRIM (CDNAME)//'G HAVE TO BE BOTH PRESENT')  
 ENDIF
-!!!$acc data present(ydlist)
+!$acc data present(ydlist)
 YDLIST%N2D = YDLIST%N2D + 1
 
 IF (YDLIST%N2D > SIZE (YDLIST%YL2D)) THEN
@@ -535,15 +492,14 @@ IF (YDLIST%N2D > SIZE (YDLIST%YL2D)) THEN
 ENDIF
 
 ASSOCIATE (YL2D => YDLIST%YL2D (YDLIST%N2D))
-!!!$acc data present(yl2d,psp,pspg,yl2d%zsp,yl2d%zspg)
+!$acc data present(yl2d,psp,pspg,yl2d%zsp,yl2d%zspg)
   YL2D%CNAME = CDNAME
   YL2D%ZSP   => PSP
   YL2D%ZSPG  => PSPG
   IF (PRESENT (LDBCAST)) YL2D%LBCAST = LDBCAST
-!$acc enter data attach(yl2d%zsp,yl2d%zspg)
-!!!$acc end data
+!$acc end data
 END ASSOCIATE
-!!!$acc end data
+!$acc end data
 999 CONTINUE
 
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ADD2DF',1,ZHOOK_HANDLE)
@@ -565,7 +521,7 @@ IF (.NOT. PRESENT (PSP)) GOTO 999
 IF (PRESENT(PSP) .NEQV. PRESENT (PSPG)) THEN
   CALL ABOR1('EXCHANGE_MS: '//TRIM (CDNAME)//' AND '//TRIM (CDNAME)//'G HAVE TO BE BOTH PRESENT')  
 ENDIF
-!!!$acc data present(ydlist)
+!$acc data present(ydlist)
 YDLIST%N3D = YDLIST%N3D + 1
 
 IF (YDLIST%N3D > SIZE (YDLIST%YL3D)) THEN
@@ -573,14 +529,13 @@ IF (YDLIST%N3D > SIZE (YDLIST%YL3D)) THEN
 ENDIF
 
 ASSOCIATE (YL3D => YDLIST%YL3D (YDLIST%N3D))
-!!!$acc data present(yl3d,psp,pspg,yl3d%zsp,yl3d%zspg)
+!$acc data present(yl3d,psp,pspg,yl3d%zsp,yl3d%zspg)
   YL3D%CNAME = CDNAME
   YL3D%ZSP   => PSP
   YL3D%ZSPG  => PSPG
-!$acc enter data attach(yl3d%zspg,yl3d%zsp)
-!!!$acc end data
+!$acc end data
 END ASSOCIATE
-!!!$acc end data
+!$acc end data
 999 CONTINUE
 
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ADD3DF',1,ZHOOK_HANDLE)
@@ -619,7 +574,7 @@ ELSE
     CALL ABOR1('EXCHANGE_MS:ADD2DFL: DIMENSION MISMATCH FOR '//TRIM (CDNAME))
   ENDIF
 ENDIF
-!!!$acc data present(ydlist)
+!$acc data present(ydlist)
 JFLDG = 0
 DO JFLD = 1, SIZE (PSP, 2)
 
@@ -635,16 +590,15 @@ DO JFLD = 1, SIZE (PSP, 2)
   ENDIF
   
   ASSOCIATE (YL2D => YDLIST%YL2D (YDLIST%N2D))
-!!!$acc data present(yl2d,psp,pspg)
+!$acc data present(yl2d,psp,pspg)
     WRITE (YL2D%CNAME, '(A,".",I4.4)') JFLD
     YL2D%ZSP   => PSP (:,JFLD)
     YL2D%ZSPG  => PSPG (:,JFLDG)
-    !$acc enter data attach(yl2d%zsp,yl2d%zspg)
-!!!$acc end data
+!$acc end data
   END ASSOCIATE
 
 ENDDO
-!!!$acc end data
+!$acc end data
 999 CONTINUE
 
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ADD2DFL',1,ZHOOK_HANDLE)
@@ -683,7 +637,7 @@ ELSE
     CALL ABOR1('EXCHANGE_MS:ADD3DFL: DIMENSION MISMATCH FOR '//TRIM (CDNAME))
   ENDIF
 ENDIF
-!!!$acc data present(ydlist)
+!$acc data present(ydlist)
 JFLDG = 0
 DO JFLD = 1, SIZE (PSP, 3)
 
@@ -699,16 +653,15 @@ DO JFLD = 1, SIZE (PSP, 3)
   ENDIF
   
   ASSOCIATE (YL3D => YDLIST%YL3D (YDLIST%N3D))
-!!!$acc data present(yl3d,psp,pspg)
+!$acc data present(yl3d,psp,pspg)
     WRITE (YL3D%CNAME, '(A,".",I4.4)') JFLD
     YL3D%ZSP   => PSP (:,:,JFLD)
     YL3D%ZSPG  => PSPG (:,:,JFLDG)
-    !$acc enter data attach(yl3d%zsp,yl3d%zspg)
-!!!$acc end data
+!$acc end data
   END ASSOCIATE
 
 ENDDO
-!!!$acc end data
+!$acc end data
 999 CONTINUE
 
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ADD3DFL',1,ZHOOK_HANDLE)

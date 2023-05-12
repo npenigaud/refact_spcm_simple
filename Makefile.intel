@@ -8,7 +8,7 @@ ECTRANS=/home/gmap/mrpm/marguina/pack/48t3_mrg48R1.05.IMPIIFC2018.x/hub/local/in
 ECCODES=/home/gmap/mrpm/khatib/opt/i-2018.5.274/eccodes-2.27.0
 
 FFLAGS= \
-   -I$(SRC) -align array64byte,all -traceback -fpic -qopenmp -qopenmp-threadprivate compat -DBLAS \
+   -I$(SRC) -align array64byte,all -traceback -fpic -qopenmp -qopenmp-threadprivate compat \
    -fp-model source -ftz -diag-disable=remark,cpu-dispatch -qopt-report=5 -qopt-report-phase=vec -g -O2 -march=core-avx2 \
    -finline-functions -finline-limit=500 -Winline -qopt-prefetch=4 -fast-transcendentals -fimf-use-svml -no-fma 
 
