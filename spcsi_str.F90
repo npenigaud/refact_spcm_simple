@@ -79,9 +79,9 @@ USE YOMLDDH      , ONLY : TLDDH
 USE YOMRIP       , ONLY : TRIP
 USE YOMCST       , ONLY : TCST
 
-!!#if defined(_OPENACC)
-!!use cublas
-!!#endif
+#if defined(_OPENACC)
+use cublas
+#endif
 
 !     ------------------------------------------------------------------
 
@@ -312,15 +312,15 @@ ENDIF
 
 if (lhook) call dr_hook('SPCSI_mxmaop2',0,zhook_handle2)
 #if defined(_OPENACC)
-!!!$acc host_data use_device(SIMO,ZSPDIVP,PSPDIVG)
-!!CALL cublasDgemm('N','T',kspec2v,nflevg,nflevg,1.0_JPRB,&    !!ispcol remplacé par kspec2v
-!!&ZSPDIVP(1,1),kspec2v,SIMO,NFLEVG,0.0_JPRB,PSPDIVG(1,1),kspec2v) !!2ksta remplacés par 1,pourrait partir
-!!!$acc end host_data
-!!!$acc wait
-!!           pa        kad      pb            kbd    pc       kca     kar    kac   kbc
-!$acc host_data use_device(yddyn%simo,nflevg)
-call mxmaop(zspdivp,1,kspec2v,yddyn%simo,1,nflevg,pspdivg,1,nflevg,kspec2v,nflevg,nflevg)
+!$acc host_data use_device(SIMO,ZSPDIVP,PSPDIVG)
+CALL cublasDgemm('N','T',kspec2v,nflevg,nflevg,1.0_JPRB,&    !!ispcol remplacé par kspec2v
+&ZSPDIVP(1,1),kspec2v,SIMO,NFLEVG,0.0_JPRB,PSPDIVG(1,1),kspec2v) !!2ksta remplacés par 1,pourrait partir
 !$acc end host_data
+!$acc wait
+!!           pa        kad      pb            kbd    pc       kca     kar    kac   kbc
+!!!$acc host_data use_device(yddyn%simo,nflevg)
+!!call mxmaop(zspdivp,1,kspec2v,yddyn%simo,1,nflevg,pspdivg,1,nflevg,kspec2v,nflevg,nflevg)
+!!!$acc end host_data
 #else
 CALL MXMAOP(SIMO,1,NFLEVG,ZSPDIVP,1,NFLEVG,PSPDIVG,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2V)  
 #endif
