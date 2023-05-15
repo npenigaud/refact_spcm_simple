@@ -1,8 +1,4 @@
-#if defined(_OPENACC)
-SUBROUTINE SIGAM_SP_OPENMP (YDGEOMETRY, YDCST, YDDYN, KLEV, KSPEC, PD, PT,PSP,zsphi,zout)
-#else
 SUBROUTINE SIGAM_SP_OPENMP (YDGEOMETRY, YDCST, YDDYN, KLEV, KSPEC, PD, PT, PSP)
-#endif
 
 !**** *SIGAM_SP_OPENMP* - Solve hydrostatic operator in semi-implicit
 
@@ -81,18 +77,15 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PD(KSPEC,klev)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PT(KSPEC,klev)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSP(KSPEC)
-REAL(KIND=JPRB)   ,INTENT(inout) :: zsphi(KSPEC,0:klev+1)
-REAL(KIND=JPRB)   ,INTENT(inout) :: zout(KSPEC,0:klev)
 #else
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PD(KLEV,KSPEC)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PT(KLEV,KSPEC)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSP(KSPEC)
-
+#endif
 !     ------------------------------------------------------------------
 
 REAL(KIND=JPRB) :: ZSPHI(KSPEC,0:KLEV+1)
 REAL(KIND=JPRB) :: ZOUT(KSPEC,0:KLEV)
-#endif
 
 
 REAL(KIND=JPRB) :: ZSPHIX(0:KLEV, KSPEC)
@@ -123,7 +116,7 @@ IF (YDCVER%LVERTFE) THEN
   IF (YDCVER%LVFE_COMPATIBLE) CLOPER='INTG'
 !$acc data present(pt,psp,pd,klev)
 !$acc data present(ydveta%vfe_rdetah,yddyn,YDDYN%SILNPR,YDDYN%SIALPH,YDDYN%SIRPRG,ydveta,ydcst)
-!$acc data present(zsphi,zout)
+!$acc data create(zsphi,zout)
 
 if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
 

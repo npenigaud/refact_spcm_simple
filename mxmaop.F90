@@ -55,22 +55,40 @@ USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE OML_MOD   ,ONLY : OML_MAX_THREADS, OML_IN_PARALLEL
 
+#if defined(_OPENACC)
+use cublas
+#endif
+
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(*) 
+#if defined(_OPENACC)
+REAL(KIND=JPRB)   ,INTENT(INOUT)    :: PA(:,:) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KA 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KAD 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PB(*) 
+REAL(KIND=JPRB)   ,INTENT(INOUT)    :: PB(:,:) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KB 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KBD 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PC(*) 
+REAL(KIND=JPRB)   ,INTENT(INOUT)   :: PC(:,:) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KC 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KCA 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KAR 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KAC 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KBC 
+#else
+REAL(KIND=JPRB)   ,INTENT(INOUT)    :: PA(:,:) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KA 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KAD 
+REAL(KIND=JPRB)   ,INTENT(INOUT)    :: PB(:,:) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KB 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KBD 
+REAL(KIND=JPRB)   ,INTENT(INOUT)   :: PC(:,:) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KC 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KCA 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KAR 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KAC 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KBC 
+#endif
 
 !     ------------------------------------------------------------------
 
@@ -84,7 +102,15 @@ IF (LHOOK) CALL DR_HOOK('MXMAOP',0,ZHOOK_HANDLE)
 
 !*       1.       PERFORM LEGENDRE TRANFORM.
 !                 --------------------------
-
+#if defined(_OPENACC)
+   !$acc data present(pa,pb,pc,kbd,kac,kbc)
+   !$acc host_data use_device(pa,pb,pc)
+     CALL cublasDgemm('N','T',kar,kbc,kac,1.0_JPRB,&
+      &pa(1,1),kad,pb(1,1),kbd,0.0_JPRB,pc(1,1),kca)  !!!!ispcol remplacé par kspec2V, ksta par 1, suppression de (1,1)?
+   !$acc end host_data
+   !$acc wait
+   !$acc end data
+#else
 IF(OML_IN_PARALLEL()) THEN
 
   IF (KAR >= KBC) THEN
@@ -118,7 +144,7 @@ ELSE
   ENDIF
 
 ENDIF
-
+#endif
 !     ------------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('MXMAOP',1,ZHOOK_HANDLE)

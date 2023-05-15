@@ -1,8 +1,4 @@
-#if defined(_OPENACC)
-SUBROUTINE SITNU_SP_OPENMP (YDGEOMETRY, YDCST, YDDYN, KLEV, KSPEC, PD, PT,PSP,zsdiv,zout)
-#else
 SUBROUTINE SITNU_SP_OPENMP (YDGEOMETRY, YDCST, YDDYN, KLEV, KSPEC, PD, PT, PSP)
-#endif
 
 !**** *SITNU_SP_OPENMP*   - Continuity equation for semi-implicit.
 
@@ -79,18 +75,15 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PD(KSPEC,klev)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PT(KSPEC,klev)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSP(KSPEC) 
-REAL(KIND=JPRB)   ,INTENT(inout) :: zsdiv(KSPEC,0:klev+1)
-REAL(KIND=JPRB)   ,INTENT(inout) :: zout(KSPEC,0:klev)
 #else
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PD(KLEV,KSPEC)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PT(KLEV,KSPEC)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSP(KSPEC) 
-
+#endif
 !     ------------------------------------------------------------------
 
 REAL(KIND=JPRB) :: ZSDIV(KSPEC,0:KLEV+1)
 REAL(KIND=JPRB) :: ZOUT(KSPEC,0:KLEV)
-#endif
 
 REAL(KIND=JPRB) :: ZSDIVX(0:KLEV, KSPEC)
 INTEGER(KIND=JPIM) :: JLEV, JSPEC
@@ -117,7 +110,7 @@ ASSOCIATE(SIALPH=>YDDYN%SIALPH, SIDELP=>YDDYN%SIDELP, SILNPR=>YDDYN%SILNPR, SIRD
 
 IF(YDCVER%LVERTFE) THEN
 !$acc data present(pd,psp,pt,YDDYN%SIDELP,YDDYN%SITLAF,YDGEOMETRY%YRVETA,ydcst,YDDYN%SIRPRN)
-!$acc data present(zsdiv,zout,yddyn,ydgeometry,ydgeometry%yrveta%vfe_rdetah) 
+!$acc data create(zsdiv,zout) present(yddyn,ydgeometry,ydgeometry%yrveta%vfe_rdetah) 
 
 if (lhook) call dr_hook('SITNU_transpose1',0,zhook_handle2)
 #if defined(_OPENACC)
