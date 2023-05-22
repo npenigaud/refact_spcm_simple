@@ -127,25 +127,52 @@ LOGICAL           ,OPTIONAL, INTENT(IN)    :: LDSELECT2D(:)
 LOGICAL           ,OPTIONAL, INTENT(IN)    :: LDFULLM 
 LOGICAL           ,OPTIONAL, INTENT(IN)    :: LDNEEDPS 
 
-TYPE (FIELDLIST) :: YLLIST
+TYPE (FIELDLIST) :: YLLIST2
 
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
+integer ::compteur
 
 IF (LHOOK) CALL DR_HOOK('TRSTOM',0,ZHOOK_HANDLE)
+!!call acc_present_dump()
+!$acc enter data copyin(yllist2)
+CALL ADD3DF (YLLIST2, PSPVOR, PSPVORG, "PSPVOR")
+CALL ADD3DF (YLLIST2, PSPDIV, PSPDIVG, "PSPDIV")
+CALL ADD3DF (YLLIST2, PSPT  , PSPTG,   "PSPT"  )
+CALL ADD3DF (YLLIST2, PSPAUX, PSPAUXG, "PSPAUX")
+IF (LdNHDYN) CALL ADD3DF (YLLIST2, PSPSPD,  PSPSPDG,  "PSPSPD")
+IF (LdNHDYN) CALL ADD3DF (YLLIST2, PSPSVD,  PSPSVDG,  "PSPSVD")
+IF (LdNHX)   CALL ADD3DF (YLLIST2, PSPSNHX, PSPSNHXG, "PSPSNHX")
+CALL ADD3DFL (YLLIST2, PSPGFL,   PSPGFLG,   "PSPGFL")
+CALL ADD3DFL (YLLIST2, PSPSEL3D, PSPSEL3DG, "PSPSEL3D", LDSELECT3D)
+CALL ADD2DF (YLLIST2, PSPSP, PSPSPG, "PSPSP", LDBCAST=LDNEEDPS)
+CALL ADD2DFL (YLLIST2, PSPSEL2D, PSPSEL2DG, "PSPSEL2D", LDSELECT2D)
 
-CALL ADD3DF (YLLIST, PSPVOR, PSPVORG, "PSPVOR")
-CALL ADD3DF (YLLIST, PSPDIV, PSPDIVG, "PSPDIV")
-CALL ADD3DF (YLLIST, PSPT  , PSPTG,   "PSPT"  )
-CALL ADD3DF (YLLIST, PSPAUX, PSPAUXG, "PSPAUX")
-IF (LdNHDYN) CALL ADD3DF (YLLIST, PSPSPD,  PSPSPDG,  "PSPSPD")
-IF (LdNHDYN) CALL ADD3DF (YLLIST, PSPSVD,  PSPSVDG,  "PSPSVD")
-IF (LdNHX)   CALL ADD3DF (YLLIST, PSPSNHX, PSPSNHXG, "PSPSNHX")
-CALL ADD3DFL (YLLIST, PSPGFL,   PSPGFLG,   "PSPGFL")
-CALL ADD3DFL (YLLIST, PSPSEL3D, PSPSEL3DG, "PSPSEL3D", LDSELECT3D)
-CALL ADD2DF (YLLIST, PSPSP, PSPSPG, "PSPSP", LDBCAST=LDNEEDPS)
-CALL ADD2DFL (YLLIST, PSPSEL2D, PSPSEL2DG, "PSPSEL2D", LDSELECT2D)
-
-CALL EXCHANGE_MS (YDGEOMETRY, YLLIST, KDIR=NEXCHANGE_STOM, LDFULLM=LDFULLM)
+CALL EXCHANGE_MS (YDGEOMETRY, YLLIST2, KDIR=NEXCHANGE_STOM, LDFULLM=LDFULLM)
+#if defined(_OPENACC)
+!!call acc_present_dump()
+do compteur=yllist2%n2d,1
+!$acc exit data detach(yllist2%yl2d(compteur)%zsp)
+!$acc exit data detach(yllist2%yl3d(compteur)%zspg)
+!$acc exit data delete(yllist2%yl2d(compteur)%zsp)
+!$acc exit data delete(yllist2%yl2d(compteur)%zspg)
+!$acc exit data delete(yllist2%yl2d(compteur)%cname)
+!$acc exit data delete(yllist2%yl2d(compteur)%lbcast)
+!$acc exit data delete(yllist2%yl2d(compteur))
+enddo
+do compteur=yllist2%n3d,1
+!$acc exit data detach(yllist2%yl3d(compteur)%zsp)
+!$acc exit data detach(yllist2%yl3d(compteur)%zspg)
+!$acc exit data delete(yllist2%yl3d(compteur)%zsp)
+!$acc exit data delete(yllist2%yl3d(compteur)%zspg)
+!$acc exit data delete(yllist2%yl3d(compteur)%cname)
+!$acc exit data delete(yllist2%yl3d(compteur))
+enddo
+!$acc exit data delete(yllist2%n3d)
+!$acc exit data delete(yllist2%n2d)
+!$acc exit data delete(yllist2%yl3d)
+!$acc exit data delete(yllist2%yl2d)
+!$acc exit data delete(yllist2)
+#endif
 
 IF (LHOOK) CALL DR_HOOK('TRSTOM',1,ZHOOK_HANDLE)
 

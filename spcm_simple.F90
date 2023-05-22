@@ -168,12 +168,54 @@ ELSE
       enddo
     enddo
 
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',0,zhook_handle2)
+    !$acc data create(zspvorg,zspdivg,zsptg,zspspdg,zspsvdg,zspspg) create(zsdivpl,zspdivpl)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',1,zhook_handle2)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',0,zhook_handle2)
+    !$acc data copy(pspvor2,pspdiv2,pspt2,pspspd2,pspsvd2,pspsp2)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',1,zhook_handle2)
+
+
   CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
     & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & LDFULLM=LLONEM)
+
+  CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
+  & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
+  & zsdivpl,zspdivpl)
+
+  CALL TRSTOM(&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
+    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
+    & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
+    & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
+    & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
+
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',0,zhook_handle2)
+    !$acc end data
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',1,zhook_handle2)
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',0,zhook_handle2)
+    !$acc end data
+    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',1,zhook_handle2)
+
+
+
+    pspsp(:)=pspsp2(:)
+    do compteur2=1,nspec2
+      do compteur1=1,nflevl
+        pspvor(compteur1,compteur2)=pspvor2(compteur2,compteur1)
+        pspdiv(compteur1,compteur2)=pspdiv2(compteur2,compteur1)
+        pspt(compteur1,compteur2)=pspt2(compteur2,compteur1)
+        pspspd(compteur1,compteur2)=pspspd2(compteur2,compteur1)
+        pspsvd(compteur1,compteur2)=pspsvd2(compteur2,compteur1)
+      enddo
+    enddo
+
+
 #else
 
 !!    if (lhook) call dr_hook('SPCM_SIMPLE_transpose1',0,zhook_handle2)
@@ -184,52 +226,9 @@ ELSE
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & LDFULLM=LLONEM)
 
-
-#endif
-  !!  if (lhook) call dr_hook('SPCM_SIMPLE_transpose1',1,zhook_handle2)
-
-#if defined(_OPENACC)
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',0,zhook_handle2)
-    !$acc data copy(zspdivg,zsptg,zspspg) create(zsdivpl,zspdivpl)
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',1,zhook_handle2)
-
-  CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
-  & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
-  & zsdivpl,zspdivpl)
-
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',0,zhook_handle2)
-    !$acc end data
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',1,zhook_handle2)
-
-#else
-
   CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
   & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG)
 
-#endif
-
-   !! if (lhook) call dr_hook('SPCM_SIMPLE_transpose2',0,zhook_handle2)
-#if defined(_OPENACC)
-  CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
-    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
-    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
-    & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
-    & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
-    & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
-
-
-    zspspg(:)=zspspg2(:)
-    do compteur2=1,nspec2
-      do compteur1=1,nflevl
-        pspvor(compteur1,compteur2)=pspvor2(compteur2,compteur1)
-        pspdiv(compteur1,compteur2)=pspdiv2(compteur2,compteur1)
-        pspt(compteur1,compteur2)=pspt2(compteur2,compteur1)
-        pspspd(compteur1,compteur2)=pspspd2(compteur2,compteur1)
-        pspsvd(compteur1,compteur2)=pspsvd2(compteur2,compteur1)
-      enddo
-    enddo
-#else
   CALL TRSTOM(&
     & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -237,13 +236,7 @@ ELSE
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,&
     & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
-
 #endif
-
-   !! if (lhook) call dr_hook('SPCM_SIMPLE_transpose2',1,zhook_handle2)
-
-
-
 
 ENDIF
 

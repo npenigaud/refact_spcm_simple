@@ -126,9 +126,10 @@ LOGICAL           ,OPTIONAL, INTENT(IN)    :: LDFULLM
 TYPE (FIELDLIST) :: YLLIST
 
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
+integer         :: compteur
 
 IF (LHOOK) CALL DR_HOOK('TRMTOS',0,ZHOOK_HANDLE)
-
+!$acc enter data copyin(yllist)
 CALL ADD3DF (YLLIST, PSPVOR, PSPVORG, "PSPVOR")
 CALL ADD3DF (YLLIST, PSPDIV, PSPDIVG, "PSPDIV")
 CALL ADD3DF (YLLIST, PSPT  , PSPTG,   "PSPT"  )
@@ -142,6 +143,31 @@ CALL ADD2DF (YLLIST, PSPSP, PSPSPG, "PSPSP")
 CALL ADD2DFL (YLLIST, PSPSEL2D, PSPSEL2DG, "PSPSEL2D", LDSELECT2D)
 
 CALL EXCHANGE_MS (YDGEOMETRY, YLLIST, KDIR=NEXCHANGE_MTOS, LDFULLM=LDFULLM)
+#if defined(_OPENACC)
+!!call acc_present_dump()
+do compteur=yllist%n2d,1
+!$acc exit data detach(yllist%yl2d(compteur)%zsp)
+!$acc exit data detach(yllist%yl3d(compteur)%zspg)
+!$acc exit data delete(yllist%yl2d(compteur)%zsp)
+!$acc exit data delete(yllist%yl2d(compteur)%zspg)
+!$acc exit data delete(yllist%yl2d(compteur)%cname)
+!$acc exit data delete(yllist%yl2d(compteur)%lbcast)
+!$acc exit data delete(yllist%yl2d(compteur))
+enddo
+do compteur=yllist%n3d,1
+!$acc exit data detach(yllist%yl3d(compteur)%zsp)
+!$acc exit data detach(yllist%yl3d(compteur)%zspg)
+!$acc exit data delete(yllist%yl3d(compteur)%zsp)
+!$acc exit data delete(yllist%yl3d(compteur)%zspg)
+!$acc exit data delete(yllist%yl3d(compteur)%cname)
+!$acc exit data delete(yllist%yl3d(compteur))
+enddo
+!$acc exit data delete(yllist%n3d)
+!$acc exit data delete(yllist%n2d)
+!$acc exit data delete(yllist%yl3d)
+!$acc exit data delete(yllist%yl2d)
+!$acc exit data delete(yllist)
+#endif
 
 IF (LHOOK) CALL DR_HOOK('TRMTOS',1,ZHOOK_HANDLE)
 

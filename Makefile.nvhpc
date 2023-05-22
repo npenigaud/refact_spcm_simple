@@ -3,7 +3,7 @@ SRC=..
 
 # PGI
 
-FIAT=/home/gmap/mrpm/marguina/fiat/pginvtx-install
+FIAT=/home/gmap/mrpm/marguina/fiat/pginvtx+mplacc-build
 ECTRANS=/home/gmap/mrpm/marguina/hub/install
 ECCODES=/home/gmap/mrpm/marguina/install/PGI2211/eccodes-2.14.0
 
@@ -18,7 +18,7 @@ FC=/home/gmap/mrpm/marguina/install/gmkpack_support/wrapper/PGI2211/mpif90 \
    -I$(ECCODES)/include \
    $(FFLAGS)
 
-LIBS=-L$(FIAT)/lib64 -lparkind_dp -lfiat -Wl,-rpath,$(FIAT)/lib64 \
+LIBS=-L$(FIAT)/lib -lparkind_dp -lfiat -Wl,-rpath,$(FIAT)/lib \
      -L$(ECTRANS)/lib64 -ltrans_dp -Wl,-rpath,$(ECTRANS)/lib64 \
      -L$(ECCODES)/lib -leccodes_f90 -leccodes -Wl,-rpath,$(ECCODES)/lib \
      -L/opt/softs/nvidia/hpc_sdk/Linux_x86_64/22.11/math_libs/11.8/targets/x86_64-linux/lib/stubs/ -lcublas \
