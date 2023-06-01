@@ -18,8 +18,8 @@ INTEGER(KIND=JPIM),INTENT(IN),value    :: KMLOC
 #if defined(_OPENACC)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSPDIVG(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PHELP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
-real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdimv%nflevg,ydgeometry%yrdim%nsmax+1,2)
-real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdimv%nflevg,ydgeometry%yrdim%nsmax+1,2)
+real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
+real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
 #else
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSPDIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PHELP(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
@@ -69,7 +69,7 @@ ZSPDIVPL(:,:,:)=0.0_JPRB
 DO JN=IM,NSMAX
   ISE=ISTA+2*(JN-IM)
   do compteur=1,nflevg
-    ZSDIVPL(compteur,JN-im+1,1:2)=PSPDIVG(ISE:ISE+1,compteur)
+    ZSDIVPL(JN-im+1,compteur,1:2)=PSPDIVG(ISE:ISE+1,compteur)
   enddo
 ENDDO
 #else
@@ -100,7 +100,7 @@ CALL MXPTMA(NSMAX+1-IM,NFLEVG,NFLEVG,II,SCGMAP(IS0+1,1),&
 DO JN=IM,NSMAX
   ISE=ISTA+2*(JN-IM)
   do compteur=1,nflevg
-    PHELP(ISE:ISE+1,compteur)=ZSPDIVPL(compteur,JN-im+1,1:2)
+    PHELP(ISE:ISE+1,compteur)=ZSPDIVPL(JN-im+1,compteur,1:2)
   enddo
 ENDDO
 #else

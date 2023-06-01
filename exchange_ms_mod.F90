@@ -129,9 +129,6 @@ DO JR = 1, NPRTRV-1
 
 ENDDO
 
-print *, "nprtrv : ",nprtrv," sizemax_m (double) ",isizemax_m," sizemax_s (double) ",isizemax_s
-print *, "inproc_m : ",inproc_m," inproc_s : ",inproc_s
-
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:tailles',1,ZHOOK_HANDLE2)
 
 SELECT CASE (KDIR)

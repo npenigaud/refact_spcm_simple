@@ -15,8 +15,8 @@ INTEGER(KIND=JPIM),INTENT(IN),value    :: KMLOC
 #if defined(_OPENACC)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSPDIVG(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PHELP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
-real(kind=JPRB)   ,intent(INOUT) :: zsdivpl(ydgeometry%yrdimv%nflevg,ydgeometry%yrdim%nsmax,2)
-real(kind=JPRB)   ,intent(INOUT) :: zspdivpl(ydgeometry%yrdimv%nflevg,ydgeometry%yrdim%nsmax,2)
+real(kind=JPRB)   ,intent(INOUT) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
+real(kind=JPRB)   ,intent(INOUT) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
 #else
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSPDIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PHELP(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)

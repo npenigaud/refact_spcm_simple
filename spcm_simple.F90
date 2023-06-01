@@ -26,8 +26,8 @@ REAL(KIND=JPRB)     ,INTENT(INOUT) :: PSPSVD(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY
 #include "spcimpfpost.intfb.h"
 
 #if defined(_OPENACC)
-real(kind=JPRB)  :: zsdivpl(ydgeometry%yrdimv%nflevg,ydgeometry%yrdim%nsmax+1,2)
-real(kind=JPRB)  :: zspdivpl(ydgeometry%yrdimv%nflevg,ydgeometry%yrdim%nsmax+1,2)
+real(kind=JPRB)  :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
+real(kind=JPRB)  :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
 #endif
 
 REAL(KIND=JPRB), ALLOCATABLE :: ZSPVORG2(:,:)
