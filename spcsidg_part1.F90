@@ -72,11 +72,12 @@ ZSDIVPL(:,:,:)=0.0_JPRB
 ZSPDIVPL(:,:,:)=0.0_JPRB
 
 #if defined(_OPENACC)
-!$acc loop vector private(ise,compteur)
-DO JN=IM,NSMAX
-  ISE=ISTA+2*(JN-IM)
-  do compteur=1,nflevg
-    ZSDIVPL(JN-im+1,compteur,1:2)=PSDIVP(ISE:ISE+1,compteur)
+!$acc loop vector private(ise,compteur,jn) collapse(2)
+do compteur=1,nflevg
+  DO JN=IM,NSMAX
+    ISE=ISTA+2*(JN-IM)
+    ZSDIVPL(JN-im+1,compteur,1)=PSDIVP(ISE,compteur)
+    ZSDIVPL(JN-im+1,compteur,2)=PSDIVP(ISE+1,compteur)
   enddo
 ENDDO
 #else
@@ -119,11 +120,12 @@ ELSE
 ENDIF
 
 #if defined(_OPENACC)
-!$acc loop vector private(ise,compteur)
-DO JN=IM,NSMAX
-  ISE=ISTA+2*(JN-IM)
-  do compteur=1,nflevg
-    PSPDIVP(ISE:ISE+1,compteur)=ZSPDIVPL(JN-im+1,compteur,1:2)
+!$acc loop vector private(ise,compteur,jn) collapse(2)
+do compteur=1,nflevg
+  DO JN=IM,NSMAX
+    ISE=ISTA+2*(JN-IM)
+    PSPDIVP(ISE,compteur)=ZSPDIVPL(JN-im+1,compteur,1)
+    PSPDIVP(ISE+1,compteur)=ZSPDIVPL(JN-im+1,compteur,2)
   enddo
 ENDDO
 #else

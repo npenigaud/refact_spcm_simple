@@ -157,33 +157,37 @@ IF (KT == 0.OR.KT == -1) IT=-2
 
 IF (IT == -3) THEN
 #if defined(_OPENACC)
-  !$acc loop vector collapse(2)
-  DO JI=1,IIX,2
-    DO JV=1,KVX
+  !$acc loop vector private(ji)
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=1,IIX,2
       PX(1,jv,JI)=PY(1,jv,JI)
       PX(1,jv,JI+1)=PY(1,jv,JI+1)
     ENDDO
   ENDDO
-  !$acc loop vector collapse(2)
-  DO JI=IIX+1,KIX
-    DO JV=1,KVX
+  !$acc loop vector private(ji)
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=IIX+1,KIX
       PX(1,jv,JI)=PY(1,jv,JI)
     ENDDO
   ENDDO
 
   IF (KLX >= 2) THEN
-    !$acc loop vector collapse(2) private(zbb)
-    DO JI=1,IIX,2
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=1,IIX,2
         ZBB=PB(JV,1)
         PX(2,jv,JI)=PY(2,jv,JI)-ZBB*PX(1,jv,JI)
         PX(2,jv,JI+1)=PY(2,jv,JI+1)-ZBB*PX(1,jv,JI+1)
       ENDDO
     ENDDO
-    !$acc loop vector collapse(2) private(zbb)
-    DO JI=IIX+1,KIX
-      DO JV=1,KVX
-        ZBB=PB(JV,1)
+    !$acc loop vector private(zbb,ji)
+    do jv=1,kvx
+      zbb=pb(jv,1)
+      !$acc loop seq
+      DO JI=IIX+1,KIX
         PX(2,jv,JI)=PY(2,jv,JI)-ZBB*PX(1,jv,JI)
       ENDDO
     ENDDO
@@ -222,9 +226,10 @@ IF (IT == -3) THEN
 
   IF (KLX >= 3) THEN
 #if defined(_OPENACC)
-    !$acc loop vector collapse(2) private(zbb,zcc,jl)
-    DO JI=1,IIX,2
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,zcc,jl,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=1,IIX,2
         !$acc loop seq
         do jl=3,klx 
           ZBB=PB(JV,JL-1)
@@ -235,9 +240,10 @@ IF (IT == -3) THEN
         ENDDO
       ENDDO
     ENDDO
-    !$acc loop vector collapse(2) private(zbb,zcc,jl)
-    DO JI=IIX+1,KIX
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,zcc,jl,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=IIX+1,KIX
         !$acc loop seq
         do jl=3,klx
           ZBB=PB(JV,JL-1)
@@ -335,9 +341,10 @@ ELSEIF (IT == -2) THEN
 
   IF (KLX >= 3) THEN
 #if defined(_OPENACC)
-    !$acc loop vector collapse(2) private(jl)
-    DO JI=1,IIX,2
-      DO JV=1,KVX
+    !$acc loop vector private(jl,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=1,IIX,2
         !$acc loop seq
         do jl=3,klx
           PX(JL,jv,JI)=(PY(JL,jv,JI)-PC(JV,JL-2)*PX(JL-2,jv,JI)&
@@ -348,9 +355,10 @@ ELSEIF (IT == -2) THEN
         ENDDO
       ENDDO
     ENDDO
-    !$acc loop vector collapse(2) private(jl)
-    DO JI=IIX+1,KIX
-      DO JV=1,KVX
+    !$acc loop vector private(jl,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=IIX+1,KIX
         !$acc loop seq
         do jl=3,klx
           PX(JL,jv,JI)=(PY(JL,jv,JI)-PC(JV,JL-2)*PX(JL-2,jv,JI)&
@@ -386,32 +394,36 @@ ELSEIF (IT == 1) THEN
 
 #if defined(_OPENACC)
 
-  !$acc loop collapse(2)
-  DO JI=1,IIX,2
-    DO JV=1,KVX
+  !$acc loop vector private(ji)
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=1,IIX,2
       PX(KLX,jv,JI)=PY(KLX,jv,JI)
       PX(KLX,jv,JI+1)=PY(KLX,jv,JI+1)
     ENDDO
   ENDDO
-  !$acc loop collapse(2)
-  DO JI=IIX+1,KIX
-    DO JV=1,KVX
+  !$acc loop private(ji)
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=IIX+1,KIX
       PX(KLX,jv,JI)=PY(KLX,jv,JI)
     ENDDO
   ENDDO
 
   IF (KLX >= 2) THEN
-    !$acc loop collapse(2) private(zbb)
-    DO JI=1,IIX,2
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=1,IIX,2
         ZBB=PB(JV,KLX-1)/PA(JV,KLX-1)
         PX(KLX-1,jv,JI)=PY(KLX-1,jv,JI)-ZBB*PX(KLX,jv,JI)
         PX(KLX-1,jv,JI+1)=PY(KLX-1,jv,JI+1)-ZBB*PX(KLX,jv,JI+1)
       ENDDO
     ENDDO
-    !$acc loop collapse(2) private(zbb)
-    DO JI=IIX+1,KIX
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=IIX+1,KIX
         ZBB=PB(JV,KLX-1)/PA(JV,KLX-1)
         PX(KLX-1,jv,JI)=PY(KLX-1,jv,JI)-ZBB*PX(KLX,jv,JI)
       ENDDO
@@ -452,9 +464,10 @@ ELSEIF (IT == 1) THEN
 
   IF (KLX >= 3) THEN
 #if defined(_OPENACC)
-    !$acc loop collapse(2) private(zbb,zcc,jl)
-    DO JI=1,IIX,2
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,zcc,jl,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=1,IIX,2
         !$acc loop seq
         do jl=klx-2,1,-1
           ZBB=PB(JV,JL)/PA(JV,JL)
@@ -465,9 +478,10 @@ ELSEIF (IT == 1) THEN
         ENDDO
       ENDDO
     ENDDO
-    !$acc loop collapse(2) private(zbb,zcc,jl)
-    DO JI=IIX+1,KIX
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,zcc,jl,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=IIX+1,KIX
         !$acc loop seq
         do jl=klx-2,1,-1
           ZBB=PB(JV,JL)/PA(JV,JL)
@@ -504,24 +518,27 @@ ELSEIF (IT == 2) THEN
 
 #if defined(_OPENACC)
 
-  !$acc loop vector collapse(2)
-  DO JI=1,IIX,2
-    DO JV=1,KVX
+  !$acc loop vector private(ji)
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=1,IIX,2
       PX(KLX,jv,JI)=PY(KLX,jv,JI)/PA(JV,KLX)
       PX(KLX,jv,JI+1)=PY(KLX,jv,JI+1)/PA(JV,KLX)
     ENDDO
   ENDDO
-  !$acc loop vector collapse(2)
-  DO JI=IIX+1,KIX
-    DO JV=1,KVX
+  !$acc loop vector private(ji)
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=IIX+1,KIX
       PX(KLX,jv,JI)=PY(KLX,jv,JI)/PA(JV,KLX)
     ENDDO
   ENDDO
 
   IF (KLX >= 2) THEN
-    !$acc loop vector collapse(2)
-    DO JI=1,IIX,2
-      DO JV=1,KVX
+    !$acc loop vector private(ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=1,IIX,2
         PX(KLX-1,jv,JI)=&
          & (PY(KLX-1,jv,JI)-PB(JV,KLX-1)*PX(KLX,jv,JI))/PA(JV,KLX-1)  
         PX(KLX-1,jv,JI+1)=&
@@ -529,9 +546,10 @@ ELSEIF (IT == 2) THEN
          & KLX-1)  
       ENDDO
     ENDDO
-    !$acc loop vector collapse(2)
-    DO JI=IIX+1,KIX
-      DO JV=1,KVX
+    !$acc loop vector private(ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=IIX+1,KIX
         PX(KLX-1,jv,JI)=&
          & (PY(KLX-1,jv,JI)-PB(JV,KLX-1)*PX(KLX,jv,JI))/PA(JV,KLX-1)  
       ENDDO
@@ -574,9 +592,10 @@ ELSEIF (IT == 2) THEN
 
   IF (KLX >= 3) THEN
 #if defined(_OPENACC)
-    !$acc loop collapse(2) private(jl)
-    DO JI=1,IIX,2
-      DO JV=1,KVX
+    !$acc loop vector private(jl,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=1,IIX,2
         !$acc loop seq
         do jl=klx-2,1,-1
           PX(JL,jv,JI)=(PY(JL,jv,JI)-PB(JV,JL)*PX(JL+1,jv,JI)&
@@ -587,9 +606,10 @@ ELSEIF (IT == 2) THEN
         ENDDO
       ENDDO
     ENDDO
-    !$acc loop vector collapse(2) private(jl)
-    DO JI=IIX+1,KIX
-      DO JV=1,KVX
+    !$acc loop vector  private(jl,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=IIX+1,KIX
         !$acc loop seq
         do jl=klx-2,1,-1
           PX(JL,jv,JI)=(PY(JL,jv,JI)-PB(JV,JL)*PX(JL+1,jv,JI)&
@@ -624,32 +644,36 @@ ELSEIF (IT == 3) THEN
 
 #if defined(_OPENACC)
 
-  !$acc loop collapse(2)
-  DO JI=1,IIX,2
-    DO JV=1,KVX
+  !$acc loop vector private(ji)
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=1,IIX,2
       PX(KLX,jv,JI)=PY(KLX,jv,JI)
       PX(KLX,jv,JI+1)=PY(KLX,jv,JI+1)
     ENDDO
   ENDDO
-  !$acc loop collapse(2)
-  DO JI=IIX+1,KIX
-    DO JV=1,KVX
+  !$acc loop vector private(ji)
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=IIX+1,KIX
       PX(KLX,jv,JI)=PY(KLX,jv,JI)
     ENDDO
   ENDDO
 
   IF (KLX >= 2) THEN
-    !$acc loop collapse(2) private(zbb)
-    DO JI=1,IIX,2
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=1,IIX,2
         ZBB=PB(JV,KLX-1)
         PX(KLX-1,jv,JI)=PY(KLX-1,jv,JI)-ZBB*PX(KLX,jv,JI)
         PX(KLX-1,jv,JI+1)=PY(KLX-1,jv,JI+1)-ZBB*PX(KLX,jv,JI+1)
       ENDDO
     ENDDO
-    !$acc loop collapse(2) private(zbb)
-    DO JI=IIX+1,KIX
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=IIX+1,KIX
         ZBB=PB(JV,KLX-1)
         PX(KLX-1,jv,JI)=PY(KLX-1,jv,JI)-ZBB*PX(KLX,jv,JI)
       ENDDO
@@ -690,9 +714,10 @@ ELSEIF (IT == 3) THEN
 
   IF (KLX >= 3) THEN
 #if defined(_OPENACC)
-    !$acc loop collapse(2) private(zbb,zcc,jl)
-    DO JI=1,IIX,2
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,zcc,jl,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=1,IIX,2
         !$acc loop seq
         do jl=klx-2,1,-1
           ZBB=PB(JV,JL)
@@ -703,9 +728,10 @@ ELSEIF (IT == 3) THEN
         ENDDO
       ENDDO
     ENDDO
-    !$acc loop collapse(2) private(zbb,zcc,jl)
-    DO JI=IIX+1,KIX
-      DO JV=1,KVX
+    !$acc loop vector private(zbb,zcc,jl,ji)
+    do jv=1,kvx
+      !$acc loop seq
+      DO JI=IIX+1,KIX
         !$acc loop seq
         do jl=klx-2,1,-1
           ZBB=PB(JV,JL)
@@ -747,9 +773,9 @@ ENDIF
 IF (LDMT) THEN
 #if defined(_OPENACC)
 
- !$acc loop vector collapse(3)
-  DO JI=1,KIX
-    DO JL=1,KLX
+ !$acc loop vector private(ji,jv)
+  do jl=1,klx
+    DO JI=1,KIX
       DO JV=1,KVX
         PY(JL,jv,JI)=PX(JL,jv,JI)
       ENDDO

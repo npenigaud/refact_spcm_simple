@@ -108,9 +108,10 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !$acc data present(pa,pbi,pci,pbs,pcs,px,py)
 
 IF (KLX >= 4) THEN
-  !$acc loop collapse(2)
-  DO JI=1,KIX
-    DO JV=1,KVX
+  !$acc loop vector
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=1,KIX
       PY(1,jv,JI) = PA (1)*PX(1,jv,JI)+PBS(1)*PX(2,jv,JI)+PCS(1)*PX(3,jv,JI)
       PY(2,jv,JI) = PBI(1)*PX(1,jv,JI)&
        & +PA (2)*PX(2,jv,JI)&
@@ -118,9 +119,10 @@ IF (KLX >= 4) THEN
        & +PCS(2)*PX(4,jv,JI)  
     ENDDO
   ENDDO
-  !$acc loop collapse(2) private(jl)
-  DO JI=1,KIX
-    DO JV=1,KVX
+  !$acc loop vector private(jl)
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=1,KIX
       !$acc loop seq
       DO JL=3,KLX-2
         PY(JL,jv,JI) = PCI(JL-2)*PX(JL-2,jv,JI)&
@@ -131,9 +133,10 @@ IF (KLX >= 4) THEN
       ENDDO
     ENDDO
   ENDDO
-  !$acc loop collapse(2)
-  DO JI=1,KIX
-    DO JV=1,KVX
+  !$acc loop vector
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=1,KIX
       PY(KLX-1,jv,JI) = PCI(KLX-3)*PX(KLX-3,jv,JI)&
        & +PBI(KLX-2)*PX(KLX-2,jv,JI)&
        & +PA (KLX-1)*PX(KLX-1,jv,JI)&
@@ -145,9 +148,10 @@ IF (KLX >= 4) THEN
   ENDDO
 
 ELSEIF (KLX == 3) THEN
-  !$acc loop collapse(2)
-  DO JI=1,KIX
-    DO JV=1,KVX
+  !$acc loop vector
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=1,KIX
       PY(1,jv,JI) = PA (1)*PX(1,jv,JI)+PBS(1)*PX(2,jv,JI)+PCS(1)*PX(3,jv,JI)
       PY(2,jv,JI) = PBI(1)*PX(1,jv,JI)+PA (2)*PX(2,jv,JI)+PBS(2)*PX(3,jv,JI)
       PY(3,jv,JI) = PCI(1)*PX(1,jv,JI)+PBI(2)*PX(2,jv,JI)+PA (3)*PX(3,jv,JI)
@@ -155,18 +159,20 @@ ELSEIF (KLX == 3) THEN
   ENDDO
 
 ELSEIF (KLX == 2) THEN
-  !$acc loop collapse(2)
-  DO JI=1,KIX
-    DO JV=1,KVX
+  !$acc loop vector
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=1,KIX
       PY(1,jv,JI) = PA (1)*PX(1,jv,JI)+PBS(1)*PX(2,jv,JI)
       PY(2,jv,JI) = PBI(1)*PX(1,jv,JI)+PA (2)*PX(2,jv,JI)
     ENDDO
   ENDDO
 
 ELSEIF (KLX == 1) THEN
-  !$acc loop collapse(2)
-  DO JI=1,KIX
-    DO JV=1,KVX
+  !$acc loop vector
+  do jv=1,kvx
+    !$acc loop seq
+    DO JI=1,KIX
       PY(1,jv,JI) = PA (1)*PX(1,jv,JI)
     ENDDO
   ENDDO

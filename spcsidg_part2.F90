@@ -65,11 +65,12 @@ ZSPDIVPL(:,:,:)=0.0_JPRB
 
 !           Reorganisation of ZSDIVP (Back to the USSR)
 #if defined(_OPENACC)
-!$acc loop vector private(ISE,compteur)
-DO JN=IM,NSMAX
-  ISE=ISTA+2*(JN-IM)
-  do compteur=1,nflevg
-    ZSDIVPL(JN-im+1,compteur,1:2)=PSPDIVG(ISE:ISE+1,compteur)
+!$acc loop vector private(ISE,compteur,jn) collapse(2)
+do compteur=1,nflevg
+  DO JN=IM,NSMAX
+    ISE=ISTA+2*(JN-IM)
+    ZSDIVPL(JN-im+1,compteur,1)=PSPDIVG(ISE,compteur)
+    ZSDIVPL(JN-im+1,compteur,2)=PSPDIVG(ISE+1,compteur)
   enddo
 ENDDO
 #else
@@ -96,11 +97,12 @@ CALL MXPTMA(NSMAX+1-IM,NFLEVG,NFLEVG,II,SCGMAP(IS0+1,1),&
 !           Reorganisation of ZSPDIVPL
 
 #if defined(_OPENACC)
-!$acc loop vector private(ISE,compteur)
-DO JN=IM,NSMAX
-  ISE=ISTA+2*(JN-IM)
-  do compteur=1,nflevg
-    PHELP(ISE:ISE+1,compteur)=ZSPDIVPL(JN-im+1,compteur,1:2)
+!$acc loop vector private(ISE,compteur,jn) collapse(2)
+do compteur=1,nflevg
+  DO JN=IM,NSMAX
+    ISE=ISTA+2*(JN-IM)
+    PHELP(ISE,compteur)=ZSPDIVPL(JN-im+1,compteur,1)
+    PHELP(ISE+1,compteur)=ZSPDIVPL(JN-im+1,compteur,2)
   enddo
 ENDDO
 #else

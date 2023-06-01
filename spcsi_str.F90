@@ -207,7 +207,10 @@ CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG,PSPSPG)
 
 IF (LSIDG) THEN
 
-if (lhook) CALL DR_HOOK('SPCSI_sidg0',0,zhook_handle2)  
+if (lhook) CALL DR_HOOK('SPCSI_sidg0',0,zhook_handle2) 
+  print *,"nptrmf(mysetn+1)",nptrmf(mysetn+1)
+  print *,"nptrmf(mysetn)",nptrmf(mysetn)
+
   !$acc parallel loop gang default(none)
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
     CALL SPCSIDG_PART0 (YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, JMLOC, ZSDIV, PSPDIVG)
