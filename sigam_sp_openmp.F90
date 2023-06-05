@@ -118,7 +118,7 @@ IF (YDCVER%LVERTFE) THEN
 !$acc data present(ydveta%vfe_rdetah,yddyn,YDDYN%SILNPR,YDDYN%SIALPH,YDDYN%SIRPRG,ydveta,ydcst)
 !$acc data create(zsphi,zout)
 
-if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
+!!if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
 
 #if defined(_OPENACC)
 !$acc PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH) default(none)
@@ -146,12 +146,12 @@ if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
 !$OMP END PARALLEL
 #endif
 
-if (lhook) call dr_hook('SIGAM_transpose1',1,zhook_handle2)
+!!if (lhook) call dr_hook('SIGAM_transpose1',1,zhook_handle2)
 
-if (lhook) call dr_hook('SIGAM_cond_lim',0,zhook_handle2)
+!!if (lhook) call dr_hook('SIGAM_cond_lim',0,zhook_handle2)
 #if defined(_OPENACC)
-!$acc parallel private(jspec) default(none)
-!$acc loop gang
+!$acc parallel private(jspec) num_gangs(1) default(none)
+!$acc loop gang vector
 do jspec=1,kspec
   ZSPHI(jspec,0)=0.0_JPRB
   ZSPHI(jspec,KLEV+1)=0.0_JPRB
@@ -161,7 +161,7 @@ enddo
   ZSPHI(:,0)=0.0_JPRB
   ZSPHI(:,KLEV+1)=0.0_JPRB
 #endif
-if (lhook) call dr_hook('SIGAM_cond_lim',1,zhook_handle2)
+!!if (lhook) call dr_hook('SIGAM_cond_lim',1,zhook_handle2)
 
   CALL VERDISINT(YDVFE,YDCVER,CLOPER,'11',KSPEC,1,KSPEC,KLEV,ZSPHI,ZOUT,KCHUNK=YDGEOMETRY%YRDIM%NPROMA)
 

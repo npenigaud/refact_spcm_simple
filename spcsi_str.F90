@@ -138,7 +138,7 @@ INTEGER(KIND=JPIM) :: JMLOC, IM, ISTA, IEND
 REAL(KIND=JPRB) :: ZBDT, ZBDT2
 
 REAL (KIND=JPHOOK) :: ZHOOK_HANDLE,zhook_handle2
-real(kind=jprb)    :: zbdtaux
+real(kind=jprb)    :: zbdtaux,rlapinin,rlapdiin
 
 !     ------------------------------------------------------------------
 
@@ -190,9 +190,11 @@ ZBDT2=(ZBDT*RSTRET)**2
 !*        2.2  OpenACC memory
 #if defined(_OPENACC)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',0,ZHOOK_HANDLE2)
+!$acc data create(zsdivp,zspdivp,zsdiv,zhelp,zst,zsp) present(zsdivpl,zspdivpl)
 !$acc data present(YDGEOMETRY,YDGEOMETRY%YRLAP,YDGEOMETRY%YRLAP%NVALUE,YDGEOMETRY%YRLAP%RLAPIN,YDGEOMETRY%YRLAP%RLAPDI,nflevg,nsmax,YDDYN,YDDYN%SIVP,rstret)
 !$acc data present(pspdivg,psptg,pspspg,YDRIP,NPTRMF)
-!$acc data create(zsdivp,zspdivp,zsdiv,zhelp,zst,zsp) present(zsdivpl,zspdivpl)
+!$acc data present(zsdiv,ydlap,ydlap%rlapin,ydlap%rlapdi,pspdivg,ydlap%myms,ydmp,ydmp%nspstaf,ydmp%nptrsvf)
+!$acc data present(yddimv,yddimv%nflevg,nsmax,rbts2,tdt,mysetv,ydgeometry%yrmp%nptrsvf,nptrsvf,nspstaf)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',1,ZHOOK_HANDLE2)
 #endif
 
@@ -208,14 +210,45 @@ CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG,PSPSPG)
 IF (LSIDG) THEN
 
 if (lhook) CALL DR_HOOK('SPCSI_sidg0',0,zhook_handle2) 
-  print *,"nptrmf(mysetn+1)",nptrmf(mysetn+1)
-  print *,"nptrmf(mysetn)",nptrmf(mysetn)
+  !!!$acc parallel default(none)
+!$acc parallel num_gangs(16) num_workers(1) vector_length(64) default(none)
 
-  !$acc parallel loop gang default(none)
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
-    CALL SPCSIDG_PART0 (YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, JMLOC, ZSDIV, PSPDIVG)
+!!    CALL SPCSIDG_PART0 (YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, JMLOC, ZSDIV, PSPDIVG)
+IM=YDLAP%MYMS(JMLOC)
+
+ISTA=NSPSTAF(IM)
+IEND=ISTA+2*(NSMAX+1-IM)-1
+ZBDT=RBTS2*TDT
+IOFF=NPTRSVF(MYSETV)-1
+    IF (IM > 0) THEN
+!$acc loop gang private(jsp,jlev,in,rlapinin)
+do jlev=1,yddimv%nflevg
+!$acc loop vector !!PRIVATE(JSP,IN,rlapinin,jlev)
+      DO JSP=ISTA,IEND
+        !!do jlev=1,nflevg
+          IN=YDLAP%NVALUE(JSP+IOFF)
+          rlapinin=ydlap%rlapin(in)
+          ZSDIV(jsp,JLEV)=rlapinin*PSPDIVG(jsp,JLEV)-ZBDT*ZSDIV(jsp,JLEV)!!rlapinin*pspdivg      
+       ENDDO
+      ENDDO
+
+    ELSE
+!$acc loop gang private(jsp,in,rlapdiin,jlev)
+do jlev=1,yddimv%nflevg
+!$acc loop vector !!PRIVATE(JSP,IN,rlapdiin,jlev)
+      DO JSP=ISTA,IEND
+        !!do jlev=1,nflevg
+          IN=YDLAP%NVALUE(JSP+IOFF)
+          rlapdiin=ydlap%rlapdi(in)*zbdt
+          ZSDIV(jsp,JLEV)=PSPDIVG(jsp,JLEV)-ZSDIV(jsp,JLEV)*rlapdiin  
+        ENDDO
+      ENDDO
+    ENDIF
+
   ENDDO
-  !$acc end parallel
+  !!!$acc end parallel
+!$acc end parallel
 if (lhook) CALL DR_HOOK('SPCSI_sidg0',1,zhook_handle2) 
 
 ELSE
@@ -270,7 +303,8 @@ IF (LSIDG) THEN
 
 if (lhook) CALL DR_HOOK('SPCSI_sidg1',0,zhook_handle2)
 #if defined(_OPENACC) 
-  !$acc parallel loop gang private(zsdivpl,zspdivpl) default(none)
+  !$acc parallel num_gangs(32) private(zsdivpl,zspdivpl) default(none)
+  !$acc loop gang
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
     CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, JMLOC, ZSDIVP,ZSPDIVP,zsdivpl,zspdivpl)
   ENDDO
@@ -333,7 +367,8 @@ IF (LSIDG) THEN
 
 if (lhook) CALL DR_HOOK('SPCSI_sidg2',0,zhook_handle2)
 #if defined(_OPENACC) 
-  !$acc parallel loop gang private(zsdivpl,zspdivpl) default(none)
+  !$acc parallel num_gangs(32) private(zsdivpl,zspdivpl) default(none)
+  !$acc loop gang
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
     CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, JMLOC, PSPDIVG,ZHELP,zsdivpl,zspdivpl)
   ENDDO
@@ -418,6 +453,10 @@ if (lhook) call dr_hook('SPCSI_transferts2',0,zhook_handle2)
 !$acc end data 
 !$acc end data 
 !$acc end data
+!$acc end data 
+!$acc end data
+
+
 if (lhook) call dr_hook('SPCSI_transferts2',1,zhook_handle2)
 #endif
 
