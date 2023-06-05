@@ -12,16 +12,19 @@ USE YOMDYN       , ONLY : TDYN
 IMPLICIT NONE
 TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
 TYPE(TDYN)        ,INTENT(IN)    :: YDDYN
+#if defined(_OPENACC)
 INTEGER(KIND=JPIM),INTENT(IN),value    :: KSPEC2V
 INTEGER(KIND=JPIM),INTENT(IN),value    :: KMLOC
-#if defined(_OPENACC)
+#else
+INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC2V
+INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOC
+#endif
+
 REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
+#if defined(_OPENACC)
 real(kind=JPRB),   intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
 real(kind=JPRB),   intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
-#else
-REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 #endif
 END SUBROUTINE SPCSIDG_PART1
 

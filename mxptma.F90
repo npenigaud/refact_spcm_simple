@@ -88,8 +88,8 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PCS(KLX)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(tnsmax+1,kvxs,KIX) 
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(tnsmax+1,kvxs,KIX) 
 #else 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KVXS,KLX,KIX) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KVXS,KLX,KIX) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(klx,KVXS,KIX) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(klx,KVXS,KIX) 
 #endif
 
 !     ------------------------------------------------------------------
@@ -104,7 +104,6 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !*       1.    COMPUTATION OF PY.
 !              ------------------
 
-#if defined(_OPENACC)
 !$acc data present(pa,pbi,pci,pbs,pcs,px,py)
 
 IF (KLX >= 4) THEN
@@ -180,69 +179,6 @@ ELSEIF (KLX == 1) THEN
 ENDIF
 
 !$acc end data
-
-#else
-
-IF (KLX >= 4) THEN
-  DO JI=1,KIX
-    DO JV=1,KVX
-      PY(JV,1,JI) = PA (1)*PX(JV,1,JI)+PBS(1)*PX(JV,2,JI)+PCS(1)*PX(JV,3,JI)
-      PY(JV,2,JI) = PBI(1)*PX(JV,1,JI)&
-       & +PA (2)*PX(JV,2,JI)&
-       & +PBS(2)*PX(JV,3,JI)&
-       & +PCS(2)*PX(JV,4,JI)  
-    ENDDO
-  ENDDO
-  DO JI=1,KIX
-    DO JV=1,KVX
-      DO JL=3,KLX-2
-        PY(JV,JL,JI) = PCI(JL-2)*PX(JV,JL-2,JI)&
-         & +PBI(JL-1)*PX(JV,JL-1,JI)&
-         & +PA (JL  )*PX(JV,JL  ,JI)&
-         & +PBS(JL  )*PX(JV,JL+1,JI)&
-         & +PCS(JL  )*PX(JV,JL+2,JI)  
-      ENDDO
-    ENDDO
-  ENDDO
-  DO JI=1,KIX
-    DO JV=1,KVX
-      PY(JV,KLX-1,JI) = PCI(KLX-3)*PX(JV,KLX-3,JI)&
-       & +PBI(KLX-2)*PX(JV,KLX-2,JI)&
-       & +PA (KLX-1)*PX(JV,KLX-1,JI)&
-       & +PBS(KLX-1)*PX(JV,KLX  ,JI)  
-      PY(JV,KLX,JI) = PCI(KLX-2)*PX(JV,KLX-2,JI)&
-       & +PBI(KLX-1)*PX(JV,KLX-1,JI)&
-       & +PA (KLX  )*PX(JV,KLX  ,JI)  
-    ENDDO
-  ENDDO
-
-ELSEIF (KLX == 3) THEN
-  DO JI=1,KIX
-    DO JV=1,KVX
-      PY(JV,1,JI) = PA (1)*PX(JV,1,JI)+PBS(1)*PX(JV,2,JI)+PCS(1)*PX(JV,3,JI)
-      PY(JV,2,JI) = PBI(1)*PX(JV,1,JI)+PA (2)*PX(JV,2,JI)+PBS(2)*PX(JV,3,JI)
-      PY(JV,3,JI) = PCI(1)*PX(JV,1,JI)+PBI(2)*PX(JV,2,JI)+PA (3)*PX(JV,3,JI)
-    ENDDO
-  ENDDO
-
-ELSEIF (KLX == 2) THEN
-  DO JI=1,KIX
-    DO JV=1,KVX
-      PY(JV,1,JI) = PA (1)*PX(JV,1,JI)+PBS(1)*PX(JV,2,JI)
-      PY(JV,2,JI) = PBI(1)*PX(JV,1,JI)+PA (2)*PX(JV,2,JI)
-    ENDDO
-  ENDDO
-
-ELSEIF (KLX == 1) THEN
-  DO JI=1,KIX
-    DO JV=1,KVX
-      PY(JV,1,JI) = PA (1)*PX(JV,1,JI)
-    ENDDO
-  ENDDO
-
-ENDIF
-
-#endif
 
 !     ------------------------------------------------------------------
 

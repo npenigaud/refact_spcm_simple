@@ -12,7 +12,8 @@ SUBROUTINE SPCSI_STR(&
  & YDGEOMETRY,YDCST,YDLDDH,YDRIP,YDDYN,KSPEC2V,&
  ! --- INOUT -----------------------------------------------------------------
  & PSPVORG,PSPDIVG,PSPTG,PSPSPG,&
- & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG)
+ & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG,&
+ & simit,simot)
 #endif
 
 !**** *SPCSI* - SPECTRAL SPACE SEMI-IMPLICIT COMPUTATIONS FOR HYD MODEL.
@@ -93,16 +94,22 @@ TYPE(TDYN)        ,INTENT(IN)    :: YDDYN
 INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC2V
 TYPE(TLDDH)       ,INTENT(IN)    :: YDLDDH
 TYPE(TRIP)        ,INTENT(IN)    :: YDRIP
-#if defined(_OPENACC)
+
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPVORG(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPDIVG(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTG(kspec2V,YDGEOMETRY%YRDIMV%NFLEVG) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPSPG(KSPEC2V) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_VORG(1,1)!!chgt ici
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_DIVG(1,1)!!là 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_TG(1,1)  !!et là
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_VORG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_DIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_TG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
+#if defined(_OPENACC)
 real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
 real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
+#else
+real(kind=jprb)   ,intent(in)    :: simit(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
+real(kind=jprb)   ,intent(in)    :: simot(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
+#endif
+
 
 REAL(KIND=JPRB) :: ZSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB) :: ZSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
@@ -112,33 +119,13 @@ REAL(KIND=JPRB) :: ZHELP  (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB) :: ZST    (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB) :: ZSP    (KSPEC2V)
 
-#else
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPVORG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPDIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPSPG(KSPEC2V) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_VORG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_DIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_TG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-
-
-!     ------------------------------------------------------------------
-
-REAL(KIND=JPRB) :: ZSDIVP (YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-REAL(KIND=JPRB) :: ZSPDIVP(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-
-REAL(KIND=JPRB) :: ZSDIV  (YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-REAL(KIND=JPRB) :: ZHELP  (YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-REAL(KIND=JPRB) :: ZST    (YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-REAL(KIND=JPRB) :: ZSP    (KSPEC2V)
-#endif
 
 INTEGER(KIND=JPIM) :: IN, IOFF, JLEV, JSP  
 INTEGER(KIND=JPIM) :: JMLOC, IM, ISTA, IEND
 REAL(KIND=JPRB) :: ZBDT, ZBDT2
 
 REAL (KIND=JPHOOK) :: ZHOOK_HANDLE,zhook_handle2
-real(kind=jprb)    :: zbdtaux,rlapinin,rlapdiin
+real(kind=jprb)    :: zbdtaux
 
 !     ------------------------------------------------------------------
 
@@ -175,6 +162,8 @@ IF (LRSIDDH) THEN
   !the case of surface pressure has not been treated yet
 ENDIF
 
+call flush(0)
+
 !     ------------------------------------------------------------------
 
 !*       2.    SEMI-IMPLICIT SPECTRAL COMPUTATIONS.
@@ -193,62 +182,22 @@ IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',0,ZHOOK_HANDLE2)
 !$acc data create(zsdivp,zspdivp,zsdiv,zhelp,zst,zsp) present(zsdivpl,zspdivpl)
 !$acc data present(YDGEOMETRY,YDGEOMETRY%YRLAP,YDGEOMETRY%YRLAP%NVALUE,YDGEOMETRY%YRLAP%RLAPIN,YDGEOMETRY%YRLAP%RLAPDI,nflevg,nsmax,YDDYN,YDDYN%SIVP,rstret)
 !$acc data present(pspdivg,psptg,pspspg,YDRIP,NPTRMF)
-!$acc data present(zsdiv,ydlap,ydlap%rlapin,ydlap%rlapdi,pspdivg,ydlap%myms,ydmp,ydmp%nspstaf,ydmp%nptrsvf)
-!$acc data present(yddimv,yddimv%nflevg,nsmax,rbts2,tdt,mysetv,ydgeometry%yrmp%nptrsvf,nptrsvf,nspstaf)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',1,ZHOOK_HANDLE2)
 #endif
 
 
 !*        2.3  Computes right-hand side of Helmholtz equation.
 
-#if defined(_OPENACC)
 CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG(:,:),PSPSPG(1:kspec2v)) !!!ispcol remplacé par kspec2V
-#else
-CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG,PSPSPG)
-#endif
 
 IF (LSIDG) THEN
 
 if (lhook) CALL DR_HOOK('SPCSI_sidg0',0,zhook_handle2) 
-  !!!$acc parallel default(none)
-!$acc parallel num_gangs(16) num_workers(1) vector_length(64) default(none)
-
+  !$acc parallel loop gang default(none)
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
-!!    CALL SPCSIDG_PART0 (YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, JMLOC, ZSDIV, PSPDIVG)
-IM=YDLAP%MYMS(JMLOC)
-
-ISTA=NSPSTAF(IM)
-IEND=ISTA+2*(NSMAX+1-IM)-1
-ZBDT=RBTS2*TDT
-IOFF=NPTRSVF(MYSETV)-1
-    IF (IM > 0) THEN
-!$acc loop gang private(jsp,jlev,in,rlapinin)
-do jlev=1,yddimv%nflevg
-!$acc loop vector !!PRIVATE(JSP,IN,rlapinin,jlev)
-      DO JSP=ISTA,IEND
-        !!do jlev=1,nflevg
-          IN=YDLAP%NVALUE(JSP+IOFF)
-          rlapinin=ydlap%rlapin(in)
-          ZSDIV(jsp,JLEV)=rlapinin*PSPDIVG(jsp,JLEV)-ZBDT*ZSDIV(jsp,JLEV)!!rlapinin*pspdivg      
-       ENDDO
-      ENDDO
-
-    ELSE
-!$acc loop gang private(jsp,in,rlapdiin,jlev)
-do jlev=1,yddimv%nflevg
-!$acc loop vector !!PRIVATE(JSP,IN,rlapdiin,jlev)
-      DO JSP=ISTA,IEND
-        !!do jlev=1,nflevg
-          IN=YDLAP%NVALUE(JSP+IOFF)
-          rlapdiin=ydlap%rlapdi(in)*zbdt
-          ZSDIV(jsp,JLEV)=PSPDIVG(jsp,JLEV)-ZSDIV(jsp,JLEV)*rlapdiin  
-        ENDDO
-      ENDDO
-    ENDIF
-
+    CALL SPCSIDG_PART0 (YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, JMLOC, ZSDIV, PSPDIVG)
   ENDDO
-  !!!$acc end parallel
-!$acc end parallel
+  !$acc end parallel
 if (lhook) CALL DR_HOOK('SPCSI_sidg0',1,zhook_handle2) 
 
 ELSE
@@ -258,6 +207,9 @@ ELSE
 if (lhook) call dr_hook('SPCSI_boucle1',0,zhook_handle2)
 #if defined(_OPENACC)
 !$acc PARALLEL loop collapse(2) PRIVATE(JSP,JLEV,IN,zbdtaux) default(none)
+#else
+!$OMP PARALLEL DO PRIVATE(JSP,JLEV,IN,zbdtaux)
+#endif
   DO JLEV=1,nflevg
     DO JSP=1,kspec2v
       IN=YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)
@@ -265,19 +217,14 @@ if (lhook) call dr_hook('SPCSI_boucle1',0,zhook_handle2)
       ZSDIV(JSP,jlev)=PSPDIVG(JSP,jlev)-zbdtaux*ZSDIV(JSP,jlev)
     ENDDO
   ENDDO
+#if defined(_OPENACC)
 !$acc END PARALLEL
 #else
-!$OMP PARALLEL DO PRIVATE(JSP,JLEV,IN)
-  DO JSP=1,KSPEC2V
-    DO JLEV=1,NFLEVG
-      IN=YDLAP%NVALUE(JSP+IOFF)
-      ZSDIV(JLEV,JSP)=PSPDIVG(JLEV,JSP)-ZBDT*YDLAP%RLAPDI(IN)*ZSDIV(JLEV,JSP)
-    ENDDO
-  ENDDO
 !$OMP END PARALLEL DO
 #endif
 if (lhook) call dr_hook('SPCSI_boucle1',1,zhook_handle2)
 ENDIF
+
 
 !*        2.4  Solve Helmholtz equation
 
@@ -295,7 +242,7 @@ IF (LHOOK) CALL DR_HOOK('SPCSI_mxmaop1',0,ZHOOK_HANDLE2)
 !!!!call mxmaop(zsdiv,1,kspec2v,yddyn%simi,1,nflevg,zsdivp,1,kspec2v,kspec2v,nflevg,nflevg)!! mxmaop fait une transposition en _OPENACC
 !!!!!$acc end host_data
 #else
-CALL MXMAOP(SIMI,1,NFLEVG,ZSDIV,1,NFLEVG,ZSDIVP,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2V)  
+CALL MXMAOP(zsdiv,1,kspec2v,simit,1,NFLEVG,ZSDIVP,1,kspec2v,kspec2v,NFLEVG,nflevg)  
 #endif
 IF (LHOOK) CALL DR_HOOK('SPCSI_mxmaop1',1,ZHOOK_HANDLE2)
 
@@ -303,7 +250,7 @@ IF (LSIDG) THEN
 
 if (lhook) CALL DR_HOOK('SPCSI_sidg1',0,zhook_handle2)
 #if defined(_OPENACC) 
-  !$acc parallel num_gangs(32) private(zsdivpl,zspdivpl) default(none)
+  !$acc parallel num_gangs(32) private(zsdivpl,zspdivpl) default(none)  !!!sans num_gangs prenait 1024 gangs
   !$acc loop gang
   DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
     CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, JMLOC, ZSDIVP,ZSPDIVP,zsdivpl,zspdivpl)
@@ -324,6 +271,9 @@ if (lhook) call dr_hook('SPCSI_boucle2',0,zhook_handle2)
 #if defined(_OPENACC)
     !$acc parallel private(JSP,JLEV,zbdtaux) default(none)
     !$acc loop gang
+#else
+    !$omp parallel do private(jsp,jlev,zbdtaux) !!pas de parallelisation code initial
+#endif
     DO JLEV=1,NFLEVG
       zbdtaux=ZBDT2*YDDYN%SIVP(JLEV)
       !$acc loop vector
@@ -332,15 +282,12 @@ if (lhook) call dr_hook('SPCSI_boucle2',0,zhook_handle2)
          & /(1.0_JPRB-zbdtaux*YDGEOMETRY%YRLAP%RLAPDI(YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)))  
       ENDDO
     ENDDO
+#if defined(_OPENACC)
     !$acc end parallel
 #else
-  DO JSP=1,KSPEC2V
-    DO JLEV=1,NFLEVG
-      ZSPDIVP(JLEV,JSP)=ZSDIVP(JLEV,JSP)&
-       & /(1.0_JPRB-ZBDT2*SIVP(JLEV)*YDLAP%RLAPDI(YDLAP%NVALUE(JSP+IOFF)))  
-    ENDDO
-  ENDDO
+    !$omp end parallel do !!pas de parallelisation de cette boucle dans le code initial
 #endif
+
 if (lhook) call dr_hook('SPCSI_boucle2',1,zhook_handle2)
 
 ENDIF
@@ -356,10 +303,10 @@ CALL cublasDgemm('N','T',kspec2v,nflevg,nflevg,1.0_JPRB,&    !!ispcol remplacé 
 !$acc wait
 !!           pa        kad      pb            kbd    pc       kca     kar    kac   kbc
 !!!$acc host_data use_device(yddyn%simo,nflevg)
-!!call mxmaop(zspdivp,1,kspec2v,yddyn%simo,1,nflevg,pspdivg,1,nflevg,kspec2v,nflevg,nflevg)
+!!call mxmaop(zspdivp,1,kspec2v,yddyn%simo,1,nflevg,pspdivg,1,kspec2v,kspec2v,nflevg,nflevg) !!il y avait une erreur ici
 !!!$acc end host_data
 #else
-CALL MXMAOP(SIMO,1,NFLEVG,ZSPDIVP,1,NFLEVG,PSPDIVG,1,NFLEVG,NFLEVG,NFLEVG,KSPEC2V)  
+CALL MXMAOP(zspdivp,1,kspec2v,simot,1,NFLEVG,PSPDIVG,1,kspec2V,kspec2v,NFLEVG,nflevg)  
 #endif
 if (lhook) call dr_hook('SPCSI_mxmaop2',1,zhook_handle2)
 
@@ -388,20 +335,18 @@ if (lhook) call dr_hook('SPCSI_boucle3',0,zhook_handle2)
 #if defined(_OPENACC)
 !$acc PARALLEL PRIVATE(JSP,JLEV) default(none)
 !$acc loop gang
+#else
+!$OMP PARALLEL DO PRIVATE(JSP,JLEV)
+#endif
   DO JLEV=1,NFLEVG
     !$acc loop vector
     DO JSP=1,kspec2v
       ZHELP(JSP,jlev)=PSPDIVG(JSP,jlev)*RSTRET*RSTRET
     ENDDO
   ENDDO
+#if defined(_OPENACC)
 !$acc END PARALLEL
 #else
-!$OMP PARALLEL DO PRIVATE(JSP,JLEV)
-  DO JSP=1,KSPEC2V
-    DO JLEV=1,NFLEVG
-      ZHELP(JLEV,JSP)=PSPDIVG(JLEV,JSP)*RSTRET*RSTRET
-    ENDDO
-  ENDDO
 !$OMP END PARALLEL DO
 #endif
 if (lhook) call dr_hook('SPCSI_boucle3',1,zhook_handle2)
@@ -415,6 +360,7 @@ ENDIF
 !         (GMBAR**2 * DIVprim(t+dt)) --> [ tau * (GMBAR**2 * DIVprim(t+dt)) ]
 !                                    and [  nu * (GMBAR**2 * DIVprim(t+dt)) ]
 
+
 CALL SITNU_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZHELP,ZST,ZSP)
 
 !*       2.5  Increment Temperature and surface pressure
@@ -423,35 +369,38 @@ if (lhook) call dr_hook('SPCSI_boucle4',0,zhook_handle2)
 #if defined(_OPENACC)
 !$acc PARALLEL PRIVATE(JSP,JLEV) default(none)
 !$acc loop collapse(2)
+#else
+!$OMP PARALLEL DO PRIVATE(JSP,JLEV)
+#endif
 DO JLEV=1,nflevg
   DO JSP=1,kspec2v
     PSPTG(JSP,jlev)=PSPTG(JSP,jlev)-ZBDT*ZST(JSP,jlev)
   ENDDO
 ENDDO
+#if defined(_OPENACC)
 !$acc end parallel
+#else
+!$OMP END PARALLEL DO
+#endif
 
+#if defined(_OPENACC)
 !$acc parallel loop private(jsp) default(none)
+#else
+!$OMP PARALLEL DO PRIVATE(JSP)
+#endif
 do jsp=1,kspec2v
   pspspg(jsp)=pspspg(jsp)-zbdt*zsp(jsp)
 enddo
+#if defined(_OPENACC)
 !$acc end parallel
-
 #else
-!$OMP PARALLEL DO PRIVATE(JSP,JLEV)
-DO JSP=1,KSPEC2V
-  DO JLEV=1,NFLEVG
-    PSPTG(JLEV,JSP)=PSPTG(JLEV,JSP)-ZBDT*ZST(JLEV,JSP)
-  ENDDO
-  PSPSPG(JSP)=PSPSPG(JSP)-ZBDT*ZSP(JSP)
-ENDDO
 !$OMP END PARALLEL DO
 #endif
+
 if (lhook) call dr_hook('SPCSI_boucle4',1,zhook_handle2)
 
 #if defined(_OPENACC)
 if (lhook) call dr_hook('SPCSI_transferts2',0,zhook_handle2)
-!$acc end data 
-!$acc end data 
 !$acc end data
 !$acc end data 
 !$acc end data

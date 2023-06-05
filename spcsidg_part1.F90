@@ -15,16 +15,19 @@ IMPLICIT NONE
 
 TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
 TYPE(TDYN)        ,INTENT(IN)    :: YDDYN
+#if defined(_OPENACC)
 INTEGER(KIND=JPIM),INTENT(IN),value    :: KSPEC2V
 INTEGER(KIND=JPIM),INTENT(IN),value    :: KMLOC
-#if defined(_OPENACC)
+#else
+INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC2V
+INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOC
+#endif
+
 REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
+#if defined(_OPENACC)
 REAL(KIND=JPRB),   intent(inout) :: ZSDIVPL (1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2)
 REAL(KIND=JPRB),   intent(inout) :: ZSPDIVPL(1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2)
-#else
-REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
-REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 #endif
 
 
@@ -81,10 +84,14 @@ do compteur=1,nflevg
   enddo
 ENDDO
 #else
+!$omp parallel do private(compteur,jn,ise) !!pas de parallelisation dans code initial, pas d inversion pour le moment
 DO JN=IM,NSMAX
-  ISE=ISTA+2*(JN-IM)
-  ZSDIVPL(:,JN,1:2)=PSDIVP(:,ISE:ISE+1)
+  do compteur=1,nflevg
+    ISE=ISTA+2*(JN-IM)
+    ZSDIVPL(compteur,JN,1:2)=PSDIVP(ISE:ISE+1,compteur)
+  enddo
 ENDDO
+!$omp end parallel do
 #endif
 
 IF (IM > 0) THEN
@@ -129,10 +136,14 @@ do compteur=1,nflevg
   enddo
 ENDDO
 #else
+!$omp parallel do private(jn,compteur,ise) collapse(2)
 DO JN=IM,NSMAX
-  ISE=ISTA+2*(JN-IM)
-  PSPDIVP(:,ISE:ISE+1)=ZSPDIVPL(:,JN,1:2)
+  do compteur=1,nflevg
+    ISE=ISTA+2*(JN-IM)
+    PSPDIVP(ISE:ISE+1,compteur)=ZSPDIVPL(compteur,JN,1:2)
+  enddo
 ENDDO
+!$omp end parallel do
 #endif
 !$acc end data
 !$acc end data

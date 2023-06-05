@@ -60,6 +60,7 @@ LOGICAL :: LLVERBOSE, LLWRITEGRIB1, LLWRITETEXT1, LLWRITEGRIB2, LLWRITETEXT2, LL
 REAL(KIND=JPHOOK)  :: zhook_handle,zhook_handle2
 integer            :: repetition,repetition2
 #define repetitif 1
+call flush(0)
 
 CALL INITOPTIONS
 CALL GETOPTION ("--verbose", LLVERBOSE)

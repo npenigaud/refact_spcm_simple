@@ -73,15 +73,11 @@ TYPE(TCST)        ,INTENT(IN)    :: YDCST
 TYPE(TDYN)        ,INTENT(IN)    :: YDDYN
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC
-#if defined(_OPENACC)
+
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PD(KSPEC,klev)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PT(KSPEC,klev)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSP(KSPEC)
-#else
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PD(KLEV,KSPEC)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PT(KLEV,KSPEC)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PSP(KSPEC)
-#endif
+
 !     ------------------------------------------------------------------
 
 REAL(KIND=JPRB) :: ZSPHI(KSPEC,0:KLEV+1)
@@ -118,11 +114,15 @@ IF (YDCVER%LVERTFE) THEN
 !$acc data present(ydveta%vfe_rdetah,yddyn,YDDYN%SILNPR,YDDYN%SIALPH,YDDYN%SIRPRG,ydveta,ydcst)
 !$acc data create(zsphi,zout)
 
-!!if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
+if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
 
 #if defined(_OPENACC)
 !$acc PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH) default(none)
 !$acc loop gang
+#else
+!$OMP PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH)
+!$OMP DO SCHEDULE(STATIC) 
+#endif
   DO JLEV=1,KLEV
     zdetah=-YDVETA%VFE_RDETAH(JLEV)*YDCST%RD*YDDYN%SILNPR(JLEV)
     !$acc loop vector
@@ -130,38 +130,33 @@ IF (YDCVER%LVERTFE) THEN
       ZSPHI(JSPEC,JLEV)=PT(JSPEC,jlev)*zdetah
     ENDDO
   ENDDO
+#if defined(_OPENACC)
 !$acc END PARALLEL
-
 #else
-
-!$OMP PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH)
-!$OMP DO SCHEDULE(STATIC) 
-  DO JLEV=1,KLEV
-    ZDETAH=YDVETA%VFE_RDETAH(JLEV)
-    DO JSPEC=1,KSPEC
-      ZSPHI(JSPEC,JLEV)=-YDCST%RD*PT(JLEV,JSPEC)*SILNPR(JLEV)*ZDETAH
-    ENDDO
-  ENDDO
 !$OMP END DO
 !$OMP END PARALLEL
 #endif
 
-!!if (lhook) call dr_hook('SIGAM_transpose1',1,zhook_handle2)
+if (lhook) call dr_hook('SIGAM_transpose1',1,zhook_handle2)
 
-!!if (lhook) call dr_hook('SIGAM_cond_lim',0,zhook_handle2)
+if (lhook) call dr_hook('SIGAM_cond_lim',0,zhook_handle2)
 #if defined(_OPENACC)
 !$acc parallel private(jspec) num_gangs(1) default(none)
 !$acc loop gang vector
+#else
+!$omp parallel do private(jspec)  !!dans le code initial fait par :
+#endif
 do jspec=1,kspec
   ZSPHI(jspec,0)=0.0_JPRB
   ZSPHI(jspec,KLEV+1)=0.0_JPRB
 enddo
+#if defined(_OPENACC)
 !$acc end parallel
 #else
-  ZSPHI(:,0)=0.0_JPRB
-  ZSPHI(:,KLEV+1)=0.0_JPRB
+!$omp end parallel do
 #endif
-!!if (lhook) call dr_hook('SIGAM_cond_lim',1,zhook_handle2)
+
+if (lhook) call dr_hook('SIGAM_cond_lim',1,zhook_handle2)
 
   CALL VERDISINT(YDVFE,YDCVER,CLOPER,'11',KSPEC,1,KSPEC,KLEV,ZSPHI,ZOUT,KCHUNK=YDGEOMETRY%YRDIM%NPROMA)
 
@@ -169,24 +164,22 @@ if (lhook) call dr_hook('SIGAM_transpose2',0,zhook_handle2)
 #if defined(_OPENACC)
 !$acc PARALLEL PRIVATE(JLEV,JSPEC) default(none)
 !$acc loop collapse(2) 
+#else
+!$OMP PARALLEL PRIVATE(JLEV,JSPEC)
+!$OMP DO SCHEDULE(STATIC) 
+#endif
   DO JLEV=1,KLEV
     DO JSPEC=1,KSPEC
       PD(JSPEC,jlev)=ZOUT(JSPEC,JLEV-1)+PSP(JSPEC)*yddyn%SIRPRG
     ENDDO
   ENDDO
+#if defined(_OPENACC)
 !$acc END PARALLEL
-
 #else
-!$OMP PARALLEL PRIVATE(JLEV,JSPEC)
-!$OMP DO SCHEDULE(STATIC) 
-  DO JLEV=1,KLEV
-    DO JSPEC=1,KSPEC
-      PD(JLEV,JSPEC)=ZOUT(JSPEC,JLEV-1)+PSP(JSPEC)*SIRPRG
-    ENDDO
-  ENDDO
 !$OMP END DO
 !$OMP END PARALLEL
 #endif
+
 if (lhook) call dr_hook('SIGAM_transpose2',1,zhook_handle2)
 !$acc end data
 !$acc end data

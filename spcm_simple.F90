@@ -28,6 +28,9 @@ REAL(KIND=JPRB)     ,INTENT(INOUT) :: PSPSVD(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY
 #if defined(_OPENACC)
 real(kind=JPRB)  :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
 real(kind=JPRB)  :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
+#else
+real(kind=jprb)  :: simit(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
+real(kind=jprb)  :: simot(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
 #endif
 
 REAL(KIND=JPRB), ALLOCATABLE :: ZSPVORG2(:,:)
@@ -69,7 +72,29 @@ ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,  YDMP=>YDGEOMETRY%Y
 &  YDLAP=>YDGEOMETRY%YRLAP)
 
 ASSOCIATE(NFLEVG=>YDDIMV%NFLEVG, NSPEC2V=>YDMP%NSPEC2V, NSPEC2VF=>YDMP%NSPEC2VF, LIMPF=>YDDYN%LIMPF, &
-& NFLSUR=>YDDIMV%NFLSUR, NSPEC2=>YDDIM%NSPEC2, NUMP=>YDDIM%NUMP, NSMAX=>YDDIM%NSMAX,nflevl=>yddimv%nflevl)
+& NFLSUR=>YDDIMV%NFLSUR, NSPEC2=>YDDIM%NSPEC2, NUMP=>YDDIM%NUMP, NSMAX=>YDDIM%NSMAX,nflevl=>yddimv%nflevl, &
+& simi=>YDDYN%SIMI,simo=>YDDYN%SIMO)
+
+#if defined(_OPENACC)
+
+#else
+!!transposition de simit simot
+!$omp parallel do private(compteur1,compteur2)
+do compteur1=1,nflevg
+  do compteur2=1,nflevg
+    simit(compteur1,compteur2)=simi(compteur2,compteur1)
+  enddo
+enddo
+!$omp end parallel do
+
+!$omp parallel do private(compteur1,compteur2)
+do compteur1=1,nflevg
+  do compteur2=1,nflevg
+    simot(compteur1,compteur2)=simo(compteur2,compteur1)
+  enddo
+enddo
+!$omp end parallel do
+#endif
 
 LLONEM = .NOT. LIMPF
 
@@ -93,22 +118,12 @@ ALLOCATE(PSPSPD2(nspec2,nflevl))
 ALLOCATE(PSPSVD2(nspec2,nflevl))
 ALLOCATE(PSPSP2 (nspec2))
 
-
-#if defined(_OPENACC)
 ALLOCATE(ZSPVORG(ISPEC2V,nflevg))
 ALLOCATE(ZSPDIVG(ISPEC2V,nflevg))
 ALLOCATE(ZSPTG  (ISPEC2V,nflevg))
 ALLOCATE(ZSPSPDG(ISPEC2V,nflevg))
 ALLOCATE(ZSPSVDG(ISPEC2V,nflevg))
 ALLOCATE(ZSPSPG (ISPEC2V))
-#else
-ALLOCATE(ZSPVORG(NFLEVG,ISPEC2V))
-ALLOCATE(ZSPDIVG(NFLEVG,ISPEC2V))
-ALLOCATE(ZSPTG  (NFLEVG,ISPEC2V))
-ALLOCATE(ZSPSPDG(NFLEVG,ISPEC2V))
-ALLOCATE(ZSPSVDG(NFLEVG,ISPEC2V))
-ALLOCATE(ZSPSPG (ISPEC2V))
-#endif
 
 ALLOCATE(ZSPTNDSI_VORG(1,1))
 ALLOCATE(ZSPTNDSI_DIVG(1,1))
@@ -156,7 +171,7 @@ IF (LIMPF) THEN
 !$OMP END PARALLEL DO
 
 ELSE
-#if defined(_OPENACC)
+
     pspsp2(:)=pspsp(:)
     do compteur1=1,nspec2
       do compteur2=1,nflevl
@@ -185,9 +200,19 @@ ELSE
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & LDFULLM=LLONEM)
 
+#if defined(_OPENACC)
+
   CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
   & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
   & zsdivpl,zspdivpl)
+
+#else
+
+  CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
+  & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
+  & simit,simot)
+
+#endif
 
   CALL TRSTOM(&
     & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
@@ -218,36 +243,6 @@ ELSE
         pspsvd(compteur1,compteur2)=pspsvd2(compteur2,compteur1)
       enddo
     enddo
-
-
-#else
-
-!!    if (lhook) call dr_hook('SPCM_SIMPLE_transpose1',0,zhook_handle2)
- 
-  IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_utile',0,ZHOOK_HANDLE3)
-
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
-    & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
-    & PSPSVD=PSPSVD,PSPSP=PSPSP,&
-    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
-    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
-    & LDFULLM=LLONEM)
-
-  CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
-  & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG)
-
-  CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
-    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
-    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
-    & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
-    & PSPSVD=PSPSVD,PSPSP=PSPSP,&
-    & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)   
-
-    IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_utile',1,ZHOOK_HANDLE3)
-
-
-#endif
 
 ENDIF
 

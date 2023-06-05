@@ -13,24 +13,27 @@ USE YOMHOOK      , ONLY : LHOOK, DR_HOOK, JPHOOK
 IMPLICIT NONE
 
 TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
+#if defined(_OPENACC)
 INTEGER(KIND=JPIM),INTENT(IN),value    :: KSPEC2V
 INTEGER(KIND=JPIM),INTENT(IN),value    :: KMLOC
-#if defined(_OPENACC)
+#else
+INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC2V
+INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOC
+#endif
+
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSPDIVG(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PHELP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
+#if defined(_OPENACC)
 real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
 real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
-#else
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PSPDIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PHELP(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 #endif
 
 #if defined(_OPENACC)
 !!REAL(KIND=JPRB) :: ZSDIVPL (YDGEOMETRY%YRDIMV%NFLEVG,1:YDGEOMETRY%YRDIM%NSMAX+1,2)
 !!REAL(KIND=JPRB) :: ZSPDIVPL(YDGEOMETRY%YRDIMV%NFLEVG,1:YDGEOMETRY%YRDIM%NSMAX+1,2)
 #else
-REAL(KIND=JPRB) :: ZSDIVPL (YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRLAP%MYMS(KMLOC):YDGEOMETRY%YRDIM%NSMAX,2)
-REAL(KIND=JPRB) :: ZSPDIVPL(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRLAP%MYMS(KMLOC):YDGEOMETRY%YRDIM%NSMAX,2)
+REAL(KIND=JPRB) :: ZSDIVPL (YDGEOMETRY%YRLAP%MYMS(KMLOC):YDGEOMETRY%YRDIM%NSMAX,ydgeometry%yrdimv%nflevg,2)
+REAL(KIND=JPRB) :: ZSPDIVPL(YDGEOMETRY%YRLAP%MYMS(KMLOC):YDGEOMETRY%YRDIM%NSMAX,ydgeometry%yrdimv%nflevg,2)
 #endif
 
 INTEGER(KIND=JPIM) :: II, IS0, ISE, JN,compteur
@@ -74,10 +77,14 @@ do compteur=1,nflevg
   enddo
 ENDDO
 #else
-DO JN=IM,NSMAX
-  ISE=ISTA+2*(JN-IM)
-  ZSDIVPL(:,JN,1:2)=PSPDIVG(:,ISE:ISE+1)
-ENDDO
+!$omp parallel do private(compteur,jn,ise) !!pas de parallelisation dans code initial
+do compteur=1,nflevg
+  DO JN=IM,NSMAX
+    ISE=ISTA+2*(JN-IM)
+    ZSDIVPL(JN,compteur,1:2)=PSPDIVG(ISE:ISE+1,compteur)
+  ENDDO
+enddo
+!$omp end parallel do
 #endif
 
 !        ZSPDIV=(DIVprim(t+dt)) --> ZPSPDIVG=(GMBAR**2 * DIVprim(t+dt)).
@@ -106,10 +113,14 @@ do compteur=1,nflevg
   enddo
 ENDDO
 #else
-DO JN=IM,NSMAX
-  ISE=ISTA+2*(JN-IM)
-  PHELP(:,ISE:ISE+1)=ZSPDIVPL(:,JN,1:2)
-ENDDO
+!$omp parallel do private(compteur,jn,ise)  !!pas de parallelisation dans code initial
+do compteur=1,nflevg
+  DO JN=IM,NSMAX
+    ISE=ISTA+2*(JN-IM)
+    PHELP(ISE:ISE+1,compteur)=ZSPDIVPL(JN,compteur,1:2)
+  ENDDO
+enddo
+!$omp end parallel do
 #endif
 
 !$acc end data
