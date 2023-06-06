@@ -314,16 +314,13 @@ IF (LSIDG) THEN
 
 if (lhook) CALL DR_HOOK('SPCSI_sidg2',0,zhook_handle2)
 #if defined(_OPENACC) 
-  !$acc parallel num_gangs(32) private(zsdivpl,zspdivpl) default(none)
-  !$acc loop gang
-  DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
-    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, JMLOC, PSPDIVG,ZHELP,zsdivpl,zspdivpl)
-  ENDDO
-  !$acc end parallel
+  
+    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, PSPDIVG,ZHELP,zsdivpl,zspdivpl,nptrmf(mysetn),nptrmf(mysetn+1)-1)
+ 
 #else
-  DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
-    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, JMLOC, PSPDIVG, ZHELP)
-  ENDDO
+
+    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, PSPDIVG,ZHELP,nptrmf(mysetn),nptrmf(mysetn+1)-1)
+
 #endif
 if (lhook) CALL DR_HOOK('SPCSI_sidg2',1,zhook_handle2) 
 
