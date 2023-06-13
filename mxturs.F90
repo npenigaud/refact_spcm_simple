@@ -1,8 +1,8 @@
 #if defined(_OPENACC)
-SUBROUTINE MXTURS(KLX,KVX,KVXS,KIX,tnsmax,PA,PB,PC,PY,PX)
+SUBROUTINE MXTURS(KLX,PA,PB,PC,PY,PX,pas,pbs,pcs,pys,pxs)
 !$acc routine vector
 #else
-SUBROUTINE MXTURS(KLX,KVX,KVXS,KIX,PA,PB,PC,PY,PX)
+SUBROUTINE MXTURS(KLX,KVX,KVXS,KIX,tnsmax,PA,PB,PC,PY,PX)
 #endif
 
 !**** *MXTURS*   - Resolution of a set of pentadiagonal symmetric systems.
@@ -78,35 +78,39 @@ SUBROUTINE MXTURS(KLX,KVX,KVXS,KIX,PA,PB,PC,PY,PX)
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLX 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KVX 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KVXS 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KIX
 #if defined(_OPENACC)
-integer(kind=JPIM),intent(in)    :: tnsmax
-#endif 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(KVX,KLX) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PB(KVX,KLX) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PC(KVX,KLX)
-#if defined(_OPENACC)
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PY(tnsmax+1,kvxs,KIX) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PX(tnsmax+1,kvxs,KIX)
-#else 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PY(KVXS,KLX,KIX) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PX(KVXS,KLX,KIX)
-#endif 
+INTEGER(KIND=JPIM),INTENT(IN),value :: KLX
+REAL(KIND=JPRB) ,INTENT(IN) :: PA(klx)
+REAL(KIND=JPRB) ,INTENT(IN) :: PB(klx)
+REAL(KIND=JPRB) ,INTENT(IN) :: PC(klx)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PY(klx)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PX(klx)
+REAL(KIND=JPRB) ,INTENT(INout) :: PAs(97)
+REAL(KIND=JPRB) ,INTENT(INout) :: PBs(97)
+REAL(KIND=JPRB) ,INTENT(INout) :: PCs(97)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PYs(97)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PXs(97)
+#else
+INTEGER(KIND=JPIM),INTENT(IN) :: KLX
+INTEGER(KIND=JPIM),INTENT(IN) :: KVX
+INTEGER(KIND=JPIM),INTENT(IN) :: KVXS
+INTEGER(KIND=JPIM),INTENT(IN) :: KIX
+integer(kind=JPIM),intent(in) :: tnsmax
+REAL(KIND=JPRB) ,INTENT(IN) :: PA(KVX,KLX)
+REAL(KIND=JPRB) ,INTENT(IN) :: PB(KVX,KLX)
+REAL(KIND=JPRB) ,INTENT(IN) :: PC(KVX,KLX)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PY(KVXS,tnsmax+1,KIX)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PX(KVXS,tnsmax+1,KIX)
+#endif
+
 
 !     ------------------------------------------------------------------
 
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
-
-!     ------------------------------------------------------------------
 
 #include "mxture.h"
 
@@ -118,12 +122,12 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !              -----------------------------------------------------
 #if defined(_OPENACC)
 !$acc data present(pa,pb,pc,py,px)
-CALL MXTURE(KLX,KVX,KVXS,KIX,tnsmax,-2,.TRUE. ,PA,PB,PC,PY,PX)
-CALL MXTURE(KLX,KVX,KVXS,KIX,tnsmax, 1,.FALSE.,PA,PB,PC,PY,PX)
+CALL MXTURE(KLX,-2,.TRUE. ,PA,PB,PC,PY,PX,pas,pbs,pcs,pys,pxs)
+CALL MXTURE(KLX, 1,.FALSE.,PA,PB,PC,PY,PX,pas,pbs,pcs,pys,pxs)
 !$acc end data
 #else
-CALL MXTURE(KLX,KVX,KVXS,KIX,-2,.TRUE. ,PA,PB,PC,PY,PX)
-CALL MXTURE(KLX,KVX,KVXS,KIX, 1,.FALSE.,PA,PB,PC,PY,PX)
+CALL MXTURE(KLX,KVX,KVXS,KIX,tnsmax,-2,.TRUE. ,PA,PB,PC,PY,PX)
+CALL MXTURE(KLX,KVX,KVXS,KIX, tnsmax,1,.FALSE.,PA,PB,PC,PY,PX)
 #endif
 !     ------------------------------------------------------------------
 

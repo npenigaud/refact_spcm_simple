@@ -4,6 +4,7 @@ USE TYPE_MODEL         , ONLY : MODEL
 USE GEOMETRY_MOD       , ONLY : GEOMETRY
 USE PARKIND1           , ONLY : JPIM, JPRB
 USE YOMHOOK            , ONLY : LHOOK, DR_HOOK, JPHOOK
+use YOMMP0             , only : MYSETN
 
 !     ------------------------------------------------------------------
 
@@ -26,8 +27,15 @@ REAL(KIND=JPRB)     ,INTENT(INOUT) :: PSPSVD(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY
 #include "spcimpfpost.intfb.h"
 
 #if defined(_OPENACC)
-real(kind=JPRB)  :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
-real(kind=JPRB)  :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
+real(kind=JPRB)  :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,499)
+real(kind=JPRB)  :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,499)
+real(kind=jprb),allocatable  :: param_mxture(:,:,:)
+integer(kind=jpim), parameter :: taillec=2001
+real(kind=jprb)   :: pa(taillec)
+real(kind=jprb)   :: pb(taillec)
+real(kind=jprb)   :: pc(taillec)
+real(kind=jprb)   :: entree(taillec)
+real(kind=jprb)   :: sortie(taillec)
 #else
 real(kind=jprb)  :: simit(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
 real(kind=jprb)  :: simot(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
@@ -63,7 +71,7 @@ INTEGER(KIND=JPIM) :: IM, ISPEC2V
 INTEGER (KIND=JPIM) :: JMLOC, ISTA, IEND
 
 REAL(KIND=JPHOOK) ::  ZHOOK_HANDLE,zhook_handle2,zhook_handle3
-integer(kind=jpim)::  compteur1,compteur2
+integer(kind=jpim)::  compteur1,compteur2,is0,is02,taille
 
 IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE',0,ZHOOK_HANDLE)
 
@@ -73,9 +81,83 @@ ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,  YDMP=>YDGEOMETRY%Y
 
 ASSOCIATE(NFLEVG=>YDDIMV%NFLEVG, NSPEC2V=>YDMP%NSPEC2V, NSPEC2VF=>YDMP%NSPEC2VF, LIMPF=>YDDYN%LIMPF, &
 & NFLSUR=>YDDIMV%NFLSUR, NSPEC2=>YDDIM%NSPEC2, NUMP=>YDDIM%NUMP, NSMAX=>YDDIM%NSMAX,nflevl=>yddimv%nflevl, &
-& simi=>YDDYN%SIMI,simo=>YDDYN%SIMO)
+& simi=>YDDYN%SIMI,simo=>YDDYN%SIMO,siheg=>yddyn%siheg,siheg2=>yddyn%siheg2, &
+& nptrmf=>ydmp%nptrmf,LSIDG=>YDDYN%LSIDG)
 
 #if defined(_OPENACC)
+if (LSIDG) then
+  !!transposition temporaire des parametres mxture
+  !!calcul de la taille max d une plage de params
+  taille=0
+  do jmloc=nptrmf(mysetn),nptrmf(mysetn+1)-1
+    im=ydlap%myms(jmloc)  
+    taille=max(taille,nflevg*(nsmax+1-im))
+  enddo
+
+  print *,"taille",taille
+  print *,"nptrmf(mysetn)",nptrmf(mysetn)
+  print *,"nptrmf(mysetn+1)-1",nptrmf(mysetn+1)-1
+  call flush(0)
+
+  !!allocation, passage sur carte et initialisation
+  allocate(param_mxture(taille,nptrmf(mysetn+1)-1,5))
+  !$acc enter data create(param_mxture)
+!!!!!!  !$acc data create(param_mxture)
+  param_mxture(:,:,:)=0.0_JPRB
+
+  !!charge et transp données sur carte
+  do jmloc=nptrmf(mysetn),nptrmf(mysetn+1)-1
+    im=ydlap%myms(jmloc)  
+    is0=ydlap%nse0l(jmloc)
+    is02=0
+    if (.true.) then
+      !$acc parallel loop private(compteur2)
+      do compteur1=is0+1,is0+nsmax+1-im
+        do compteur2=1,nflevg
+          param_mxture(compteur1-is0-1+1+(nsmax+1-im)*(compteur2-1),jmloc,1)=siheg(compteur2,compteur1,1) 
+          param_mxture(compteur1-is0-1+1+(nsmax+1-im)*(compteur2-1),jmloc,2)=siheg(compteur2,compteur1,2) 
+          param_mxture(compteur1-is0-1+1+(nsmax+1-im)*(compteur2-1),jmloc,3)=siheg(compteur2,compteur1,3) 
+        enddo
+      enddo
+      !$acc end parallel
+
+      !$acc parallel loop private(compteur2)
+      do compteur1=is02+1,is02+nsmax+1-im
+        do compteur2=1,nflevg
+          param_mxture(compteur1-is02-1+1+(nsmax+1-im)*(compteur2-1),jmloc,4)=siheg2(compteur2,compteur1,2) 
+          param_mxture(compteur1-is02-1+1+(nsmax+1-im)*(compteur2-1),jmloc,5)=siheg2(compteur2,compteur1,3) 
+        enddo
+      enddo
+      !$acc end parallel
+    else
+      !$acc parallel loop private(compteur2)
+      do compteur1=is0+1,is0+nsmax+1-im
+        do compteur2=1,nflevg
+          param_mxture((compteur1-is0-1)*nflevg+1+(compteur2-1),jmloc,1)=siheg(compteur2,compteur1,1) 
+          param_mxture((compteur1-is0-1)*nflevg+1+(compteur2-1),jmloc,2)=siheg(compteur2,compteur1,2) 
+          param_mxture((compteur1-is0-1)*nflevg+1+(compteur2-1),jmloc,3)=siheg(compteur2,compteur1,3) 
+        enddo
+      enddo
+      !$acc end parallel
+
+      !$acc parallel loop private(compteur2)
+      do compteur1=is02+1,is02+nsmax+1-im
+        do compteur2=1,nflevg
+          param_mxture((compteur1-is02-1)*nflevg+1+(compteur2-1),jmloc,4)=siheg2(compteur2,compteur1,2) 
+          param_mxture((compteur1-is02-1)*nflevg+1+(compteur2-1),jmloc,5)=siheg2(compteur2,compteur1,3) 
+        enddo
+      enddo
+      !$acc end parallel
+
+    endif !!choix du sens de transposition
+
+  enddo   !!jmloc
+
+else      !! non lsidg lsidg 
+  allocate(param_mxture(1,1,1))
+  !$acc enter data create(param_mxture)
+endif
+
 
 #else
 !!transposition de simit simot
@@ -172,6 +254,7 @@ IF (LIMPF) THEN
 
 ELSE
 
+#if defined(_OPENACC)
     pspsp2(:)=pspsp(:)
     do compteur1=1,nspec2
       do compteur2=1,nflevl
@@ -182,9 +265,10 @@ ELSE
         pspsvd2(compteur1,compteur2)=pspsvd(compteur2,compteur1)
       enddo
     enddo
+#endif
 
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',0,zhook_handle2)
-    !$acc data create(zspvorg,zspdivg,zsptg,zspspdg,zspsvdg,zspspg) create(zsdivpl,zspdivpl)
+    !$acc data create(zspvorg,zspdivg,zsptg,zspspdg,zspsvdg,zspspg) create(zsdivpl,zspdivpl,pa,pb,pc,entree,sortie)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',1,zhook_handle2)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',0,zhook_handle2)
     !$acc data copy(pspvor2,pspdiv2,pspt2,pspspd2,pspsvd2,pspsp2)
@@ -192,6 +276,7 @@ ELSE
 
   IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_utile',0,ZHOOK_HANDLE3)
 
+#if defined(_OPENACC)
 
   CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
@@ -200,19 +285,9 @@ ELSE
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & LDFULLM=LLONEM)
 
-#if defined(_OPENACC)
-
   CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
   & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
-  & zsdivpl,zspdivpl)
-
-#else
-
-  CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
-  & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
-  & simit,simot)
-
-#endif
+  & taillec,zsdivpl,zspdivpl,pa,pb,pc,entree,sortie,param_mxture)
 
   CALL TRSTOM(&
     & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
@@ -221,6 +296,29 @@ ELSE
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
     & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
     & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
+
+#else
+
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+    & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
+    & PSPSVD=PSPSVD,PSPSP=PSPSP,&
+    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
+    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
+    & LDFULLM=LLONEM)
+
+  CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
+  & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
+  & simit,simot)
+
+  CALL TRSTOM(&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
+    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
+    & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
+    & PSPSVD=PSPSVD,PSPSP=PSPSP,&
+    & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
+
+#endif
 
     IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_utile',1,ZHOOK_HANDLE3)
 
@@ -231,7 +329,7 @@ ELSE
     !$acc end data
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',1,zhook_handle2)
 
-
+#if defined(_OPENACC)
 
     pspsp(:)=pspsp2(:)
     do compteur2=1,nspec2
@@ -243,6 +341,8 @@ ELSE
         pspsvd(compteur1,compteur2)=pspsvd2(compteur2,compteur1)
       enddo
     enddo
+
+#endif
 
 ENDIF
 
@@ -270,6 +370,11 @@ if (allocated(pspsp2)) DEALLOCATE(PSPSP2)
 IF (ALLOCATED(ZSPTNDSI_VORG)) DEALLOCATE(ZSPTNDSI_VORG)
 IF (ALLOCATED(ZSPTNDSI_DIVG)) DEALLOCATE(ZSPTNDSI_DIVG)
 IF (ALLOCATED(ZSPTNDSI_TG))   DEALLOCATE(ZSPTNDSI_TG)
+#if defined(_OPENACC)
+  !$acc exit data delete(param_mxture)
+!!!!!!  !$acc end data
+  if (allocated(param_mxture)) deallocate(param_mxture)
+#endif
 
 END ASSOCIATE
 END ASSOCIATE

@@ -287,6 +287,7 @@ integer :: dev,namelength,ierr
 !!print *,"statut ope:",ierr
 
 dev=mod(rang,4)
+!!dev=mod(rang,1) !!essai sur 2 et 1 cartes
 call acc_set_device_num(dev,ACC_DEVICE_NVIDIA)
 call acc_init(ACC_DEVICE_NVIDIA)
 print *,"rang ",rang," utilise la carte ",dev
@@ -381,7 +382,9 @@ ENDIF
 IF (MYPROC == 1) THEN
   WRITE (*, '(A16," ",A6," ",3A30)') "NAME", "JLEV", "MAX", "MIN", "RMS"
   DO JLEV = 1, YDGEOMETRY%YRDIMV%NFLEVG
+!    WRITE (*, '(A16," ",I6," ",2E30.20," ",I6)') CDNAME, JLEV, ZGPG1 (maxloc(zgpg1(:,jlev)-zgpg2(:,jlev)),JLEV), ZGPG2 (maxloc(zgpg1(:,jlev)-zgpg2(:,jlev)),JLEV), maxloc(zgpg1(:,jlev)-zgpg2(:,jlev))
     WRITE (*, '(A16," ",I6," ",3E30.20)') CDNAME, JLEV, MAXVAL (ZGPG1 (:,JLEV)-ZGPG2 (:,JLEV)), MINVAL (ZGPG1 (:,JLEV)-ZGPG2 (:,JLEV)), SQRT (SUM ((ZGPG1 (:,JLEV)-ZGPG2 (:,JLEV)) * (ZGPG1 (:,JLEV)-ZGPG2 (:,JLEV))))
+
   ENDDO
 ENDIF
 

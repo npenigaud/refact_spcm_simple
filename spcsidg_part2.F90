@@ -1,45 +1,32 @@
 #if defined(_OPENACC)
-SUBROUTINE SPCSIDG_PART2(YDGEOMETRY,KSPEC2V,KMLOC,PSPDIVG,PHELP,zsdivpl,zspdivpl)
-!$acc routine vector
+SUBROUTINE SPCSIDG_PART2(YDGEOMETRY,KSPEC2V,PSPDIVG,PHELP,zsdivpl,zspdivpl,kmlocsta,kmlocend)
 #else
-SUBROUTINE SPCSIDG_PART2(YDGEOMETRY,KSPEC2V,KMLOC,PSPDIVG,PHELP)
+SUBROUTINE SPCSIDG_PART2(YDGEOMETRY,KSPEC2V,PSPDIVG,PHELP,kmlocsta,kmlocend)
 #endif
 USE GEOMETRY_MOD , ONLY : GEOMETRY
 USE PARKIND1     , ONLY : JPIM, JPRB
-USE YOMHOOK      , ONLY : LHOOK, DR_HOOK, JPHOOK
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
 
 TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
-#if defined(_OPENACC)
-INTEGER(KIND=JPIM),INTENT(IN),value    :: KSPEC2V
-INTEGER(KIND=JPIM),INTENT(IN),value    :: KMLOC
-#else
 INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC2V
-INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOC
-#endif
+INTEGER(KIND=JPIM),INTENT(IN)    :: kmlocsta
+INTEGER(KIND=JPIM),INTENT(IN)    :: kmlocend
 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSPDIVG(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PHELP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
-real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
-real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
-#endif
-
-#if defined(_OPENACC)
-!!REAL(KIND=JPRB) :: ZSDIVPL (YDGEOMETRY%YRDIMV%NFLEVG,1:YDGEOMETRY%YRDIM%NSMAX+1,2)
-!!REAL(KIND=JPRB) :: ZSPDIVPL(YDGEOMETRY%YRDIMV%NFLEVG,1:YDGEOMETRY%YRDIM%NSMAX+1,2)
+real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,130)
+real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,130)
 #else
-REAL(KIND=JPRB) :: ZSDIVPL (YDGEOMETRY%YRLAP%MYMS(KMLOC):YDGEOMETRY%YRDIM%NSMAX,ydgeometry%yrdimv%nflevg,2)
-REAL(KIND=JPRB) :: ZSPDIVPL(YDGEOMETRY%YRLAP%MYMS(KMLOC):YDGEOMETRY%YRDIM%NSMAX,ydgeometry%yrdimv%nflevg,2)
+REAL(KIND=JPRB) :: ZSDIVPL (ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
+REAL(KIND=JPRB) :: ZSPDIVPL(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
 #endif
 
-INTEGER(KIND=JPIM) :: II, IS0, ISE, JN,compteur
+INTEGER(KIND=JPIM) :: II, IS0, ISE, JN,compteur,jmloc,ji,klx
 INTEGER(KIND=JPIM) :: IM, ISTA, IEND
-
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !     ------------------------------------------------------------------
 
@@ -52,79 +39,130 @@ ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,YDLAP=>YDGEOMETRY%YR
 ASSOCIATE(NSMAX=>YDDIM%NSMAX, NFLEVG=>YDDIMV%NFLEVG, SCGMAP=>YDSPGEOM%SCGMAP,NSPSTAF=>YDMP%NSPSTAF)
 !     ------------------------------------------------------------------
 
-!$acc data present(zsdivpl,zspdivpl)
+#if defined(_OPENACC)
+
+!$acc data present(zsdivpl,zspdivpl,nsmax,nflevg,ydgeometry,ydgeometry%yspgeom,ydgeometry%yrmp,ydspgeom,ydmp) 
 !$acc data present(YDLAP,ydlap%MYMS,ydlap%nse0l,nspstaf,scgmap,phelp,pspdivg)
 
-IM=YDLAP%MYMS(KMLOC)
-ISTA=NSPSTAF(IM)
-IEND=ISTA+2*(NSMAX+1-IM)-1
+!$acc parallel default(none) private(im,ista,iend,is0,ii,klx)
+!$acc loop gang collapse(3)
+do jmloc=kmlocsta,kmlocend
+ do compteur=1,nflevg
+  do ji=1,2
+   IM=YDLAP%MYMS(jmloc)
+   ISTA=NSPSTAF(IM)
+   IEND=ISTA+2*(NSMAX+1-IM)-1
+   klx=nsmax+1-im
+   IS0=YDLAP%NSE0L(jmloc)
+   II=MIN(IM,1)+1
+!           ZSPDIV=(DIVprim(t+dt)) --> ZSPDIVG=(GM**2 * DIVprim(t+dt)) .
 
-IS0=YDLAP%NSE0L(KMLOC)
-II=MIN(IM,1)+1
+!           Reorganisation of ZSDIVP (Back to the USSR)
+    !$acc loop vector private(ISE)
+    DO JN=IM,NSMAX
+      ise=ista+2*(jn-im)
+      ZSDIVPL(JN-im+1,compteur,ji,jmloc)=PSPDIVG(ISE+ji-1,compteur)
+    ENDDO
+
+!        ZSPDIV=(DIVprim(t+dt)) --> ZPSPDIVG=(GMBAR**2 * DIVprim(t+dt)).
+
+if (ii==1 .and. ji==2) then
+       !$acc loop vector
+       do jn=1,klx
+         zspdivpl(jn,compteur,2,jmloc)=zsdivpl(jn,compteur,2,jmloc)
+       enddo
+elseIF (KLX >= 4) THEN
+      zspdivpl(1,compteur,JI,jmloc) = scgmap (is0+1,1)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+1,2)*zsdivpl(2,compteur,JI,jmloc)+scgmap(is0+1,3)*zsdivpl(3,compteur,JI,jmloc)
+      zspdivpl(2,compteur,JI,jmloc) = scgmap(is0+1,2)*zsdivpl(1,compteur,JI,jmloc)&
+       & +scgmap(is0+2,1)*zsdivpl(2,compteur,JI,jmloc)&
+       & +scgmap(is0+2,2)*zsdivpl(3,compteur,JI,jmloc)&
+       & +scgmap(is0+2,3)*zsdivpl(4,compteur,JI,jmloc)  
+
+  !$acc loop vector 
+  do jn=3,klx-2 !!jl=jn
+        zspdivpl(jn,compteur,JI,jmloc) = scgmap(is0+jn-2,3)*zsdivpl(jn-2,compteur,JI,jmloc)&
+         & +scgmap(is0+jn-1,2)*zsdivpl(jn-1,compteur,JI,jmloc)&
+         & +scgmap(is0+jn,1  )*zsdivpl(jn,compteur  ,JI,jmloc)&
+         & +scgmap(is0+jn,2  )*zsdivpl(jn+1,compteur,JI,jmloc)&
+         & +scgmap(is0+jn,3  )*zsdivpl(jn+2,compteur,JI,jmloc)  
+  ENDDO
+      zspdivpl(KLX-1,compteur,JI,jmloc) = scgmap(is0+KLX-3,3)*zsdivpl(KLX-3,compteur,JI,jmloc)&
+       & +scgmap(is0+KLX-2,2)*zsdivpl(KLX-2,compteur,JI,jmloc)&
+       & +scgmap (is0+KLX-1,1)*zsdivpl(KLX-1,compteur,JI,jmloc)&
+       & +scgmap(is0+KLX-1,2)*zsdivpl(KLX,compteur  ,JI,jmloc)  
+      zspdivpl(KLX,compteur,JI,jmloc) = scgmap(is0+KLX-2,3)*zsdivpl(KLX-2,compteur,JI,jmloc)&
+       & +scgmap(is0+KLX-1,2)*zsdivpl(KLX-1,compteur,JI,jmloc)&
+       & +scgmap (is0+KLX,1  )*zsdivpl(KLX,compteur  ,JI,jmloc)  
+
+ELSEIF (KLX == 3) THEN
+      zspdivpl(1,compteur,JI,jmloc) = scgmap(is0+ 1,1)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+1,2)*zsdivpl(2,compteur,JI,jmloc)+scgmap(is0+1,3)*zsdivpl(3,compteur,JI,jmloc)
+      zspdivpl(2,compteur,JI,jmloc) = scgmap(is0+1,2)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+2,1)*zsdivpl(2,compteur,JI,jmloc)+scgmap(is0+2,2)*zsdivpl(3,compteur,JI,jmloc)
+      zspdivpl(3,compteur,JI,jmloc) = scgmap(is0+1,3)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+2,2)*zsdivpl(2,compteur,JI,jmloc)+scgmap (is0+3,1)*zsdivpl(3,compteur,JI,jmloc)
+
+ELSEIF (KLX == 2) THEN
+      zspdivpl(1,compteur,JI,jmloc) = scgmap(is0+1,1)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+1,2)*zsdivpl(2,compteur,JI,jmloc)
+      zspdivpl(2,compteur,JI,jmloc) = scgmap(is0+1,2)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+2,1)*zsdivpl(2,compteur,JI,jmloc)
+
+ELSEIF (KLX == 1) THEN
+      zspdivpl(1,compteur,JI,jmloc) = scgmap(is0+1,1)*zsdivpl(1,compteur,JI,jmloc)
+
+ENDIF
+
+!           Reorganisation of ZSPDIVPL
+
+    !$acc loop vector private(ISE)
+    DO JN=IM,NSMAX
+      ise=ista+2*(jn-im)
+      PHELP(ISE+ji-1,compteur)=ZSPDIVPL(JN-im+1,compteur,ji,jmloc)
+    ENDDO
+   enddo !!ji
+  enddo !!compteur
+enddo !!jmloc
+!$acc end parallel
+!$acc end data
+!$acc end data
+
+#else
+
+!$omp parallel do private(jmloc,im,ista,iend,is0,ii,jn,ise,zsdivpl,zspdivpl)
+do jmloc=kmlocsta,kmlocend
+  IM=YDLAP%MYMS(jmloc)
+  ISTA=NSPSTAF(IM)
+  IEND=ISTA+2*(NSMAX+1-IM)-1
+
+  IS0=YDLAP%NSE0L(jmloc)
+  II=MIN(IM,1)+1
 !           ZSPDIV=(DIVprim(t+dt)) --> ZSPDIVG=(GM**2 * DIVprim(t+dt)) .
 
 ZSDIVPL(:,:,:)=0.0_JPRB
 ZSPDIVPL(:,:,:)=0.0_JPRB
 
 !           Reorganisation of ZSDIVP (Back to the USSR)
-#if defined(_OPENACC)
-!$acc loop vector private(ISE,compteur,jn) collapse(2)
-do compteur=1,nflevg
   DO JN=IM,NSMAX
     ISE=ISTA+2*(JN-IM)
-    ZSDIVPL(JN-im+1,compteur,1)=PSPDIVG(ISE,compteur)
-    ZSDIVPL(JN-im+1,compteur,2)=PSPDIVG(ISE+1,compteur)
-  enddo
-ENDDO
-#else
-!$omp parallel do private(compteur,jn,ise) !!pas de parallelisation dans code initial
-do compteur=1,nflevg
-  DO JN=IM,NSMAX
-    ISE=ISTA+2*(JN-IM)
-    ZSDIVPL(JN,compteur,1:2)=PSPDIVG(ISE:ISE+1,compteur)
+    ZSDIVPL(JN-im+1,:,1)=PSPDIVG(ISE,:)
+    ZSDIVPL(JN-im+1,:,2)=PSPDIVG(ISE+1,:)
   ENDDO
-enddo
-!$omp end parallel do
-#endif
 
 !        ZSPDIV=(DIVprim(t+dt)) --> ZPSPDIVG=(GMBAR**2 * DIVprim(t+dt)).
 
-#if defined(_OPENACC)
-CALL MXPTMA(NSMAX+1-IM,NFLEVG,NFLEVG,II,ydgeometry%yrdim%nsmax,SCGMAP(IS0+1,1),&
+CALL MXPTMA(NSMAX+1-IM,NFLEVG,NFLEVG,II,nsmax,SCGMAP(IS0+1,1),&
  & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
  & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
  & ZSDIVPL,ZSPDIVPL)  
-#else
-CALL MXPTMA(NSMAX+1-IM,NFLEVG,NFLEVG,II,SCGMAP(IS0+1,1),&
- & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
- & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
- & ZSDIVPL,ZSPDIVPL)  
-#endif
 
 !           Reorganisation of ZSPDIVPL
 
-#if defined(_OPENACC)
-!$acc loop vector private(ISE,compteur,jn) collapse(2)
-do compteur=1,nflevg
   DO JN=IM,NSMAX
     ISE=ISTA+2*(JN-IM)
-    PHELP(ISE,compteur)=ZSPDIVPL(JN-im+1,compteur,1)
-    PHELP(ISE+1,compteur)=ZSPDIVPL(JN-im+1,compteur,2)
-  enddo
-ENDDO
-#else
-!$omp parallel do private(compteur,jn,ise)  !!pas de parallelisation dans code initial
-do compteur=1,nflevg
-  DO JN=IM,NSMAX
-    ISE=ISTA+2*(JN-IM)
-    PHELP(ISE:ISE+1,compteur)=ZSPDIVPL(JN,compteur,1:2)
+     PHELP(ISE,:)=ZSPDIVPL(JN-im+1,:,1)
+     PHELP(ISE+1,:)=ZSPDIVPL(JN-im+1,:,2)
   ENDDO
-enddo
+
+enddo !!jmloc
 !$omp end parallel do
 #endif
 
-!$acc end data
-!$acc end data
 END ASSOCIATE
 END ASSOCIATE
 

@@ -18,4 +18,15 @@ drhook.prof.*
 intel/
 nvhpc/
 t0499l105-001mpi/
+t0149l105c1.0-008mpi+cor/
+t0149l105c2.4-008mpi/
 Makefile.nvhpc.sauv*
+mxture.h.sauv*
+mxturs.h.sauv*
+mxture.sauv*
+mxturs.sauv*
+spcsidg_part1.sauv*
+spcsidg_part1.in.sauv*
+spcsidg_part2.sauv*
+spcsidg_part1.Sauv
+spcsidg_part2.sansmem

@@ -43,13 +43,15 @@ IOFF=NPTRSVF(MYSETV)-1
 !$acc data present(zsdiv,ydlap,ydlap%rlapin,pspdivg)
     IF (IM > 0) THEN
 #if defined(_OPENACC)
-      !$acc loop vector collapse(2) private(jsp,jlev,in)
+      !!$acc loop vector private(jsp,jlev,in) !!collapse(2) private(jsp,jlev,in)
+      !$acc loop vector private(jsp,jlev,in) collapse(2)
 #else
       !$OMP PARALLEL DO PRIVATE(JSP,JLEV,IN)
 #endif
       do jlev=1,nflevg
        DO JSP=ISTA,IEND
           IN=YDLAP%NVALUE(JSP+IOFF)
+ !!         do jlev=1,nflevg
           ZSDIV(jsp,JLEV)=YDLAP%RLAPIN(IN)*PSPDIVG(jsp,JLEV)-ZBDT*ZSDIV(jsp,JLEV)
        ENDDO
       ENDDO
@@ -62,13 +64,15 @@ IOFF=NPTRSVF(MYSETV)-1
     ELSE
 
 #if defined(_OPENACC)
-      !$acc loop vector collapse(2) private(jsp,in,jlev)
+      !!$acc loop vector private(jsp,in,jlev) !!collapse(2) private(jsp,in,jlev)
+      !$acc loop vector private(jsp,in,jlev) collapse(2)
 #else
       !$OMP PARALLEL DO PRIVATE(JSP,JLEV,IN)
 #endif
       do jlev=1,nflevg
         DO JSP=ISTA,IEND
           IN=YDLAP%NVALUE(JSP+IOFF)
+  !!        do jlev=1,nflevg
           ZSDIV(jsp,JLEV)=PSPDIVG(jsp,JLEV)-ZBDT*YDLAP%RLAPDI(IN)*ZSDIV(jsp,JLEV)
         ENDDO
       ENDDO

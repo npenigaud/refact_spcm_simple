@@ -7,7 +7,7 @@ FIAT=/home/gmap/mrpm/marguina/fiat/pginvtx+mplacc-build
 ECTRANS=/home/gmap/mrpm/marguina/hub/install
 ECCODES=/home/gmap/mrpm/marguina/install/PGI2211/eccodes-2.14.0
 
-FFLAGS= -I$(SRC) -acc -mp -ta=tesla:cc70 -fPIC -Minfo=accel -gopt -Mcuda -Mlarge_arrays -Mlist -traceback -Mnofma -Mbyteswapio -Mbackslash
+FFLAGS= -I$(SRC) -acc -mp -ta=tesla,cc70 -fPIC -Minfo=accel -gopt -Mcuda -Mlarge_arrays -Mlist -traceback -Mnofma -Mbyteswapio -Mbackslash
 
 FC=/home/gmap/mrpm/marguina/install/gmkpack_support/wrapper/PGI2211/mpif90 \
    -I$(FIAT)/include \

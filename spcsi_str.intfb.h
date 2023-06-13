@@ -4,7 +4,7 @@ SUBROUTINE SPCSI_STR(&
 & YDGEOMETRY,YDCST,YDLDDH,YDRIP,YDDYN,KSPEC2V,&
 & PSPVORG,PSPDIVG,PSPTG,PSPSPG,&
 & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG,&
-& zsdivpl,zspdivpl)
+& taillec,zsdivpl,zspdivpl,pa,pb,pc,entree,sortie,param_mxture)
 
 #else
 SUBROUTINE SPCSI_STR(&
@@ -40,8 +40,15 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_VORG(KSPEC2V,YDGEOMETRY%YRDIMV%NFLE
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_DIVG(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_TG(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
-real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
-real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
+integer(kind=jpim)               :: taillec
+real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,64)
+real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,64)
+real(kind=jprb)   ,intent(in) :: param_mxture(:,:,:)
+real(kind=jprb)   ,intent(inout)    :: pa(taillec)
+real(kind=jprb)   ,intent(inout)    :: pb(taillec)
+real(kind=jprb)   ,intent(inout)    :: pc(taillec)
+real(kind=jprb)   ,intent(inout)    :: entree(taillec)
+real(kind=jprb)   ,intent(inout)    :: sortie(taillec)
 #else
 real(kind=jprb)   ,intent(in)    :: simit(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
 real(kind=jprb)   ,intent(in)    :: simot(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)

@@ -2,7 +2,7 @@
 SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,tnsmax,PA,PBI,PCI,PBS,PCS,PX,PY)
 !$acc routine vector
 #else
-SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,PA,PBI,PCI,PBS,PCS,PX,PY)
+SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,tnsmax,PA,PBI,PCI,PBS,PCS,PX,PY)
 #endif
 
 !**** *MXPTMA*   - Multiplication of a pentadiagonal matrix by a matrix.
@@ -78,6 +78,8 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KIX
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVX
 #if defined(_OPENACC)
 integer(kind=jpim),intent(in),value :: tnsmax
+#else
+integer(kind=jpim),intent(in) :: tnsmax
 #endif 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PBI(KLX) 
@@ -88,8 +90,8 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PCS(KLX)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(tnsmax+1,kvxs,KIX) 
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(tnsmax+1,kvxs,KIX) 
 #else 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(klx,KVXS,KIX) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(klx,KVXS,KIX) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(tnsmax+1,KVXS,KIX) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(tnsmax+1,KVXS,KIX) 
 #endif
 
 !     ------------------------------------------------------------------
@@ -104,12 +106,8 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !*       1.    COMPUTATION OF PY.
 !              ------------------
 
-!$acc data present(pa,pbi,pci,pbs,pcs,px,py)
-
 IF (KLX >= 4) THEN
-  !$acc loop vector
   do jv=1,kvx
-    !$acc loop seq
     DO JI=1,KIX
       PY(1,jv,JI) = PA (1)*PX(1,jv,JI)+PBS(1)*PX(2,jv,JI)+PCS(1)*PX(3,jv,JI)
       PY(2,jv,JI) = PBI(1)*PX(1,jv,JI)&
@@ -118,12 +116,10 @@ IF (KLX >= 4) THEN
        & +PCS(2)*PX(4,jv,JI)  
     ENDDO
   ENDDO
-  !$acc loop vector private(jl)
-  do jv=1,kvx
-    !$acc loop seq
+  !$acc loop vector 
+  do jl=3,klx-2 
     DO JI=1,KIX
-      !$acc loop seq
-      DO JL=3,KLX-2
+      DO JV=1,kvx
         PY(JL,jv,JI) = PCI(JL-2)*PX(JL-2,jv,JI)&
          & +PBI(JL-1)*PX(JL-1,jv,JI)&
          & +PA (JL  )*PX(JL,jv  ,JI)&
@@ -132,9 +128,7 @@ IF (KLX >= 4) THEN
       ENDDO
     ENDDO
   ENDDO
-  !$acc loop vector
   do jv=1,kvx
-    !$acc loop seq
     DO JI=1,KIX
       PY(KLX-1,jv,JI) = PCI(KLX-3)*PX(KLX-3,jv,JI)&
        & +PBI(KLX-2)*PX(KLX-2,jv,JI)&
@@ -147,9 +141,7 @@ IF (KLX >= 4) THEN
   ENDDO
 
 ELSEIF (KLX == 3) THEN
-  !$acc loop vector
   do jv=1,kvx
-    !$acc loop seq
     DO JI=1,KIX
       PY(1,jv,JI) = PA (1)*PX(1,jv,JI)+PBS(1)*PX(2,jv,JI)+PCS(1)*PX(3,jv,JI)
       PY(2,jv,JI) = PBI(1)*PX(1,jv,JI)+PA (2)*PX(2,jv,JI)+PBS(2)*PX(3,jv,JI)
@@ -158,9 +150,7 @@ ELSEIF (KLX == 3) THEN
   ENDDO
 
 ELSEIF (KLX == 2) THEN
-  !$acc loop vector
   do jv=1,kvx
-    !$acc loop seq
     DO JI=1,KIX
       PY(1,jv,JI) = PA (1)*PX(1,jv,JI)+PBS(1)*PX(2,jv,JI)
       PY(2,jv,JI) = PBI(1)*PX(1,jv,JI)+PA (2)*PX(2,jv,JI)
@@ -168,17 +158,13 @@ ELSEIF (KLX == 2) THEN
   ENDDO
 
 ELSEIF (KLX == 1) THEN
-  !$acc loop vector
   do jv=1,kvx
-    !$acc loop seq
     DO JI=1,KIX
       PY(1,jv,JI) = PA (1)*PX(1,jv,JI)
     ENDDO
   ENDDO
 
 ENDIF
-
-!$acc end data
 
 !     ------------------------------------------------------------------
 
