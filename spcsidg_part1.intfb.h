@@ -24,11 +24,11 @@ integer(kind=jpim)               :: taillec
 real(kind=JPRB),   intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,499)
 real(kind=JPRB),   intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,499)
 real(kind=jprb),   intent(in)    :: param_mxture(:,:,:)
-real(kind=jprb),   intent(inout) :: pas(129,9)
-real(kind=jprb),   intent(inout) :: pbs(129,9)
-real(kind=jprb),   intent(inout) :: pcs(129,9)
-real(kind=jprb),   intent(inout) :: entree(129,9)
-real(kind=jprb),   intent(inout) :: sortie(129,9)
+real(kind=jprb),   intent(inout) :: pas(taillec)
+real(kind=jprb),   intent(inout) :: pbs(taillec)
+real(kind=jprb),   intent(inout) :: pcs(taillec)
+real(kind=jprb),   intent(inout) :: entree(taillec)
+real(kind=jprb),   intent(inout) :: sortie(taillec)
 #endif
 END SUBROUTINE SPCSIDG_PART1
 

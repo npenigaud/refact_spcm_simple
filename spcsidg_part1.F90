@@ -25,16 +25,15 @@ REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
 integer(kind=jpim)               :: taillec
-integer(kind=jpim), parameter    :: tbloc=62!!254!!97
-integer(kind=jpim),parameter     :: bloclev=8
+integer(kind=jpim), parameter    :: tbloc=254!!97
 REAL(KIND=JPRB),   intent(inout) :: ZSDIVPL (1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,499)
 REAL(KIND=JPRB),   intent(inout) :: ZSPDIVPL(1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,499)
 real(kind=jprb),   intent(in)    :: param_mxture(:,:,:)
-real(kind=jprb),   intent(inout) :: pas(tbloc+3,bloclev)
-real(kind=jprb),   intent(inout) :: pbs(tbloc+3,bloclev)
-real(kind=jprb),   intent(inout) :: pcs(tbloc+3,bloclev)
-real(kind=jprb),   intent(inout) :: entree(tbloc+3,bloclev)
-real(kind=jprb),   intent(inout) :: sortie(tbloc+3,bloclev)
+real(kind=jprb),   intent(inout) :: pas(tbloc+3)
+real(kind=jprb),   intent(inout) :: pbs(tbloc+3)
+real(kind=jprb),   intent(inout) :: pcs(tbloc+3)
+real(kind=jprb),   intent(inout) :: entree(tbloc+3)
+real(kind=jprb),   intent(inout) :: sortie(tbloc+3)
 
 #else
 REAL(KIND=JPRB) :: ZSDIVPL  (YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIM%NSMAX+1,2)
@@ -42,7 +41,7 @@ REAL(KIND=JPRB) :: ZSPDIVPL (YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIM%NSMAX+1,2
 #endif
 
 INTEGER(KIND=JPIM) :: II, IS0, IS02, ISE, JN,compteur,jmloc,ji,decalage1,klx
-INTEGER(KIND=JPIM) :: IM, ISTA, IEND,jl,jlb,decalage,reste,compteurc,compteurb
+INTEGER(KIND=JPIM) :: IM, ISTA, IEND,jl,jlb,decalage,reste
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
@@ -64,7 +63,7 @@ ASSOCIATE(NSMAX=>YDDIM%NSMAX,NFLEVG=>YDDIMV%NFLEVG,SIHEG=>YDDYN%SIHEG,SIHEG2=>YD
 #if defined(_OPENACC)
 
 !$acc parallel private(im,ista,decalage1,klx,pas,pbs,pcs,entree,sortie,jlb,jl,decalage,reste,tbloc) default(none)
-!$acc cache(pas(1:tbloc+3,bloclev),pbs(1:tbloc+3,bloclev),pcs(1:tbloc+3),entree(1:tbloc+3),sortie(1:tbloc+3))
+!$acc cache(pas(1:tbloc+3),pbs(1:tbloc+3),pcs(1:tbloc+3),entree(1:tbloc+3),sortie(1:tbloc+3))
 !$acc loop gang collapse(3) 
 do jmloc=kmlocsta,kmlocend
   do compteur=1,nflevg
