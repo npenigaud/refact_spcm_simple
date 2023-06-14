@@ -25,16 +25,16 @@ REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
 integer(kind=jpim)               :: taillec
-integer(kind=jpim), parameter    :: tbloc=62!!254!!97
-integer(kind=jpim),parameter     :: bloclev=8
+integer(kind=jpim), parameter    :: tbloc=62!!28
+integer(kind=jpim),parameter     :: bloclev=10!!8
 REAL(KIND=JPRB),   intent(inout) :: ZSDIVPL (1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,499)
 REAL(KIND=JPRB),   intent(inout) :: ZSPDIVPL(1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,499)
 real(kind=jprb),   intent(in)    :: param_mxture(:,:,:)
 real(kind=jprb),   intent(inout) :: pas(tbloc+3,bloclev)
 real(kind=jprb),   intent(inout) :: pbs(tbloc+3,bloclev)
 real(kind=jprb),   intent(inout) :: pcs(tbloc+3,bloclev)
-real(kind=jprb),   intent(inout) :: entree(tbloc+3,bloclev)
-real(kind=jprb),   intent(inout) :: sortie(tbloc+3,bloclev)
+real(kind=jprb),   intent(inout) :: entree(tbloc+3,bloclev,2)
+real(kind=jprb),   intent(inout) :: sortie(tbloc+3,bloclev,2)
 
 #else
 REAL(KIND=JPRB) :: ZSDIVPL  (YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIM%NSMAX+1,2)
@@ -64,21 +64,22 @@ ASSOCIATE(NSMAX=>YDDIM%NSMAX,NFLEVG=>YDDIMV%NFLEVG,SIHEG=>YDDYN%SIHEG,SIHEG2=>YD
 #if defined(_OPENACC)
 
 !$acc parallel private(im,ista,klx,pas,pbs,pcs,entree,sortie,jlb,decalage,reste,tbloc) default(none)
-!$acc cache(pas(1:tbloc+3,bloclev),pbs(1:tbloc+3,bloclev),pcs(1:tbloc+3,bloclev),entree(1:tbloc+3,bloclev),sortie(1:tbloc+3,bloclev))
-!$acc loop gang collapse(3) 
+!$acc cache(pas(1:tbloc+3,bloclev),pbs(1:tbloc+3,bloclev),pcs(1:tbloc+3,bloclev),entree(1:tbloc+3,1:bloclev,1:2),sortie(1:tbloc+3,1:bloclev,1:2))
+!$acc loop gang collapse(2) 
 do jmloc=kmlocsta,kmlocend
   do compteurb=1,(nflevg-1)/bloclev+1
-    do ji=1,2
 
       IM=YDLAP%MYMS(jmloc)
       ISTA=NSPSTAF(IM)
       klx=nsmax+1-im
-      !$acc loop vector private(ise,compteurc,compteur)      
+      !$acc loop vector private(ise,compteurc,compteur,ji)      
       DO JN=IM,NSMAX
         ISE=ISTA+2*(JN-IM)
         do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
           compteur=compteurc+(compteurb-1)*bloclev
-          ZSDIVPL(JN-im+1,compteur,ji,jmloc)=PSDIVP(ISE+ji-1,compteur)
+          do ji=1,2
+            ZSDIVPL(JN-im+1,compteur,ji,jmloc)=PSDIVP(ISE+ji-1,compteur)
+          enddo
         enddo
       ENDDO 
       
@@ -98,55 +99,69 @@ do jmloc=kmlocsta,kmlocend
                 pas(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,1)
                 pbs(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,2)
                 pcs(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,3)
-                entree(jl-decalage,compteurc)=zsdivpl(jl,compteur,ji,jmloc)
+                do ji=1,2
+                  entree(jl-decalage,compteurc,ji)=zsdivpl(jl,compteur,ji,jmloc)
+                enddo
               enddo
             enddo
             if (jlb==1) then
-              !$acc loop vector private(compteur)
+              !$acc loop vector private(compteur) collapse(2)
               do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-                sortie(1,compteurc)=entree(1,compteurc)/pas(1,compteurc)
-                sortie(2,compteurc)=(entree(2,compteurc)-pbs(1,compteurc)*sortie(1,compteurc))/pas(2,compteurc)
+                do ji=1,2
+                  sortie(1,compteurc,ji)=entree(1,compteurc,ji)/pas(1,compteurc)
+                  sortie(2,compteurc,ji)=(entree(2,compteurc,ji)-pbs(1,compteurc)*sortie(1,compteurc,ji))/pas(2,compteurc)
+                enddo
               enddo
             else
-              !$acc loop vector private(compteur)
+              !$acc loop vector private(compteur) collapse(2)
               do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-                compteur=compteurc+(compteurb-1)*bloclev
-                sortie(1,compteurc)=zspdivpl(decalage+1,compteur,ji,jmloc)
-                sortie(2,compteurc)=zspdivpl(decalage+2,compteur,ji,jmloc)
+                do ji=1,2
+                  compteur=compteurc+(compteurb-1)*bloclev
+                  sortie(1,compteurc,ji)=zspdivpl(decalage+1,compteur,ji,jmloc)
+                  sortie(2,compteurc,ji)=zspdivpl(decalage+2,compteur,ji,jmloc)
+                enddo
               enddo
             endif
-            !$acc loop vector private(jl)
+            !$acc loop vector private(jl) collapse(2)
             do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-              do jl=3,min(decalage+tbloc+2,klx)-decalage
-                sortie(JL,compteurc)=(entree(JL,compteurc)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc)&
-                 & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc))/pas(JL,compteurc)  
+              do ji=1,2
+                do jl=3,min(decalage+tbloc+2,klx)-decalage
+                  sortie(JL,compteurc,ji)=(entree(JL,compteurc,ji)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc,ji)&
+                   & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc,ji))/pas(JL,compteurc)  
+                enddo
               enddo
             enddo
-            !$acc loop vector private(compteurc)
+            !$acc loop vector private(compteurc,ji)
             do jl=decalage+1,min(decalage+tbloc+2,klx)
               do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-                zspdivpl(jl,compteurc+(compteurb-1)*bloclev,ji,jmloc)=sortie(jl-decalage,compteurc)
+                do ji=1,2
+                  zspdivpl(jl,compteurc+(compteurb-1)*bloclev,ji,jmloc)=sortie(jl-decalage,compteurc,ji)
+                enddo
               enddo
             enddo
           enddo
         ELSE
-          !$acc loop vector private(compteur,decalage1)
+          !$acc loop vector private(compteur,decalage1) collapse(2)
           do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-            compteur=compteurc+(compteurb-1)*bloclev
-            decalage1=(compteur-1)*(nsmax+1-im)
-            zspdivpl(1,compteur,ji,jmloc)=zsdivpl(1,compteur,ji,jmloc)/param_mxture(decalage1+1,jmloc,1)
-            IF (KLX >= 2) THEN
-              zspdivpl(2,compteur,ji,jmloc)=(zsdivpl(2,compteur,ji,jmloc)&
-               &-param_mxture(decalage1+1,jmloc,2)*zspdivpl(1,compteur,ji,jmloc))/param_mxture(decalage1+2,jmloc,1)
-            ENDIF
+            do ji=1,2
+              compteur=compteurc+(compteurb-1)*bloclev
+              decalage1=(compteur-1)*(nsmax+1-im)
+              zspdivpl(1,compteur,ji,jmloc)=zsdivpl(1,compteur,ji,jmloc)/param_mxture(decalage1+1,jmloc,1)
+              IF (KLX >= 2) THEN
+                zspdivpl(2,compteur,ji,jmloc)=(zsdivpl(2,compteur,ji,jmloc)&
+                 &-param_mxture(decalage1+1,jmloc,2)*zspdivpl(1,compteur,ji,jmloc))/param_mxture(decalage1+2,jmloc,1)
+              ENDIF
+            enddo
           enddo
         ENDIF
 
-       !$acc loop vector private(compteurc,compteur)
+       !$acc loop vector private(compteurc,compteur,ji)
        do jl=1,klx
          do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
            compteur=compteurc+(compteurb-1)*bloclev
-           zsdivpl(JL,compteur,ji,jmloc)=zspdivpl(JL,compteur,ji,jmloc)
+           do ji=1,2
+             zsdivpl(JL,compteur,ji,jmloc)=zspdivpl(JL,compteur,ji,jmloc)
+           enddo
          enddo
        ENDDO
 
@@ -155,7 +170,7 @@ do jmloc=kmlocsta,kmlocend
          !$acc loop seq
          do jlb=(klx-3)/tbloc+1,1,-1  !!klx-3+1 elements, de klx-2 a 1
            decalage=(jlb-2)*tbloc+reste
-           !$acc loop vector private(compteur,compteurc,decalage1)
+           !$acc loop vector private(compteur,compteurc,decalage1,ji)
            do jl=decalage+tbloc+2,max(decalage+1,1),-1
              do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
                compteur=compteurc+(compteurb-1)*bloclev
@@ -163,54 +178,66 @@ do jmloc=kmlocsta,kmlocend
                pas(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,1)
                pbs(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,2)
                pcs(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,3)
-               entree(jl-decalage,compteurc)=zsdivpl(jl,compteur,ji,jmloc)
+               do ji=1,2
+                 entree(jl-decalage,compteurc,ji)=zsdivpl(jl,compteur,ji,jmloc)
+               enddo
              enddo
            enddo
            if (jlb==(klx-3)/tbloc+1) then
-              !$acc loop vector
+              !$acc loop vector collapse(2)
               do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-                sortie(klx-decalage,compteurc)=entree(klx-decalage,compteurc)
-                sortie(klx-1-decalage,compteurc)=entree(klx-1-decalage,compteurc)&
-                 &-pbs(klx-1-decalage,compteurc)/pas(klx-1-decalage,compteurc)*sortie(klx-decalage,compteurc)
+                do ji=1,2
+                  sortie(klx-decalage,compteurc,ji)=entree(klx-decalage,compteurc,ji)
+                  sortie(klx-1-decalage,compteurc,ji)=entree(klx-1-decalage,compteurc,ji)&
+                   &-pbs(klx-1-decalage,compteurc)/pas(klx-1-decalage,compteurc)*sortie(klx-decalage,compteurc,ji)
+                enddo
               enddo
            else
-              !$acc loop vector private(compteur)
+              !$acc loop vector private(compteur) collapse(2)
               do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-                compteur=compteurc+(compteurb-1)*bloclev
-                sortie(tbloc+1,compteurc)=zspdivpl(decalage+tbloc+1,compteur,ji,jmloc)
-                sortie(tbloc+2,compteurc)=zspdivpl(decalage+tbloc+2,compteur,ji,jmloc)
+                do ji=1,2
+                  compteur=compteurc+(compteurb-1)*bloclev
+                  sortie(tbloc+1,compteurc,ji)=zspdivpl(decalage+tbloc+1,compteur,ji,jmloc)
+                  sortie(tbloc+2,compteurc,ji)=zspdivpl(decalage+tbloc+2,compteur,ji,jmloc)
+                enddo
               enddo
            endif
-           !$acc loop vector private(jl)
+           !$acc loop vector private(jl) collapse(2)
            do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
+             do ji=1,2
              do jl=tbloc,max(decalage+1,1)-decalage,-1
-               sortie(JL,compteurc)=entree(JL,compteurc)-pbs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+1,compteurc)&
-                 &-pcs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+2,compteurc)     
+                 sortie(JL,compteurc,ji)=entree(JL,compteurc,ji)-pbs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+1,compteurc,ji)&
+                   &-pcs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+2,compteurc,ji)     
+               enddo
              enddo
            enddo
-           !$acc loop vector private(compteurc)
+           !$acc loop vector private(compteurc,ji)
            do jl=decalage+tbloc+2,max(decalage+1,1),-1
              do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-               zspdivpl(jl,compteurc+(compteurb-1)*bloclev,ji,jmloc)=sortie(jl-decalage,compteurc)
+               do ji=1,2
+                 zspdivpl(jl,compteurc+(compteurb-1)*bloclev,ji,jmloc)=sortie(jl-decalage,compteurc,ji)
+               enddo
              enddo
            enddo
          enddo
        ELSE
-         !$acc loop vector private(compteur,decalage1)
+         !$acc loop vector private(compteur,decalage1) collapse(2)
          do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-           compteur=compteurc+(compteurb-1)*bloclev
-           decalage1=(compteur-1)*(nsmax+1-im)
-           zspdivpl(KLX,compteur,ji,jmloc)=zsdivpl(KLX,compteur,ji,jmloc)
-           IF (KLX >= 2) THEN
-             zspdivpl(KLX-1,compteur,ji,jmloc)=zsdivpl(KLX-1,compteur,ji,jmloc)&
-              &-param_mxture(decalage1+klx-1,jmloc,2)/param_mxture(decalage1+klx-1,jmloc,1)*zspdivpl(KLX,compteur,ji,jmloc)
-           ENDIF
+           do ji=1,2
+             compteur=compteurc+(compteurb-1)*bloclev
+             decalage1=(compteur-1)*(nsmax+1-im)
+             zspdivpl(KLX,compteur,ji,jmloc)=zsdivpl(KLX,compteur,ji,jmloc)
+             IF (KLX >= 2) THEN
+               zspdivpl(KLX-1,compteur,ji,jmloc)=zsdivpl(KLX-1,compteur,ji,jmloc)&
+                &-param_mxture(decalage1+klx-1,jmloc,2)/param_mxture(decalage1+klx-1,jmloc,1)*zspdivpl(KLX,compteur,ji,jmloc)
+             ENDIF
+           enddo
          enddo
        ENDIF
 
 
      ELSE
-
+      do ji=1,2
         !               Inversion of a non-symmetric matrix.
        if (ji==1) then
 
@@ -226,34 +253,34 @@ do jmloc=kmlocsta,kmlocend
                 pas(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,1)
                 pbs(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,2)
                 pcs(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,3)
-                entree(jl-decalage,compteurc)=zsdivpl(jl,compteur,ji,jmloc)
+                entree(jl-decalage,compteurc,ji)=zsdivpl(jl,compteur,ji,jmloc)
               enddo
             enddo
             if (jlb==1) then
               !$acc loop vector
               do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-                sortie(1,compteurc)=entree(1,compteurc)/pas(1,compteurc)
-                sortie(2,compteurc)=(entree(2,compteurc)-pbs(1,compteurc)*sortie(1,compteurc))/pas(2,compteurc)
+                sortie(1,compteurc,ji)=entree(1,compteurc,ji)/pas(1,compteurc)
+                sortie(2,compteurc,ji)=(entree(2,compteurc,ji)-pbs(1,compteurc)*sortie(1,compteurc,ji))/pas(2,compteurc)
               enddo
             else
               !$acc loop vector private(compteur)
               do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
                 compteur=compteurc+(compteurb-1)*bloclev
-                sortie(1,compteurc)=zspdivpl(decalage+1,compteur,ji,jmloc)
-                sortie(2,compteurc)=zspdivpl(decalage+2,compteur,ji,jmloc)
+                sortie(1,compteurc,ji)=zspdivpl(decalage+1,compteur,ji,jmloc)
+                sortie(2,compteurc,ji)=zspdivpl(decalage+2,compteur,ji,jmloc)
               enddo
             endif
             !$acc loop vector private(jl)
             do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
               do jl=3,min(decalage+tbloc+2,klx)-decalage
-                sortie(JL,compteurc)=(entree(JL,compteurc)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc)&
-                 & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc))/pas(JL,compteurc)  
+                sortie(JL,compteurc,ji)=(entree(JL,compteurc,ji)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc,ji)&
+                 & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc,ji))/pas(JL,compteurc)  
               enddo
             enddo
             !$acc loop vector private(compteurc)
             do jl=decalage+1,min(decalage+tbloc+2,klx)
               do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-                zspdivpl(jl,compteurc+(compteurb-1)*bloclev,ji,jmloc)=sortie(jl-decalage,compteurc)
+                zspdivpl(jl,compteurc+(compteurb-1)*bloclev,ji,jmloc)=sortie(jl-decalage,compteurc,ji)
               enddo
             enddo
           enddo
@@ -290,36 +317,36 @@ do jmloc=kmlocsta,kmlocend
              decalage1=(compteur-1)*(nsmax+1-im)
              pbs(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,4)
              pcs(jl-decalage,compteurc)=param_mxture(decalage1+jl,jmloc,5)
-             entree(jl-decalage,compteurc)=zsdivpl(jl,compteur,ji,jmloc)
+             entree(jl-decalage,compteurc,ji)=zsdivpl(jl,compteur,ji,jmloc)
            enddo
          enddo
          if (jlb==(klx-3)/tbloc+1) then
            !$acc loop vector
            do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-             sortie(klx-decalage,compteurc)=entree(klx-decalage,compteurc)
-             sortie(klx-1-decalage,compteurc)=entree(klx-1-decalage,compteurc)&
-               &-pbs(klx-1-decalage,compteurc)*sortie(klx-decalage,compteurc)
+             sortie(klx-decalage,compteurc,ji)=entree(klx-decalage,compteurc,ji)
+             sortie(klx-1-decalage,compteurc,ji)=entree(klx-1-decalage,compteurc,ji)&
+               &-pbs(klx-1-decalage,compteurc)*sortie(klx-decalage,compteurc,ji)
            enddo
          else
            !$acc loop vector private(compteur)
            do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
              compteur=compteurc+(compteurb-1)*bloclev
-             sortie(tbloc+1,compteurc)=zspdivpl(decalage+tbloc+1,compteur,ji,jmloc)
-             sortie(tbloc+2,compteurc)=zspdivpl(decalage+tbloc+2,compteur,ji,jmloc)
+             sortie(tbloc+1,compteurc,ji)=zspdivpl(decalage+tbloc+1,compteur,ji,jmloc)
+             sortie(tbloc+2,compteurc,ji)=zspdivpl(decalage+tbloc+2,compteur,ji,jmloc)
            enddo
          endif
          !$acc loop vector private(jl)
          do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
            !$acc loop seq
            do jl=tbloc,max(decalage+1,1)-decalage,-1
-             sortie(JL,compteurc)=entree(JL,compteurc)-pbs(jl,compteurc)*sortie(JL+1,compteurc)&
-               &-pcs(jl,compteurc)*sortie(JL+2,compteurc)
+             sortie(JL,compteurc,ji)=entree(JL,compteurc,ji)-pbs(jl,compteurc)*sortie(JL+1,compteurc,ji)&
+               &-pcs(jl,compteurc)*sortie(JL+2,compteurc,ji)
            enddo
          enddo
          !$acc loop vector private(compteurc)
          do jl=decalage+tbloc+2,max(decalage+1,1),-1
            do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-             zspdivpl(jl,compteurc+(compteurb-1)*bloclev,ji,jmloc)=sortie(jl-decalage,compteurc)
+             zspdivpl(jl,compteurc+(compteurb-1)*bloclev,ji,jmloc)=sortie(jl-decalage,compteurc,ji)
            enddo
          enddo
        enddo
@@ -346,17 +373,19 @@ do jmloc=kmlocsta,kmlocend
             enddo
           enddo
         endif
+       enddo !!ji im 0
       ENDIF
 
-      !$acc loop vector private(ise,compteurc,compteur) 
+      !$acc loop vector private(ise,compteurc,compteur,ji) 
       DO JN=IM,NSMAX
         ISE=ISTA+2*(JN-IM)
-        do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
+        do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)          
           compteur=compteurc+(compteurb-1)*bloclev
-          PSPDIVP(ISE+ji-1,compteur)=ZSPDIVPL(JN-im+1,compteur,ji,jmloc)
+          do ji=1,2
+            PSPDIVP(ISE+ji-1,compteur)=ZSPDIVPL(JN-im+1,compteur,ji,jmloc)
+          enddo
         enddo
       enddo
-    enddo!!ji
   enddo  !!compteur
 ENDDO    !!jmloc
 !$acc end parallel
