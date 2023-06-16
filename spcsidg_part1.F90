@@ -24,17 +24,17 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOCend
 REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
-integer(kind=jpim)               :: taillec
-integer(kind=jpim), parameter    :: tbloc=62!!28
-integer(kind=jpim),parameter     :: bloclev=10!!8
-REAL(KIND=JPRB),   intent(inout) :: ZSDIVPL (1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,499)
-REAL(KIND=JPRB),   intent(inout) :: ZSPDIVPL(1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,499)
-real(kind=jprb),   intent(in)    :: param_mxture(:,:,:)
-real(kind=jprb),   intent(inout) :: pas(tbloc+3,bloclev)
-real(kind=jprb),   intent(inout) :: pbs(tbloc+3,bloclev)
-real(kind=jprb),   intent(inout) :: pcs(tbloc+3,bloclev)
-real(kind=jprb),   intent(inout) :: entree(tbloc+3,bloclev,2)
-real(kind=jprb),   intent(inout) :: sortie(tbloc+3,bloclev,2)
+INTEGER(KIND=JPIM)               :: taillec
+INTEGER(KIND=JPIM), PARAMETER    :: tbloc=62
+INTEGER(KIND=JPIM), PARAMETER     :: bloclev=8
+REAL(KIND=JPRB),   INTENT(INOUT) :: ZSDIVPL (1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,499)
+REAL(KIND=JPRB),   INTENT(INOUT) :: ZSPDIVPL(1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,499)
+REAL(KIND=JPRB),   INTENT(IN)    :: param_mxture(:,:,:)
+REAL(KIND=JPRB),   INTENT(INOUT) :: pas(tbloc+3,bloclev)
+REAL(KIND=JPRB),   INTENT(INOUT) :: pbs(tbloc+3,bloclev)
+REAL(KIND=JPRB),   INTENT(INOUT) :: pcs(tbloc+3,bloclev)
+REAL(KIND=JPRB),   INTENT(INOUT) :: entree(tbloc+3,bloclev,2)
+REAL(KIND=JPRB),   INTENT(INOUT) :: sortie(tbloc+3,bloclev,2)
 
 #else
 REAL(KIND=JPRB) :: ZSDIVPL  (YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIM%NSMAX+1,2)

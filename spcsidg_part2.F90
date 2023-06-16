@@ -65,7 +65,7 @@ do jmloc=kmlocsta,kmlocend
     ENDDO
 
 !        ZSPDIV=(DIVprim(t+dt)) --> ZPSPDIVG=(GMBAR**2 * DIVprim(t+dt)).
-
+if (.true.) then  !!fonction routine vector copié dans routine principale
 if (ii==1 .and. ji==2) then
        !$acc loop vector
        do jn=1,klx
@@ -107,7 +107,21 @@ ELSEIF (KLX == 1) THEN
       zspdivpl(1,compteur,JI,jmloc) = scgmap(is0+1,1)*zsdivpl(1,compteur,JI,jmloc)
 
 ENDIF
+else   !!fonction dans une routine vector
+if (im>0 .or. ji==1) then
+CALL MXPTMA(NSMAX+1-IM,1,1,1,nsmax,SCGMAP(IS0+1,1),&
+ & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
+ & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
+ & ZSDIVPL(1,compteur,ji,jmloc),ZSPDIVPL(1,compteur,ji,jmloc))  
 
+else
+       !$acc loop vector
+       do jn=1,klx
+         zspdivpl(jn,compteur,2,jmloc)=zsdivpl(jn,compteur,2,jmloc)
+       enddo
+
+endif
+endif   !!manière d'appeler mxptma
 !           Reorganisation of ZSPDIVPL
 
     !$acc loop vector private(ISE)

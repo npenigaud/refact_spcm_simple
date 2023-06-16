@@ -27,18 +27,18 @@ REAL(KIND=JPRB)     ,INTENT(INOUT) :: PSPSVD(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY
 #include "spcimpfpost.intfb.h"
 
 #if defined(_OPENACC)
-real(kind=JPRB)  :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,499)
-real(kind=JPRB)  :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,499)
-real(kind=jprb),allocatable  :: param_mxture(:,:,:)
-integer(kind=jpim), parameter :: taillec=2001
-real(kind=jprb)   :: pa(taillec)
-real(kind=jprb)   :: pb(taillec)
-real(kind=jprb)   :: pc(taillec)
-real(kind=jprb)   :: entree(taillec)
-real(kind=jprb)   :: sortie(taillec)
+REAL(KIND=JPRB)  :: zsdivpl(YDGEOMETRY%yrdim%nsmax+1,YDGEOMETRY%yrdimv%nflevg,2,499)
+REAL(KIND=JPRB)  :: zspdivpl(YDGEOMETRY%yrdim%nsmax+1,YDGEOMETRY%yrdimv%nflevg,2,499)
+REAL(KIND=JPRB),ALLOCATABLE  :: param_mxture(:,:,:)
+INTEGER(KIND=JPIM),PARAMETER :: taillec=2001
+REAL(KIND=JPRB)   :: pa(taillec)
+REAL(KIND=JPRB)   :: pb(taillec)
+REAL(KIND=JPRB)   :: pc(taillec)
+REAL(KIND=JPRB)   :: entree(taillec)
+REAL(KIND=JPRB)   :: sortie(taillec)
 #else
-real(kind=jprb)  :: simit(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
-real(kind=jprb)  :: simot(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
+REAL(KIND=JPRB)  :: SIMIT(YDGEOMETRY%yrdimv%nflevg,YDGEOMETRY%yrdimv%nflevg)
+REAL(KIND=JPRB)  :: SIMOT(YDGEOMETRY%yrdimv%nflevg,YDGEOMETRY%yrdimv%nflevg)
 #endif
 
 REAL(KIND=JPRB), ALLOCATABLE :: ZSPVORG2(:,:)
@@ -71,7 +71,7 @@ INTEGER(KIND=JPIM) :: IM, ISPEC2V
 INTEGER (KIND=JPIM) :: JMLOC, ISTA, IEND
 
 REAL(KIND=JPHOOK) ::  ZHOOK_HANDLE,zhook_handle2,zhook_handle3
-integer(kind=jpim)::  compteur1,compteur2,is0,is02,taille
+INTEGER(KIND=JPIM)::  icnt1,icnt2,is0,is02,taille
 
 IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE',0,ZHOOK_HANDLE)
 
@@ -94,10 +94,10 @@ if (LSIDG) then
     taille=max(taille,nflevg*(nsmax+1-im))
   enddo
 
-  print *,"taille",taille
-  print *,"nptrmf(mysetn)",nptrmf(mysetn)
-  print *,"nptrmf(mysetn+1)-1",nptrmf(mysetn+1)-1
-  call flush(0)
+!!  print *,"taille",taille
+!!  print *,"nptrmf(mysetn)",nptrmf(mysetn)
+!!  print *,"nptrmf(mysetn+1)-1",nptrmf(mysetn+1)-1
+!!  call flush(0)
 
   !!allocation, passage sur carte et initialisation
   allocate(param_mxture(taille,nptrmf(mysetn+1)-1,5))
@@ -111,40 +111,40 @@ if (LSIDG) then
     is0=ydlap%nse0l(jmloc)
     is02=0
     if (.true.) then
-      !$acc parallel loop private(compteur2)
-      do compteur1=is0+1,is0+nsmax+1-im
-        do compteur2=1,nflevg
-          param_mxture(compteur1-is0-1+1+(nsmax+1-im)*(compteur2-1),jmloc,1)=siheg(compteur2,compteur1,1) 
-          param_mxture(compteur1-is0-1+1+(nsmax+1-im)*(compteur2-1),jmloc,2)=siheg(compteur2,compteur1,2) 
-          param_mxture(compteur1-is0-1+1+(nsmax+1-im)*(compteur2-1),jmloc,3)=siheg(compteur2,compteur1,3) 
+      !$acc parallel loop private(icnt2)
+      do icnt1=is0+1,is0+nsmax+1-im
+        do icnt2=1,nflevg
+          param_mxture(icnt1-is0-1+1+(nsmax+1-im)*(icnt2-1),jmloc,1)=siheg(icnt2,icnt1,1) 
+          param_mxture(icnt1-is0-1+1+(nsmax+1-im)*(icnt2-1),jmloc,2)=siheg(icnt2,icnt1,2) 
+          param_mxture(icnt1-is0-1+1+(nsmax+1-im)*(icnt2-1),jmloc,3)=siheg(icnt2,icnt1,3) 
         enddo
       enddo
       !$acc end parallel
 
-      !$acc parallel loop private(compteur2)
-      do compteur1=is02+1,is02+nsmax+1-im
-        do compteur2=1,nflevg
-          param_mxture(compteur1-is02-1+1+(nsmax+1-im)*(compteur2-1),jmloc,4)=siheg2(compteur2,compteur1,2) 
-          param_mxture(compteur1-is02-1+1+(nsmax+1-im)*(compteur2-1),jmloc,5)=siheg2(compteur2,compteur1,3) 
+      !$acc parallel loop private(icnt2)
+      do icnt1=is02+1,is02+nsmax+1-im
+        do icnt2=1,nflevg
+          param_mxture(icnt1-is02-1+1+(nsmax+1-im)*(icnt2-1),jmloc,4)=siheg2(icnt2,icnt1,2) 
+          param_mxture(icnt1-is02-1+1+(nsmax+1-im)*(icnt2-1),jmloc,5)=siheg2(icnt2,icnt1,3) 
         enddo
       enddo
       !$acc end parallel
     else
-      !$acc parallel loop private(compteur2)
-      do compteur1=is0+1,is0+nsmax+1-im
-        do compteur2=1,nflevg
-          param_mxture((compteur1-is0-1)*nflevg+1+(compteur2-1),jmloc,1)=siheg(compteur2,compteur1,1) 
-          param_mxture((compteur1-is0-1)*nflevg+1+(compteur2-1),jmloc,2)=siheg(compteur2,compteur1,2) 
-          param_mxture((compteur1-is0-1)*nflevg+1+(compteur2-1),jmloc,3)=siheg(compteur2,compteur1,3) 
+      !$acc parallel loop private(icnt2)
+      do icnt1=is0+1,is0+nsmax+1-im
+        do icnt2=1,nflevg
+          param_mxture((icnt1-is0-1)*nflevg+1+(icnt2-1),jmloc,1)=siheg(icnt2,icnt1,1) 
+          param_mxture((icnt1-is0-1)*nflevg+1+(icnt2-1),jmloc,2)=siheg(icnt2,icnt1,2) 
+          param_mxture((icnt1-is0-1)*nflevg+1+(icnt2-1),jmloc,3)=siheg(icnt2,icnt1,3) 
         enddo
       enddo
       !$acc end parallel
 
-      !$acc parallel loop private(compteur2)
-      do compteur1=is02+1,is02+nsmax+1-im
-        do compteur2=1,nflevg
-          param_mxture((compteur1-is02-1)*nflevg+1+(compteur2-1),jmloc,4)=siheg2(compteur2,compteur1,2) 
-          param_mxture((compteur1-is02-1)*nflevg+1+(compteur2-1),jmloc,5)=siheg2(compteur2,compteur1,3) 
+      !$acc parallel loop private(icnt2)
+      do icnt1=is02+1,is02+nsmax+1-im
+        do icnt2=1,nflevg
+          param_mxture((icnt1-is02-1)*nflevg+1+(icnt2-1),jmloc,4)=siheg2(icnt2,icnt1,2) 
+          param_mxture((icnt1-is02-1)*nflevg+1+(icnt2-1),jmloc,5)=siheg2(icnt2,icnt1,3) 
         enddo
       enddo
       !$acc end parallel
@@ -160,19 +160,19 @@ endif
 
 
 #else
-!!transposition de simit simot
-!$omp parallel do private(compteur1,compteur2)
-do compteur1=1,nflevg
-  do compteur2=1,nflevg
-    simit(compteur1,compteur2)=simi(compteur2,compteur1)
+!!transposition de SIMIT SIMOT
+!$omp parallel do private(icnt1,icnt2)
+do icnt1=1,nflevg
+  do icnt2=1,nflevg
+    SIMIT(icnt1,icnt2)=simi(icnt2,icnt1)
   enddo
 enddo
 !$omp end parallel do
 
-!$omp parallel do private(compteur1,compteur2)
-do compteur1=1,nflevg
-  do compteur2=1,nflevg
-    simot(compteur1,compteur2)=simo(compteur2,compteur1)
+!$omp parallel do private(icnt1,icnt2)
+do icnt1=1,nflevg
+  do icnt2=1,nflevg
+    SIMOT(icnt1,icnt2)=simo(icnt2,icnt1)
   enddo
 enddo
 !$omp end parallel do
@@ -224,7 +224,8 @@ IF (LIMPF) THEN
   ENDDO
 !$OMP END PARALLEL DO
 
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+  !! LDTRANSPOSE to .false. as no data transposition implemented yet
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.FALSE.,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,PSPAUX=ZSPAUX,& 
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -236,7 +237,7 @@ IF (LIMPF) THEN
   & PSPAUXG=ZSPAUXG)
 
   CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.FALSE.,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
@@ -256,13 +257,13 @@ ELSE
 
 #if defined(_OPENACC)
     pspsp2(:)=pspsp(:)
-    do compteur1=1,nspec2
-      do compteur2=1,nflevl
-        pspvor2(compteur1,compteur2)=pspvor(compteur2,compteur1)
-        pspdiv2(compteur1,compteur2)=pspdiv(compteur2,compteur1)
-        pspt2(compteur1,compteur2)=pspt(compteur2,compteur1)
-        pspspd2(compteur1,compteur2)=pspspd(compteur2,compteur1)
-        pspsvd2(compteur1,compteur2)=pspsvd(compteur2,compteur1)
+    do icnt1=1,nspec2
+      do icnt2=1,nflevl
+        pspvor2(icnt1,icnt2)=pspvor(icnt2,icnt1)
+        pspdiv2(icnt1,icnt2)=pspdiv(icnt2,icnt1)
+        pspt2(icnt1,icnt2)=pspt(icnt2,icnt1)
+        pspspd2(icnt1,icnt2)=pspspd(icnt2,icnt1)
+        pspsvd2(icnt1,icnt2)=pspsvd(icnt2,icnt1)
       enddo
     enddo
 #endif
@@ -278,7 +279,7 @@ ELSE
 
 #if defined(_OPENACC)
 
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.FALSE.,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
     & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -290,7 +291,7 @@ ELSE
   & taillec,zsdivpl,zspdivpl,pa,pb,pc,entree,sortie,param_mxture)
 
   CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.FALSE.,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
@@ -299,7 +300,7 @@ ELSE
 
 #else
 
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.TRUE.,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -308,10 +309,10 @@ ELSE
 
   CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
   & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
-  & simit,simot)
+  & SIMIT,SIMOT)
 
   CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.TRUE.,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
@@ -332,13 +333,13 @@ ELSE
 #if defined(_OPENACC)
 
     pspsp(:)=pspsp2(:)
-    do compteur2=1,nspec2
-      do compteur1=1,nflevl
-        pspvor(compteur1,compteur2)=pspvor2(compteur2,compteur1)
-        pspdiv(compteur1,compteur2)=pspdiv2(compteur2,compteur1)
-        pspt(compteur1,compteur2)=pspt2(compteur2,compteur1)
-        pspspd(compteur1,compteur2)=pspspd2(compteur2,compteur1)
-        pspsvd(compteur1,compteur2)=pspsvd2(compteur2,compteur1)
+    do icnt2=1,nspec2
+      do icnt1=1,nflevl
+        pspvor(icnt1,icnt2)=pspvor2(icnt2,icnt1)
+        pspdiv(icnt1,icnt2)=pspdiv2(icnt2,icnt1)
+        pspt(icnt1,icnt2)=pspt2(icnt2,icnt1)
+        pspspd(icnt1,icnt2)=pspspd2(icnt2,icnt1)
+        pspsvd(icnt1,icnt2)=pspsvd2(icnt2,icnt1)
       enddo
     enddo
 

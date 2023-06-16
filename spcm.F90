@@ -12,6 +12,7 @@ USE MPL_BARRIER_MOD    , ONLY : MPL_BARRIER
 USE UTIL_MODEL_MOD
 USE UTIL_GEOMETRY_MOD
 USE UTIL_YOMMP0_MOD, ONLY : LOAD_YOMMP0
+use yommp0, only          : mysetv,mysetn,mysetw
 
 #if defined(_OPENACC)
 use cublas
@@ -102,6 +103,7 @@ CLFILE = 'SPCM_SIMPLE.IN.'//TRIM (CLPROC)
 OPEN (ILUN, FILE=TRIM (CLCASE)//'/'//TRIM (CLFILE), FORM='UNFORMATTED')
 
 CALL LOAD_YOMMP0 (ILUN)
+!$acc update device(MYSETV,MYSETN,MYSETW)
 CALL LOAD (ILUN, YDMODEL)
 CALL LOAD (ILUN, YDGEOMETRY)
 
@@ -290,6 +292,7 @@ dev=mod(rang,4)
 !!dev=mod(rang,1) !!essai sur 2 et 1 cartes
 call acc_set_device_num(dev,ACC_DEVICE_NVIDIA)
 call acc_init(ACC_DEVICE_NVIDIA)
+!$acc update device(mysetv)
 print *,"rang ",rang," utilise la carte ",dev
 
 end subroutine initialisegpu

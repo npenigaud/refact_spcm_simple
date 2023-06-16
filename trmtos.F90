@@ -1,4 +1,4 @@
-SUBROUTINE TRMTOS(YDGEOMETRY,ldnhdyn,ldnhx,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD,PSPSNHX, &
+SUBROUTINE TRMTOS(YDGEOMETRY,LDNHDYN,LDNHX,LDTRANSPOSE,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD,PSPSNHX, &
  & PSPGFL,PSPSP,PSPAUX,PSPSEL3D,PSPSEL2D,&
  & PSPVORG,PSPDIVG,PSPTG,PSPSPDG,PSPSVDG,PSPSNHXG,&
  & PSPGFLG,PSPSPG,PSPAUXG,PSPSEL3DG,PSPSEL2DG,&
@@ -86,17 +86,16 @@ SUBROUTINE TRMTOS(YDGEOMETRY,ldnhdyn,ldnhx,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD,PSPS
 USE GEOMETRY_MOD , ONLY : GEOMETRY
 USE PARKIND1     , ONLY : JPIM, JPRB
 USE YOMHOOK      , ONLY : LHOOK, DR_HOOK
-!!USE YOMCT0       , ONLY : LNHDYN
-!!USE YOMDYNA      , ONLY : LNHX
-USE EXCHANGE_MS_MOD, ONLY : FIELDLIST, ADD3DF, ADD3DFL, ADD2DF, ADD2DFL, NEXCHANGE_MTOS, EXCHANGE_MS
+USE EXCHANGE_MS_MOD, ONLY : FIELDLIST, ADD3DF, ADD3DFL, ADD2DF, ADD2DFL, NEXCHANGE_MTOS, EXCHANGE_MS,TERMINATE_LIST
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
 
 TYPE(GEOMETRY)    ,          INTENT(IN)    :: YDGEOMETRY
-logical           ,          intent(in)    :: ldnhdyn
-logical           ,          intent(in)    :: ldnhx
+LOGICAL           ,          INTENT(IN)    :: LDNHDYN
+LOGICAL           ,          INTENT(IN)    :: LDNHX
+LOGICAL           ,          INTENT(IN)    :: LDTRANSPOSE
 REAL(KIND=JPRB)   ,OPTIONAL, INTENT(IN)    :: PSPVOR(:,:) 
 REAL(KIND=JPRB)   ,OPTIONAL, INTENT(IN)    :: PSPDIV(:,:) 
 REAL(KIND=JPRB)   ,OPTIONAL, INTENT(IN)    :: PSPT(:,:) 
@@ -126,10 +125,10 @@ LOGICAL           ,OPTIONAL, INTENT(IN)    :: LDFULLM
 TYPE (FIELDLIST) :: YLLIST
 
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
-integer         :: compteur
 
 IF (LHOOK) CALL DR_HOOK('TRMTOS',0,ZHOOK_HANDLE)
-!$acc enter data copyin(yllist)
+
+!$ACC ENTER DATA COPYIN(YLLIST)
 CALL ADD3DF (YLLIST, PSPVOR, PSPVORG, "PSPVOR")
 CALL ADD3DF (YLLIST, PSPDIV, PSPDIVG, "PSPDIV")
 CALL ADD3DF (YLLIST, PSPT  , PSPTG,   "PSPT"  )
@@ -142,31 +141,10 @@ CALL ADD3DFL (YLLIST, PSPSEL3D, PSPSEL3DG, "PSPSEL3D", LDSELECT3D)
 CALL ADD2DF (YLLIST, PSPSP, PSPSPG, "PSPSP")
 CALL ADD2DFL (YLLIST, PSPSEL2D, PSPSEL2DG, "PSPSEL2D", LDSELECT2D)
 
-CALL EXCHANGE_MS (YDGEOMETRY, YLLIST, KDIR=NEXCHANGE_MTOS, LDFULLM=LDFULLM)
+CALL EXCHANGE_MS (YDGEOMETRY,LDTRANSPOSE,YLLIST, KDIR=NEXCHANGE_MTOS, LDFULLM=LDFULLM)
+
 #if defined(_OPENACC)
-!!call acc_present_dump()
-do compteur=yllist%n2d,1
-!$acc exit data detach(yllist%yl2d(compteur)%zsp)
-!$acc exit data detach(yllist%yl3d(compteur)%zspg)
-!$acc exit data delete(yllist%yl2d(compteur)%zsp)
-!$acc exit data delete(yllist%yl2d(compteur)%zspg)
-!$acc exit data delete(yllist%yl2d(compteur)%cname)
-!$acc exit data delete(yllist%yl2d(compteur)%lbcast)
-!$acc exit data delete(yllist%yl2d(compteur))
-enddo
-do compteur=yllist%n3d,1
-!$acc exit data detach(yllist%yl3d(compteur)%zsp)
-!$acc exit data detach(yllist%yl3d(compteur)%zspg)
-!$acc exit data delete(yllist%yl3d(compteur)%zsp)
-!$acc exit data delete(yllist%yl3d(compteur)%zspg)
-!$acc exit data delete(yllist%yl3d(compteur)%cname)
-!$acc exit data delete(yllist%yl3d(compteur))
-enddo
-!$acc exit data delete(yllist%n3d)
-!$acc exit data delete(yllist%n2d)
-!$acc exit data delete(yllist%yl3d)
-!$acc exit data delete(yllist%yl2d)
-!$acc exit data delete(yllist)
+CALL TERMINATE_LIST(YLLIST)
 #endif
 
 IF (LHOOK) CALL DR_HOOK('TRMTOS',1,ZHOOK_HANDLE)

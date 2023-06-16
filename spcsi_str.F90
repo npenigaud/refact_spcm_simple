@@ -5,7 +5,7 @@ SUBROUTINE SPCSI_STR(&
  ! --- INOUT -----------------------------------------------------------------
  & PSPVORG,PSPDIVG,PSPTG,PSPSPG,&
  & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG,&
- & taillec,zsdivpl,zspdivpl,pa,pb,pc,entree,sortie,param_mxture)
+ & taillec,ZSDIVPL,ZSPDIVPL,pa,pb,pc,entree,sortie,param_mxture)
 #else
 SUBROUTINE SPCSI_STR(&
  ! --- INPUT -----------------------------------------------------------------
@@ -13,7 +13,7 @@ SUBROUTINE SPCSI_STR(&
  ! --- INOUT -----------------------------------------------------------------
  & PSPVORG,PSPDIVG,PSPTG,PSPSPG,&
  & PSPTNDSI_VORG,PSPTNDSI_DIVG,PSPTNDSI_TG,&
- & simit,simot)
+ & SIMIT,SIMOT)
 #endif
 
 !**** *SPCSI* - SPECTRAL SPACE SEMI-IMPLICIT COMPUTATIONS FOR HYD MODEL.
@@ -63,7 +63,7 @@ SUBROUTINE SPCSI_STR(&
 !      K. Yessad (Aug 2009): remove LSITRIC option.
 !      F. Voitus: add DDH diagnostics.
 !      T.Wilhelmsson 09-09-25: Remove LFULLM requirement for LIMPF
-!      K. Yessad (Feb 2012): tests on LL3D, LLDOSI in the caller, simplifications.
+!      K. Yessad (Feb 2012): tests on LL3D, LLDOSI in the CALLer, simplifications.
 !      P. Marguinaud (Nov 2012): Fix unallocated array arguments
 !      P. Marguinaud (Sep 2012) : Make PSPAUXG optional
 !      T. Wilhelmsson (Sept 2013) Geometry and setup refactoring.
@@ -81,7 +81,7 @@ USE YOMRIP       , ONLY : TRIP
 USE YOMCST       , ONLY : TCST
 
 #if defined(_OPENACC)
-use cublas
+USE CUBLAS
 #endif
 
 !     ------------------------------------------------------------------
@@ -95,35 +95,35 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC2V
 TYPE(TLDDH)       ,INTENT(IN)    :: YDLDDH
 TYPE(TRIP)        ,INTENT(IN)    :: YDRIP
 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPVORG(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPDIVG(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTG(kspec2V,YDGEOMETRY%YRDIMV%NFLEVG) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPVORG(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPDIVG(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTG(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPSPG(KSPEC2V) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_VORG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_DIVG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_TG(YDGEOMETRY%YRDIMV%NFLEVG,KSPEC2V)
 #if defined(_OPENACC)
-integer(kind=jpim)               :: taillec
-real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,64)
-real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,64)
-real(kind=jprb)   ,intent(in)    :: param_mxture(:,:,:)
-real(kind=jprb)   ,intent(inout)    :: pa(taillec)
-real(kind=jprb)   ,intent(inout)    :: pb(taillec)
-real(kind=jprb)   ,intent(inout)    :: pc(taillec)
-real(kind=jprb)   ,intent(inout)    :: entree(taillec)
-real(kind=jprb)   ,intent(inout)    :: sortie(taillec)
+INTEGER(KIND=JPIM)               :: taillec
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: ZSDIVPL(YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,64)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: ZSPDIVPL(YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,64)
+REAL(KIND=jprb)   ,INTENT(IN)    :: param_mxture(:,:,:)
+REAL(KIND=jprb)   ,INTENT(INOUT)    :: pa(taillec)
+REAL(KIND=jprb)   ,INTENT(INOUT)    :: pb(taillec)
+REAL(KIND=jprb)   ,INTENT(INOUT)    :: pc(taillec)
+REAL(KIND=jprb)   ,INTENT(INOUT)    :: entree(taillec)
+REAL(KIND=jprb)   ,INTENT(INOUT)    :: sortie(taillec)
 #else
-real(kind=jprb)   ,intent(in)    :: simit(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
-real(kind=jprb)   ,intent(in)    :: simot(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=jprb)   ,INTENT(IN)    :: SIMIT(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=jprb)   ,INTENT(IN)    :: SIMOT(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
 #endif
 
 
-REAL(KIND=JPRB) :: ZSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
-REAL(KIND=JPRB) :: ZSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB) :: ZSDIVP (KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB) :: ZSPDIVP(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
 
-REAL(KIND=JPRB) :: ZSDIV  (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
-REAL(KIND=JPRB) :: ZHELP  (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
-REAL(KIND=JPRB) :: ZST    (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB) :: ZSDIV  (KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB) :: ZHELP  (KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB) :: ZST    (KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB) :: ZSP    (KSPEC2V)
 
 
@@ -131,8 +131,8 @@ INTEGER(KIND=JPIM) :: IN, IOFF, JLEV, JSP
 INTEGER(KIND=JPIM) :: JMLOC, IM, ISTA, IEND
 REAL(KIND=JPRB) :: ZBDT, ZBDT2
 
-REAL (KIND=JPHOOK) :: ZHOOK_HANDLE,zhook_handle2
-real(kind=jprb)    :: zbdtaux
+REAL (KIND=JPHOOK) :: ZHOOK_HANDLE,ZHOOK_HANDLE2
+REAL(KIND=JPRB)    :: ZBDTAUX
 
 !     ------------------------------------------------------------------
 
@@ -169,8 +169,6 @@ IF (LRSIDDH) THEN
   !the case of surface pressure has not been treated yet
 ENDIF
 
-call flush(0)
-
 !     ------------------------------------------------------------------
 
 !*       2.    SEMI-IMPLICIT SPECTRAL COMPUTATIONS.
@@ -186,80 +184,49 @@ ZBDT2=(ZBDT*RSTRET)**2
 !*        2.2  OpenACC memory
 #if defined(_OPENACC)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',0,ZHOOK_HANDLE2)
-!$acc data create(zsdivp,zspdivp,zsdiv,zhelp,zst,zsp) present(zsdivpl,zspdivpl)
-!$acc data present(YDGEOMETRY,YDGEOMETRY%YRLAP,YDGEOMETRY%YRLAP%NVALUE,YDGEOMETRY%YRLAP%RLAPIN,YDGEOMETRY%YRLAP%RLAPDI,nflevg,nsmax,YDDYN,YDDYN%SIVP,rstret)
-!$acc data present(pspdivg,psptg,pspspg,YDRIP,NPTRMF,ydlap,nspstaf)
+!$ACC DATA CREATE(ZSDIVP,ZSPDIVP,ZSDIV,ZHELP,ZST,ZSP) PRESENT(ZSDIVPL,ZSPDIVPL)
+!$ACC DATA PRESENT(YDGEOMETRY,YDGEOMETRY%YRLAP,YDGEOMETRY%YRLAP%NVALUE,YDGEOMETRY%YRLAP%RLAPIN,YDGEOMETRY%YRLAP%RLAPDI,NFLEVG,NSMAX,YDDYN,YDDYN%SIVP,RSTRET)
+!$ACC DATA PRESENT(PSPDIVG,PSPTG,PSPSPG,YDRIP,NPTRMF,MYSETN)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',1,ZHOOK_HANDLE2)
 #endif
 
 
 !*        2.3  Computes right-hand side of Helmholtz equation.
 
-CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG(:,:),PSPSPG(1:kspec2v)) !!!ispcol remplacé par kspec2V
+CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZSDIV,PSPTG(:,:),PSPSPG(1:KSPEC2V)) 
 
 IF (LSIDG) THEN
 
-if (lhook) CALL DR_HOOK('SPCSI_sidg0',0,zhook_handle2)
-#if defined(_OPENACC)
-  ZBDT=RBTS2*TDT
-  IOFF=NPTRSVF(MYSETV)-1
-  !$acc parallel private(im,ista,iend) default(none)
-  !$acc loop gang collapse(2) 
-  DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
-    do jlev=1,nflevg
-  
-      IM=YDLAP%MYMS(jMLOC)
-      ISTA=NSPSTAF(IM)
-      IEND=ISTA+2*(NSMAX+1-IM)-1
-      IF (IM > 0) THEN
-        !$acc loop vector private(in) 
-        DO JSP=ISTA,IEND
-          IN=YDLAP%NVALUE(JSP+IOFF)
-          ZSDIV(jsp,JLEV)=YDLAP%RLAPIN(IN)*PSPDIVG(jsp,JLEV)-ZBDT*ZSDIV(jsp,JLEV)
-        ENDDO
+IF (LHOOK) CALL DR_HOOK('SPCSI_sidg0',0,ZHOOK_HANDLE2)
 
-      ELSE
+CALL SPCSIDG_PART0(YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, ZSDIV,&
+  &PSPDIVG,NPTRMF(MYSETN),NPTRMF(MYSETN+1)-1)
 
-        !$acc loop vector private(in)
-        DO JSP=ISTA,IEND
-          IN=YDLAP%NVALUE(JSP+IOFF)
-          ZSDIV(jsp,JLEV)=PSPDIVG(jsp,JLEV)-ZBDT*YDLAP%RLAPDI(IN)*ZSDIV(jsp,JLEV)
-        ENDDO
-
-      ENDIF
-    enddo 
-  ENDDO
-  !$acc end parallel
-#else
-  DO JMLOC=NPTRMF(MYSETN), NPTRMF(MYSETN+1)-1
-    CALL SPCSIDG_PART0 (YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, JMLOC, ZSDIV, PSPDIVG)
-  ENDDO
-#endif
-if (lhook) CALL DR_HOOK('SPCSI_sidg0',1,zhook_handle2) 
+IF (LHOOK) CALL DR_HOOK('SPCSI_sidg0',1,ZHOOK_HANDLE2) 
 
 ELSE
 
   ! Case of No Stretching
 
-if (lhook) call dr_hook('SPCSI_boucle1',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_boucle1',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-!$acc PARALLEL loop collapse(2) PRIVATE(JSP,JLEV,IN,zbdtaux) default(none)
+!$ACC PARALLEL LOOP COLLAPSE(2) PRIVATE(JSP,JLEV,IN,ZBDTAUX) DEFAULT(NONE)
 #else
-!$OMP PARALLEL DO PRIVATE(JSP,JLEV,IN,zbdtaux)
+!$OMP PARALLEL DO PRIVATE(JSP,JLEV,IN,ZBDTAUX)
 #endif
-  DO JLEV=1,nflevg
-    DO JSP=1,kspec2v
+  DO JLEV=1,NFLEVG
+    DO JSP=1,KSPEC2V
       IN=YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)
-      zbdtaux=ZBDT*YDGEOMETRY%YRLAP%RLAPDI(IN)
-      ZSDIV(JSP,jlev)=PSPDIVG(JSP,jlev)-zbdtaux*ZSDIV(JSP,jlev)
+      ZBDTAUX=ZBDT*YDGEOMETRY%YRLAP%RLAPDI(IN)
+      ZSDIV(JSP,JLEV)=PSPDIVG(JSP,JLEV)-ZBDTAUX*ZSDIV(JSP,JLEV)
     ENDDO
   ENDDO
 #if defined(_OPENACC)
-!$acc END PARALLEL
+!$ACC END PARALLEL
 #else
 !$OMP END PARALLEL DO
 #endif
-if (lhook) call dr_hook('SPCSI_boucle1',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_boucle1',1,ZHOOK_HANDLE2)
 ENDIF
 
 
@@ -269,117 +236,101 @@ ENDIF
 
 IF (LHOOK) CALL DR_HOOK('SPCSI_mxmaop1',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-   !$acc host_data use_device(SIMI,ZSDIV,ZSDIVP)
-     CALL cublasDgemm('N','T',kspec2v,nflevg,nflevg,1.0_JPRB,&
-      &zsdiv,kspec2v,simi,nflevg,0.0_JPRB,ZSDIVP(1,1),kspec2v)  !!!!ispcol remplacé par kspec2V, ksta par 1, suppression de (1,1)?
-   !$acc end host_data
-   !$acc wait
-!!           pa       kad       pb         kbd    pc       kca      kar    kac   kbc
-!!!!!$acc host_data use_device(yddyn%simi,nflevg)
-!!!!call mxmaop(zsdiv,1,kspec2v,yddyn%simi,1,nflevg,zsdivp,1,kspec2v,kspec2v,nflevg,nflevg)!! mxmaop fait une transposition en _OPENACC
-!!!!!$acc end host_data
+CALL MXMAOP(ZSDIV,1,KSPEC2V,SIMI,1,NFLEVG,ZSDIVP,1,KSPEC2V,KSPEC2V,NFLEVG,NFLEVG)!! mxmaop fait une transposition en _OPENACC
 #else
-CALL MXMAOP(zsdiv,1,kspec2v,simit,1,NFLEVG,ZSDIVP,1,kspec2v,kspec2v,NFLEVG,nflevg)  
+CALL MXMAOP(ZSDIV,1,KSPEC2V,SIMIT,1,NFLEVG,ZSDIVP,1,KSPEC2V,KSPEC2V,NFLEVG,NFLEVG)  
 #endif
 IF (LHOOK) CALL DR_HOOK('SPCSI_mxmaop1',1,ZHOOK_HANDLE2)
 
 IF (LSIDG) THEN
 
-if (lhook) CALL DR_HOOK('SPCSI_sidg1',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_sidg1',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC) 
-    CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V,ZSDIVP,ZSPDIVP,taillec,zsdivpl,zspdivpl,pa,pb,pc,entree,sortie,param_mxture,nptrmf(mysetn),nptrmf(mysetn+1)-1)
+    CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V,ZSDIVP,ZSPDIVP,taillec,ZSDIVPL,ZSPDIVPL,pa,pb,pc,entree,sortie,param_mxture,NPTRMF(MYSETN),NPTRMF(MYSETN+1)-1)
 #else
-    CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, ZSDIVP,ZSPDIVP,nptrmf(mysetn),nptrmf(mysetn+1)-1)
+    CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, ZSDIVP,ZSPDIVP,NPTRMF(MYSETN),NPTRMF(MYSETN+1)-1)
 #endif
-if (lhook) CALL DR_HOOK('SPCSI_sidg1',1,zhook_handle2) 
+IF (LHOOK) CALL DR_HOOK('SPCSI_sidg1',1,ZHOOK_HANDLE2) 
 
 ELSE
   !                 Inversion of a diagonal system (Helmholtz equation)
   !                 --> (SIMI*DIVprim(t+dt)).
 
-if (lhook) call dr_hook('SPCSI_boucle2',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_boucle2',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-    !$acc parallel private(JSP,JLEV,zbdtaux) default(none)
-    !$acc loop gang
+    !$ACC PARALLEL PRIVATE(JSP,JLEV,ZBDTAUX) DEFAULT(NONE)
+    !$ACC LOOP GANG
 #else
-    !$omp parallel do private(jsp,jlev,zbdtaux) !!pas de parallelisation code initial
+    !$OMP PARALLEL DO PRIVATE(JSP,JLEV,ZBDTAUX) 
 #endif
     DO JLEV=1,NFLEVG
-      zbdtaux=ZBDT2*YDDYN%SIVP(JLEV)
-      !$acc loop vector
+      ZBDTAUX=ZBDT2*YDDYN%SIVP(JLEV)
+      !$ACC LOOP VECTOR
       DO JSP=1,KSPEC2V
-        ZSPDIVP(JSP,jlev)=ZSDIVP(JSP,jlev)&
-         & /(1.0_JPRB-zbdtaux*YDGEOMETRY%YRLAP%RLAPDI(YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)))  
+        ZSPDIVP(JSP,JLEV)=ZSDIVP(JSP,JLEV)&
+         & /(1.0_JPRB-ZBDTAUX*YDGEOMETRY%YRLAP%RLAPDI(YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)))  
       ENDDO
     ENDDO
 #if defined(_OPENACC)
-    !$acc end parallel
+    !$ACC END PARALLEL
 #else
-    !$omp end parallel do !!pas de parallelisation de cette boucle dans le code initial
+    !$OMP END PARALLEL DO
 #endif
 
-if (lhook) call dr_hook('SPCSI_boucle2',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_boucle2',1,ZHOOK_HANDLE2)
 
 ENDIF
 
 !           Vertical eigenmodes space --> current space.
 
-if (lhook) call dr_hook('SPCSI_mxmaop2',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_mxmaop2',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-!$acc host_data use_device(SIMO,ZSPDIVP,PSPDIVG)
-CALL cublasDgemm('N','T',kspec2v,nflevg,nflevg,1.0_JPRB,&    !!ispcol remplacé par kspec2v
-&ZSPDIVP(1,1),kspec2v,SIMO,NFLEVG,0.0_JPRB,PSPDIVG(1,1),kspec2v) !!2ksta remplacés par 1,pourrait partir
-!$acc end host_data
-!$acc wait
-!!           pa        kad      pb            kbd    pc       kca     kar    kac   kbc
-!!!$acc host_data use_device(yddyn%simo,nflevg)
-!!call mxmaop(zspdivp,1,kspec2v,yddyn%simo,1,nflevg,pspdivg,1,kspec2v,kspec2v,nflevg,nflevg) !!il y avait une erreur ici
-!!!$acc end host_data
+CALL MXMAOP(ZSPDIVP,1,KSPEC2V,YDDYN%simo,1,NFLEVG,PSPDIVG,1,KSPEC2V,KSPEC2V,NFLEVG,NFLEVG) !!il y avait une erreur ici
 #else
-CALL MXMAOP(zspdivp,1,kspec2v,simot,1,NFLEVG,PSPDIVG,1,kspec2V,kspec2v,NFLEVG,nflevg)  
+CALL MXMAOP(ZSPDIVP,1,KSPEC2V,SIMOT,1,NFLEVG,PSPDIVG,1,KSPEC2V,KSPEC2V,NFLEVG,NFLEVG)  
 #endif
-if (lhook) call dr_hook('SPCSI_mxmaop2',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_mxmaop2',1,ZHOOK_HANDLE2)
 
 IF (LSIDG) THEN
 
-if (lhook) CALL DR_HOOK('SPCSI_sidg2',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_sidg2',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC) 
-    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V,PSPDIVG,ZHELP,zsdivpl,zspdivpl,nptrmf(mysetn),nptrmf(mysetn+1)-1)
+    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V,PSPDIVG,ZHELP,ZSDIVPL,ZSPDIVPL,NPTRMF(MYSETN),NPTRMF(MYSETN+1)-1)
 #else
-    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, PSPDIVG, ZHELP,nptrmf(mysetn),nptrmf(mysetn+1)-1)
+    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, PSPDIVG, ZHELP,NPTRMF(MYSETN),NPTRMF(MYSETN+1)-1)
 #endif
-if (lhook) CALL DR_HOOK('SPCSI_sidg2',1,zhook_handle2) 
+IF (LHOOK) CALL DR_HOOK('SPCSI_sidg2',1,ZHOOK_HANDLE2) 
 
 ELSE
 
   !       ZSPDIV=(DIVprim(t+dt)) --> ZSPDIVG=(GMBAR**2 * DIVprim(t+dt)) .
-if (lhook) call dr_hook('SPCSI_boucle3',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_boucle3',0,ZHOOK_HANDLE2)
 
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JSP,JLEV) default(none)
-!$acc loop gang
+!$ACC PARALLEL PRIVATE(JSP,JLEV) DEFAULT(NONE)
+!$ACC LOOP GANG
 #else
 !$OMP PARALLEL DO PRIVATE(JSP,JLEV)
 #endif
   DO JLEV=1,NFLEVG
-    !$acc loop vector
-    DO JSP=1,kspec2v
-      ZHELP(JSP,jlev)=PSPDIVG(JSP,jlev)*RSTRET*RSTRET
+    !$ACC LOOP VECTOR
+    DO JSP=1,KSPEC2V
+      ZHELP(JSP,JLEV)=PSPDIVG(JSP,JLEV)*RSTRET*RSTRET
     ENDDO
   ENDDO
 #if defined(_OPENACC)
-!$acc END PARALLEL
+!$ACC END PARALLEL
 #else
 !$OMP END PARALLEL DO
 #endif
-if (lhook) call dr_hook('SPCSI_boucle3',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_boucle3',1,ZHOOK_HANDLE2)
 
 ENDIF
 
-!       If LSIDG:
+!       IF LSIDG:
 !         (GM**2 * DIVprim(t+dt)) --> [ tau * (GM**2 * DIVprim(t+dt)) ]
 !                                 and [  nu * (GM**2 * DIVprim(t+dt)) ]
-!       or if not LSIDG:
+!       or IF not LSIDG:
 !         (GMBAR**2 * DIVprim(t+dt)) --> [ tau * (GMBAR**2 * DIVprim(t+dt)) ]
 !                                    and [  nu * (GMBAR**2 * DIVprim(t+dt)) ]
 
@@ -388,48 +339,48 @@ CALL SITNU_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,NFLEVG,KSPEC2V,ZHELP,ZST,ZSP)
 
 !*       2.5  Increment Temperature and surface pressure
 
-if (lhook) call dr_hook('SPCSI_boucle4',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_boucle4',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JSP,JLEV) default(none)
-!$acc loop collapse(2)
+!$ACC PARALLEL PRIVATE(JSP,JLEV) DEFAULT(NONE)
+!$ACC LOOP COLLAPSE(2)
 #else
 !$OMP PARALLEL DO PRIVATE(JSP,JLEV)
 #endif
-DO JLEV=1,nflevg
-  DO JSP=1,kspec2v
-    PSPTG(JSP,jlev)=PSPTG(JSP,jlev)-ZBDT*ZST(JSP,jlev)
+DO JLEV=1,NFLEVG
+  DO JSP=1,KSPEC2V
+    PSPTG(JSP,JLEV)=PSPTG(JSP,JLEV)-ZBDT*ZST(JSP,JLEV)
   ENDDO
 ENDDO
 #if defined(_OPENACC)
-!$acc end parallel
+!$ACC END PARALLEL
 #else
 !$OMP END PARALLEL DO
 #endif
 
 #if defined(_OPENACC)
-!$acc parallel loop private(jsp) default(none)
+!$ACC PARALLEL LOOP PRIVATE(JSP) DEFAULT(NONE)
 #else
 !$OMP PARALLEL DO PRIVATE(JSP)
 #endif
-do jsp=1,kspec2v
-  pspspg(jsp)=pspspg(jsp)-zbdt*zsp(jsp)
-enddo
+do JSP=1,KSPEC2V
+  PSPSPG(JSP)=PSPSPG(JSP)-ZBDT*ZSP(JSP)
+ENDdo
 #if defined(_OPENACC)
-!$acc end parallel
+!$ACC END PARALLEL
 #else
 !$OMP END PARALLEL DO
 #endif
 
-if (lhook) call dr_hook('SPCSI_boucle4',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_boucle4',1,ZHOOK_HANDLE2)
 
 #if defined(_OPENACC)
-if (lhook) call dr_hook('SPCSI_transferts2',0,zhook_handle2)
-!$acc end data
-!$acc end data 
-!$acc end data
+IF (LHOOK) CALL DR_HOOK('SPCSI_transferts2',0,ZHOOK_HANDLE2)
+!$ACC END DATA
+!$ACC END DATA 
+!$ACC END DATA
 
 
-if (lhook) call dr_hook('SPCSI_transferts2',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCSI_transferts2',1,ZHOOK_HANDLE2)
 #endif
 
 !     ------------------------------------------------------------------

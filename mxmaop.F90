@@ -62,20 +62,6 @@ use cublas
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-#if defined(_OPENACC)
-REAL(KIND=JPRB)   ,INTENT(INOUT)    :: PA(:,:) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KA 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KAD 
-REAL(KIND=JPRB)   ,INTENT(INOUT)    :: PB(:,:) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KB 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KBD 
-REAL(KIND=JPRB)   ,INTENT(INOUT)   :: PC(:,:) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KC 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KCA 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KAR 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KAC 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KBC 
-#else
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(*) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KA 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KAD 
@@ -88,7 +74,6 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KCA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KAR 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KAC 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KBC 
-#endif
 
 !     ------------------------------------------------------------------
 
@@ -103,10 +88,10 @@ IF (LHOOK) CALL DR_HOOK('MXMAOP',0,ZHOOK_HANDLE)
 !*       1.       PERFORM LEGENDRE TRANFORM.
 !                 --------------------------
 #if defined(_OPENACC)
-   !$acc data present(pa,pb,pc,kbd,kac,kbc)
+   !$acc data present(pa,pb,pc) 
    !$acc host_data use_device(pa,pb,pc)
      CALL cublasDgemm('N','T',kar,kbc,kac,1.0_JPRB,&
-      &pa(1,1),kad,pb(1,1),kbd,0.0_JPRB,pc(1,1),kca)  !!!!ispcol remplacé par kspec2V, ksta par 1, suppression de (1,1)?
+      &pa,kad,pb,kbd,0.0_JPRB,pc,kca) 
    !$acc end host_data
    !$acc wait
    !$acc end data

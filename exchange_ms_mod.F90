@@ -30,11 +30,12 @@ TYPE FIELDLIST
 END TYPE
 
 ABSTRACT INTERFACE
-  SUBROUTINE MESSAGE_FUN (YDGEOMETRY, KSPEC2V, KPTRSV, YDLIST, KJR, PBUF_M, KPEER, KSIZE, KWHAT)
+  SUBROUTINE MESSAGE_FUN (YDGEOMETRY, LDTRANSPOSE, KSPEC2V, KPTRSV, YDLIST, KJR, PBUF_M, KPEER, KSIZE, KWHAT)
   USE PARKIND1, ONLY : JPRB, JPIM
   USE GEOMETRY_MOD, ONLY : GEOMETRY
   IMPORT :: FIELDLIST
   TYPE (GEOMETRY)    ,INTENT(IN)              :: YDGEOMETRY
+  LOGICAL            ,INTENT(IN)              :: LDTRANSPOSE
   INTEGER (KIND=JPIM),INTENT(IN)              :: KSPEC2V
   INTEGER (KIND=JPIM),INTENT(IN)              :: KPTRSV (:)
   TYPE (FIELDLIST)   ,INTENT(IN)              :: YDLIST
@@ -51,17 +52,18 @@ INTEGER(KIND=JPIM), EXTERNAL :: MYSENDSET, MYRECVSET
 
 PRIVATE
 PUBLIC :: EXCHANGE_MS, NEXCHANGE_MTOS, NEXCHANGE_STOM, FIELDLIST, &
- & ADD3DF, ADD3DFL, ADD2DF, ADD2DFL
+ & ADD3DF, ADD3DFL, ADD2DF, ADD2DFL,TERMINATE_LIST
 
 CONTAINS
 
-SUBROUTINE EXCHANGE_MS (YDGEOMETRY, YDLIST, KDIR, LDFULLM)
+SUBROUTINE EXCHANGE_MS (YDGEOMETRY,LDTRANSPOSE,YDLIST, KDIR, LDFULLM)
 
 USE YOMTAG, ONLY : MTAGMS, MTAGSM
 
 IMPLICIT NONE
 
 TYPE(GEOMETRY)     ,INTENT(IN) :: YDGEOMETRY
+LOGICAL            ,INTENT(IN) :: LDTRANSPOSE
 TYPE (FIELDLIST)   ,INTENT(IN) :: YDLIST
 INTEGER(KIND=JPIM) ,INTENT(IN) :: KDIR
 LOGICAL, OPTIONAL  ,INTENT(IN) :: LDFULLM
@@ -111,8 +113,8 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:tailles',0,ZHOOK_HANDLE2)
 
 DO JR = 1, NPRTRV-1 
 
-  CALL MESSAGE_M (YDGEOMETRY, ISPEC2V, IPTRSV, YDLIST, JR, KSIZE=ISIZE_M (JR), KPEER=IPEER_M (JR), KWHAT=NQUERY)
-  CALL MESSAGE_S (YDGEOMETRY, ISPEC2V, IPTRSV, YDLIST, JR, KSIZE=ISIZE_S (JR), KPEER=IPEER_S (JR), KWHAT=NQUERY)
+  CALL MESSAGE_M (YDGEOMETRY, LDTRANSPOSE, ISPEC2V, IPTRSV, YDLIST, JR, KSIZE=ISIZE_M (JR), KPEER=IPEER_M (JR), KWHAT=NQUERY)
+  CALL MESSAGE_S (YDGEOMETRY, LDTRANSPOSE, ISPEC2V, IPTRSV, YDLIST, JR, KSIZE=ISIZE_S (JR), KPEER=IPEER_S (JR), KWHAT=NQUERY)
 
   ISIZEMAX_M = MAX (ISIZEMAX_M, ISIZE_M(JR))
   ISIZEMAX_S = MAX (ISIZEMAX_S, ISIZE_S(JR))
@@ -133,11 +135,11 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:tailles',1,ZHOOK_HANDLE2)
 
 SELECT CASE (KDIR)
   CASE (NEXCHANGE_MTOS) 
-    CALL EXCHANGE (YDGEOMETRY, ISPEC2V, IPTRSV, YDLIST, KDIR, MTAGMS, &
+    CALL EXCHANGE (YDGEOMETRY, LDTRANSPOSE,ISPEC2V, IPTRSV, YDLIST, KDIR, MTAGMS, &
                  & ISIZEMAX_M, INPROC_M, INRANK_M, IPEER_M, ISIZE_M, MESSAGE_M, &
                  & ISIZEMAX_S, INPROC_S, INRANK_S, IPEER_S, ISIZE_S, MESSAGE_S)
   CASE (NEXCHANGE_STOM)
-    CALL EXCHANGE (YDGEOMETRY, ISPEC2V, IPTRSV, YDLIST, KDIR, MTAGSM, &
+    CALL EXCHANGE (YDGEOMETRY, LDTRANSPOSE,ISPEC2V, IPTRSV, YDLIST, KDIR, MTAGSM, &
                  & ISIZEMAX_S, INPROC_S, INRANK_S, IPEER_S, ISIZE_S, MESSAGE_S, &
                  & ISIZEMAX_M, INPROC_M, INRANK_M, IPEER_M, ISIZE_M, MESSAGE_M)
   CASE DEFAULT
@@ -152,13 +154,14 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS',1,ZHOOK_HANDLE)
 
 END SUBROUTINE EXCHANGE_MS
 
-SUBROUTINE EXCHANGE (YDGEOMETRY, KSPEC2V, KPTRSV, YDLIST, KDIR, KTAG,     &
+SUBROUTINE EXCHANGE (YDGEOMETRY, LDTRANSPOSE,KSPEC2V, KPTRSV, YDLIST, KDIR, KTAG,     &
 & KSIZEMAXSEND, KPROCSEND, KRANKSEND, KPEERSEND, KSIZESEND, MESSAGE_SEND, &
 & KSIZEMAXRECV, KPROCRECV, KRANKRECV, KPEERRECV, KSIZERECV, MESSAGE_RECV)
 
-USE MPL_MODULE   , ONLY : MPL_SEND, MPL_RECV, MPL_WAIT, MPL_WAITANY, JP_NON_BLOCKING_STANDARD, JP_BLOCKING_STANDARD,mpl_barrier
+USE MPL_MODULE   , ONLY : MPL_SEND, MPL_RECV, MPL_WAIT, MPL_WAITANY, JP_NON_BLOCKING_STANDARD, JP_BLOCKING_STANDARD
 
 TYPE (GEOMETRY)   , INTENT (IN) :: YDGEOMETRY
+LOGICAL           , INTENT (IN) :: LDTRANSPOSE
 INTEGER(KIND=JPIM), INTENT(IN)  :: KSPEC2V
 INTEGER(KIND=JPIM), INTENT(IN)  :: KPTRSV (:)
 TYPE (FIELDLIST)                :: YDLIST
@@ -176,6 +179,8 @@ INTEGER(KIND=JPIM) :: IRECVREQ (KPROCRECV)
 INTEGER(KIND=JPIM) :: I, J, JR, ISP, JVERSP, JFLD
 INTEGER(KIND=JPIM) :: ILEV1, ILEV2
 
+integer(kind=jpim) :: compteur
+
 ! Use of blocking recv in transpostions (some networks do get flooded)
 ! 0 = full non-blocking (default)
 ! 1 = immediate sends, blocking receives
@@ -183,12 +188,19 @@ INTEGER(KIND=JPIM), PARAMETER :: NSPEC_SYNC_LEVEL = 0
 
 REAL(KIND=JPRB) :: ZHOOK_HANDLE,zhook_handle2,zhook_handle3
 
-call mpl_barrier()
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:EXCHANGE',0,ZHOOK_HANDLE)
 
 ASSOCIATE(NFLEVL=>YDGEOMETRY%YRDIMV%NFLEVL, NPTRLL=>YDGEOMETRY%YRMP%NPTRLL, NPSP=>YDGEOMETRY%YRMP%NPSP)
 !$acc data create(zbufsend,zbufrecv) 
 !$acc data present(ydgeometry,ydgeometry%yrdimv%nflevl,ydlist,kptrsv)
+!$acc data present(YDLIST,KPTRSV,NFLEVL,NPTRLL,NPSP) 
+!$acc data present(ydlist%yl3d(1)%zspg,ydlist%yl3d(1)%zsp) if(ydlist%n3d.ge.1)
+!$acc data present(ydlist%yl3d(2)%zspg,ydlist%yl3d(2)%zsp) if(ydlist%n3d.ge.2)
+!$acc data present(ydlist%yl3d(3)%zspg,ydlist%yl3d(3)%zsp) if(ydlist%n3d.ge.3)
+!$acc data present(ydlist%yl3d(4)%zspg,ydlist%yl3d(4)%zsp) if(ydlist%n3d.ge.4)
+!$acc data present(ydlist%yl3d(5)%zspg,ydlist%yl3d(5)%zsp) if(ydlist%n3d.ge.5)
+!$acc data present(ydlist%yl2d(1)%zsp,ydlist%yl2d(1)%lbcast,ydlist%yl2d(1)%zspg) if(ydlist%n2d.ge.1)
+
 ! * Recv loop .................................................
 
 IF (NSPEC_SYNC_LEVEL == 0) THEN
@@ -207,7 +219,7 @@ DO J=1,KPROCSEND
   JR=KRANKSEND(J)
 
      IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ms_send',0,ZHOOK_HANDLE2)
-  CALL MESSAGE_SEND (YDGEOMETRY, KSPEC2V, KPTRSV, YDLIST, JR, ZBUFSEND (:,J), KWHAT=NPACK)
+  CALL MESSAGE_SEND (YDGEOMETRY, LDTRANSPOSE, KSPEC2V, KPTRSV, YDLIST, JR, ZBUFSEND (:,J), KWHAT=NPACK)
      IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ms_send',1,ZHOOK_HANDLE2)
 
   !$acc host_data use_device(zbufsend(:,j))
@@ -219,79 +231,84 @@ ENDDO
 ! * Transpose data used on local processor .................................................
  IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ms_self',0,ZHOOK_HANDLE2)
 
+IF (LDTRANSPOSE) THEN
 #if defined(_OPENACC)
-!$acc update device(mysetv)
-!$acc data present(ydlist,kptrsv,nflevl,npsp,nptrll) 
-!$acc data present(ydlist%yl3d(1)%zspg,ydlist%yl3d(1)%zsp) if(ydlist%n3d.ge.1)
-!$acc data present(ydlist%yl3d(2)%zspg,ydlist%yl3d(2)%zsp) if(ydlist%n3d.ge.2)
-!$acc data present(ydlist%yl3d(3)%zspg,ydlist%yl3d(3)%zsp) if(ydlist%n3d.ge.3)
-!$acc data present(ydlist%yl3d(4)%zspg,ydlist%yl3d(4)%zsp) if(ydlist%n3d.ge.4)
-!$acc data present(ydlist%yl3d(5)%zspg,ydlist%yl3d(5)%zsp) if(ydlist%n3d.ge.5)
-!$acc data present(ydlist%yl2d(1)%zsp,ydlist%yl2d(1)%lbcast,ydlist%yl2d(1)%zspg) if(ydlist%n2d.ge.1)
-!$acc parallel PRIVATE(JVERSP,ISP,JFLD) default(none)
-ILEV1=NPTRLL(MYSETV)
-ILEV2=ILEV1+NFLEVL-1
-!$acc loop gang
-DO JVERSP = 1, KSPEC2V
-  ISP=KPTRSV(MYSETV)-1+JVERSP
-  DO JFLD = 1, YDLIST%N3D
-    IF (KDIR == NEXCHANGE_MTOS) THEN
-      YDLIST%YL3D (JFLD)%ZSPG (jversp,ILEV1:ILEV2) = YDLIST%YL3D (JFLD)%ZSP (isp,1:NFLEVL)
-    ELSEIF (KDIR == NEXCHANGE_STOM) THEN
-      YDLIST%YL3D (JFLD)%ZSP (isp,1:NFLEVL) = YDLIST%YL3D (JFLD)%ZSPG (jversp,ILEV1:ILEV2)
-    ENDIF
-  ENDDO
-
-  DO JFLD = 1, YDLIST%N2D
-    IF ((NPSP == 1) .OR. & 
-      &  YDLIST%YL2D (JFLD)%LBCAST) THEN ! Only KDIR=NEXCHANGE_STOM (LDNEEDPS=T)
-      IF (KDIR == NEXCHANGE_MTOS) THEN
-        YDLIST%YL2D (JFLD)%ZSPG (JVERSP) = YDLIST%YL2D (JFLD)%ZSP (ISP)
-      ELSEIF (KDIR == NEXCHANGE_STOM) THEN
-        YDLIST%YL2D (JFLD)%ZSP (ISP) = YDLIST%YL2D (JFLD)%ZSPG (JVERSP) 
-      ENDIF
-    ENDIF
-  ENDDO
-
-ENDDO
-!$acc end parallel
-
-!$acc end data
-!$acc end data
-!$acc end data
-!$acc end data 
-!$acc end data
-!$acc end data
-!$acc end data
-
+  !$acc parallel PRIVATE(JVERSP,ISP,JFLD) default(none)
+  ILEV1=NPTRLL(MYSETV)
+  ILEV2=ILEV1+NFLEVL-1
+  !$acc loop gang vector private(JVERSP,ISP,JFLD)
 #else
-ILEV1=NPTRLL(MYSETV)
-ILEV2=ILEV1+NFLEVL-1
-!$OMP PARALLEL DO SCHEDULE (STATIC) PRIVATE (JVERSP,ISP,JFLD)
-DO JVERSP = 1, KSPEC2V
-  ISP=KPTRSV(MYSETV)-1+JVERSP
-  DO JFLD = 1, YDLIST%N3D
-    IF (KDIR == NEXCHANGE_MTOS) THEN
-      YDLIST%YL3D (JFLD)%ZSPG (jversp,ILEV1:ILEV2) = YDLIST%YL3D (JFLD)%ZSP (1:NFLEVL,isp)
-    ELSEIF (KDIR == NEXCHANGE_STOM) THEN
-      YDLIST%YL3D (JFLD)%ZSP (1:NFLEVL,isp) = YDLIST%YL3D (JFLD)%ZSPG (jversp,ILEV1:ILEV2)
-    ENDIF
-  ENDDO
-
-  DO JFLD = 1, YDLIST%N2D
-    IF ((NPSP == 1) .OR. & 
-      &  YDLIST%YL2D (JFLD)%LBCAST) THEN ! Only KDIR=NEXCHANGE_STOM (LDNEEDPS=T)
-      IF (KDIR == NEXCHANGE_MTOS) THEN
-        YDLIST%YL2D (JFLD)%ZSPG (JVERSP) = YDLIST%YL2D (JFLD)%ZSP (ISP)
-      ELSEIF (KDIR == NEXCHANGE_STOM) THEN
-        YDLIST%YL2D (JFLD)%ZSP (ISP) = YDLIST%YL2D (JFLD)%ZSPG (JVERSP) 
-      ENDIF
-    ENDIF
-  ENDDO
-
-ENDDO
-!$OMP END PARALLEL DO
+  ILEV1=NPTRLL(MYSETV)
+  ILEV2=ILEV1+NFLEVL-1
+  !$OMP PARALLEL DO SCHEDULE (STATIC) PRIVATE (JVERSP,ISP,JFLD)
 #endif
+  DO JVERSP = 1, KSPEC2V
+    ISP=KPTRSV(MYSETV)-1+JVERSP
+    DO JFLD = 1, YDLIST%N3D
+      IF (KDIR == NEXCHANGE_MTOS) THEN
+        YDLIST%YL3D (JFLD)%ZSPG (JVERSP,ILEV1:ILEV2) = YDLIST%YL3D (JFLD)%ZSP (1:NFLEVL,ISP)
+      ELSEIF (KDIR == NEXCHANGE_STOM) THEN
+        YDLIST%YL3D (JFLD)%ZSP (1:NFLEVL,ISP) = YDLIST%YL3D (JFLD)%ZSPG (JVERSP,ILEV1:ILEV2)
+      ENDIF
+    ENDDO
+
+    DO JFLD = 1, YDLIST%N2D
+      IF ((NPSP == 1) .OR. & 
+        &  YDLIST%YL2D (JFLD)%LBCAST) THEN ! Only KDIR=NEXCHANGE_STOM (LDNEEDPS=T)
+        IF (KDIR == NEXCHANGE_MTOS) THEN
+          YDLIST%YL2D (JFLD)%ZSPG (JVERSP) = YDLIST%YL2D (JFLD)%ZSP (ISP)
+        ELSEIF (KDIR == NEXCHANGE_STOM) THEN
+          YDLIST%YL2D (JFLD)%ZSP (ISP) = YDLIST%YL2D (JFLD)%ZSPG (JVERSP) 
+        ENDIF
+      ENDIF
+    ENDDO
+  ENDDO
+#if defined(_OPENACC)
+  !$acc end parallel
+#else
+  !$OMP END PARALLEL DO
+#endif
+
+ELSE
+#if defined(_OPENACC)
+  !$acc parallel  default(none)
+  ILEV1=NPTRLL(MYSETV)
+  ILEV2=ILEV1+NFLEVL-1
+  !$acc loop gang private(JVERSP,JFLD,ISP)
+#else
+  ILEV1=NPTRLL(MYSETV)
+  ILEV2=ILEV1+NFLEVL-1
+  !$OMP PARALLEL DO SCHEDULE (STATIC) PRIVATE (JVERSP,ISP,JFLD)
+#endif
+  DO JVERSP = 1, KSPEC2V
+    ISP=KPTRSV(MYSETV)-1+JVERSP
+    DO JFLD = 1, YDLIST%N3D
+      IF (KDIR == NEXCHANGE_MTOS) THEN
+        YDLIST%YL3D (JFLD)%ZSPG (JVERSP,ILEV1:ILEV2) = YDLIST%YL3D (JFLD)%ZSP (ISP,1:NFLEVL)
+      ELSEIF (KDIR == NEXCHANGE_STOM) THEN
+        YDLIST%YL3D (JFLD)%ZSP (ISP,1:NFLEVL) = YDLIST%YL3D (JFLD)%ZSPG (JVERSP,ILEV1:ILEV2)
+      ENDIF
+    ENDDO
+
+    DO JFLD = 1, YDLIST%N2D
+      IF ((NPSP == 1) .OR. & 
+        &  YDLIST%YL2D (JFLD)%LBCAST) THEN ! Only KDIR=NEXCHANGE_STOM (LDNEEDPS=T)
+        IF (KDIR == NEXCHANGE_MTOS) THEN
+          YDLIST%YL2D (JFLD)%ZSPG (JVERSP) = YDLIST%YL2D (JFLD)%ZSP (ISP)
+        ELSEIF (KDIR == NEXCHANGE_STOM) THEN
+          YDLIST%YL2D (JFLD)%ZSP (ISP) = YDLIST%YL2D (JFLD)%ZSPG (JVERSP) 
+        ENDIF
+      ENDIF
+    ENDDO
+  ENDDO
+#if defined(_OPENACC)
+  !$acc end parallel
+#else
+  !$OMP END PARALLEL DO
+#endif
+
+ENDIF
+
  IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ms_self',1,ZHOOK_HANDLE2)
 
 ! * Recv + unpack loop .................................................
@@ -305,7 +322,7 @@ IF (NSPEC_SYNC_LEVEL == 0) THEN
   
    IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ms_recv',0,ZHOOK_HANDLE2)
 
-    CALL MESSAGE_RECV (YDGEOMETRY, KSPEC2V, KPTRSV, YDLIST, JR, ZBUFRECV (:,J), KWHAT=NUNPACK)
+    CALL MESSAGE_RECV (YDGEOMETRY, LDTRANSPOSE, KSPEC2V, KPTRSV, YDLIST, JR, ZBUFRECV (:,J), KWHAT=NUNPACK)
   
    IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ms_recv',1,ZHOOK_HANDLE2)
 
@@ -324,7 +341,7 @@ ELSE
 
   IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ms_recv',0,ZHOOK_HANDLE2)
 
-    CALL MESSAGE_RECV (YDGEOMETRY, KSPEC2V, KPTRSV, YDLIST, JR, ZBUFRECV (:,JR), KWHAT=NUNPACK)
+    CALL MESSAGE_RECV (YDGEOMETRY, LDTRANSPOSE, KSPEC2V, KPTRSV, YDLIST, JR, ZBUFRECV (:,JR), KWHAT=NUNPACK)
   IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ms_recv',1,ZHOOK_HANDLE2)
 
 
@@ -333,16 +350,23 @@ ELSE
 ENDIF
 !$acc end data
 !$acc end data
+!$acc end data
+!$acc end data
+!$acc end data
+!$acc end data 
+!$acc end data
+!$acc end data
+!$acc end data
 
 END ASSOCIATE
-call mpl_barrier()
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:EXCHANGE',1,ZHOOK_HANDLE)
 
 END SUBROUTINE EXCHANGE
 
-SUBROUTINE MESSAGE_M (YDGEOMETRY, KSPEC2V, KPTRSV, YDLIST, KJR, PBUF_M, KPEER, KSIZE, KWHAT)
+SUBROUTINE MESSAGE_M (YDGEOMETRY, LDTRANSPOSE, KSPEC2V, KPTRSV, YDLIST, KJR, PBUF_M, KPEER, KSIZE, KWHAT)
 
 TYPE (GEOMETRY)    ,INTENT(IN)              :: YDGEOMETRY
+LOGICAL            ,INTENT(IN)              :: LDTRANSPOSE
 INTEGER(KIND=JPIM), INTENT(IN)              :: KSPEC2V
 INTEGER(KIND=JPIM), INTENT(IN)              :: KPTRSV (:)
 TYPE (FIELDLIST)   ,INTENT(IN)              :: YDLIST
@@ -354,14 +378,21 @@ INTEGER(KIND=JPIM) ,INTENT(IN)              :: KWHAT
 #include "set2pe.intfb.h"
 
 INTEGER(KIND=JPIM) :: IPOS, IOFF, ILEN, ISENDSET, JFLD
-INTEGER(KIND=JPIM) :: ISPE, ISPEL, ISPE1, ISPE2,icnt
+INTEGER(KIND=JPIM) :: ISPE, ISPEL, ISPE1, ISPE2,ICNT,ILEV
 
 REAL(KIND=JPRB) :: ZHOOK_HANDLE,zhook_handle2
 
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:MESSAGE_M',0,ZHOOK_HANDLE)
 
 ASSOCIATE(NFLEVL=>YDGEOMETRY%YRDIMV%NFLEVL, NPSP=>YDGEOMETRY%YRMP%NPSP)
-!$acc data present(ydgeometry,ydlist,nflevl)
+!$acc data present(YDGEOMETRY,YDLIST,NFLEVL,KPTRSV,NPSP,PBUF_M) 
+!$acc data present(ydlist%yl3d(1)%zspg,ydlist%yl3d(1)%zsp) if(ydlist%n3d.ge.1)
+!$acc data present(ydlist%yl3d(2)%zspg,ydlist%yl3d(2)%zsp) if(ydlist%n3d.ge.2)
+!$acc data present(ydlist%yl3d(3)%zspg,ydlist%yl3d(3)%zsp) if(ydlist%n3d.ge.3)
+!$acc data present(ydlist%yl3d(4)%zspg,ydlist%yl3d(4)%zsp) if(ydlist%n3d.ge.4)
+!$acc data present(ydlist%yl3d(5)%zspg,ydlist%yl3d(5)%zsp) if(ydlist%n3d.ge.5)
+!$acc data present(ydlist%yl2d(1)%zsp,ydlist%yl2d(1)%lbcast,ydlist%yl2d(1)%zspg) if(ydlist%n2d.ge.1)
+
 ISENDSET=MYSENDSET(NPRTRV,MYSETV,KJR)
 
 IF (PRESENT (KPEER)) THEN
@@ -378,29 +409,25 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_m_2d',0,ZHOOK_HANDLE2)
 
 #if defined(_OPENACC)
 DO JFLD = 1, YDLIST%N2D
-  !$acc data present(pbuf_m,ydlist%yl2d(jfld)%zsp,ydlist%yl2d(jfld)%lbcast)
   IF ((NPSP == 1) .OR. &
     &  YDLIST%YL2D (JFLD)%LBCAST) THEN ! Only for KWHAT == NUNPACK (KDIR=NEXCHANGE_STOM)
     IF (KWHAT == NPACK) THEN
-      !$acc parallel private(icnt)
+      !$acc parallel private(ICNT)
       !$acc loop gang vector
-      do icnt=1,ispel
-!!        PBUF_M (IOFF+1:IOFF+ISPEL) = YDLIST%YL2D (JFLD)%ZSP (ISPE1:ISPE2) 
-        pbuf_m(ioff+icnt)=ydlist%yl2d(jfld)%zsp(ispe1-1+icnt)
+      do ICNT=1,ISPEL
+        PBUF_M(IOFF+ICNT)=YDLIST%YL2D(JFLD)%ZSP(ISPE1-1+ICNT)
       enddo
       !$acc end parallel
     ELSEIF (KWHAT == NUNPACK) THEN
-      !$acc parallel private(icnt)
+      !$acc parallel private(ICNT)
       !$acc loop gang vector
-      do icnt=1,ispe1
-!!        YDLIST%YL2D (JFLD)%ZSP (ISPE1:ISPE2) = PBUF_M (IOFF+1:IOFF+ISPEL)
-        YDLIST%YL2D (JFLD)%ZSP (ISPE1-1+icnt) = PBUF_M (IOFF+icnt)
+      do ICNT=1,ISPEL
+        YDLIST%YL2D (JFLD)%ZSP (ISPE1-1+ICNT) = PBUF_M (IOFF+ICNT)
       enddo
       !$acc end parallel
     ENDIF
     IOFF = IOFF + ISPEL
   ENDIF
-  !$acc end data
 ENDDO
 #else
 DO JFLD = 1, YDLIST%N2D
@@ -424,20 +451,38 @@ IF (KWHAT /= NQUERY) THEN
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_m_3d',0,ZHOOK_HANDLE2)
 
 #if defined(_OPENACC)
-do jfld = 1, ydlist%n3d   !!!vérifier s'il faut inverser
-!$acc data present(ydlist,pbuf_m,ydlist%yl3d(jfld)%zsp)
-!$acc parallel loop private(ISPE,IPOS) default(none)
-  DO ISPE = ISPE1,ISPE2
-    IPOS=IOFF+(ISPE-ISPE1)*ILEN+(jfld-1)*nflevl
-    IF (KWHAT == NPACK) THEN
-      PBUF_M(IPOS+1:IPOS+NFLEVL) = YDLIST%YL3D (JFLD)%ZSP (ispe,1:NFLEVL)
-    ELSEIF (KWHAT == NUNPACK) THEN
-      YDLIST%YL3D (JFLD)%ZSP (ispe,1:NFLEVL) = PBUF_M(IPOS+1:IPOS+NFLEVL) 
-    ENDIF
+!!do jfld = 1, ydlist%n3d   !!!vérifier s'il faut inverser
+!  !$acc parallel default(none) 
+!  !$acc loop gang private(ISPE,IPOS,JFLD) collapse(2)
+!  DO ISPE = ISPE1,ISPE2
+!    DO JFLD = 1, YDLIST%N3D
+!      IPOS=IOFF+(ISPE-ISPE1)*ILEN+(jfld-1)*nflevl
+!      IF (KWHAT == NPACK) THEN
+!        PBUF_M(IPOS+1:IPOS+NFLEVL) = YDLIST%YL3D (JFLD)%ZSP (ispe,1:NFLEVL)
+!      ELSEIF (KWHAT == NUNPACK) THEN
+!        YDLIST%YL3D (JFLD)%ZSP (ispe,1:NFLEVL) = PBUF_M(IPOS+1:IPOS+NFLEVL) 
+!      ENDIF
+!    ENDDO
+!  ENDDO
+!  !$acc end parallel
+
+!!ENDDO
+
+  !$acc parallel default(none) 
+  !$acc loop gang private(ILEV,JFLD,IPOS) collapse(2) 
+  DO ILEV = 1,NFLEVL
+    DO JFLD=1,YDLIST%N3D
+      IPOS=IOFF+ISPEL*(ILEV-1)*YDLIST%N3D+(JFLD-1)*ISPEL 
+      IF (KWHAT == NPACK) THEN
+        PBUF_M(IPOS+1:IPOS+ISPEL) = YDLIST%YL3D (JFLD)%ZSP (ISPE1:ISPE2,ILEV)
+      ELSEIF (KWHAT == NUNPACK) THEN
+        YDLIST%YL3D (JFLD)%ZSP (ISPE1:ISPE2,ILEV) =PBUF_M(IPOS+1:IPOS+ISPEL) 
+      ENDIF
+    ENDDO
   ENDDO
-!$acc end parallel
-!$acc end data 
-ENDDO
+  !$acc end parallel
+
+
 #else
 !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE (ISPE,IPOS,JFLD)
   DO ISPE = ISPE1,ISPE2
@@ -459,15 +504,23 @@ ENDIF
 
 IF (PRESENT (KSIZE)) KSIZE = IOFF + ISPEL * ILEN
 !$acc end data
+!$acc end data
+!$acc end data
+!$acc end data
+!$acc end data 
+!$acc end data
+!$acc end data
+
 END ASSOCIATE
 
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:MESSAGE_M',1,ZHOOK_HANDLE)
 
 END SUBROUTINE MESSAGE_M 
 
-SUBROUTINE MESSAGE_S (YDGEOMETRY, KSPEC2V, KPTRSV, YDLIST, KJR, PBUF_S, KPEER, KSIZE, KWHAT)
+SUBROUTINE MESSAGE_S (YDGEOMETRY, LDTRANSPOSE, KSPEC2V, KPTRSV, YDLIST, KJR, PBUF_S, KPEER, KSIZE, KWHAT)
 
 TYPE (GEOMETRY)    ,INTENT(IN)              :: YDGEOMETRY
+LOGICAL            ,INTENT(IN)              :: LDTRANSPOSE
 INTEGER(KIND=JPIM), INTENT(IN)              :: KSPEC2V
 INTEGER(KIND=JPIM), INTENT(IN)              :: KPTRSV (:)
 TYPE (FIELDLIST)   ,INTENT(IN)              :: YDLIST
@@ -479,7 +532,7 @@ INTEGER(KIND=JPIM) ,INTENT(IN)              :: KWHAT
 #include "set2pe.intfb.h"
 
 INTEGER(KIND=JPIM) :: ISPE, ILEVL, IPOS, ILEN, IOFF, IRECVSET, JFLD
-INTEGER(KIND=JPIM) :: ILEV1, ILEV2,icnt
+INTEGER(KIND=JPIM) :: ILEV1, ILEV2,icnt,ilev
 
 REAL(KIND=JPRB) :: ZHOOK_HANDLE,zhook_handle2
 
@@ -487,7 +540,14 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:MESSAGE_S',0,ZHOOK_HANDLE)
 
 ASSOCIATE(YDMP=>YDGEOMETRY%YRMP)
 ASSOCIATE(NPTRLL=>YDMP%NPTRLL, NPSURF=>YDMP%NPSURF)
-!$acc data present(ydgeometry,ydlist)
+!$acc data present(YDGEOMETRY,YDLIST,KPTRSV,NPTRLL,PBUF_S) 
+!$acc data present(ydlist%yl3d(1)%zspg,ydlist%yl3d(1)%zsp) if(ydlist%n3d.ge.1)
+!$acc data present(ydlist%yl3d(2)%zspg,ydlist%yl3d(2)%zsp) if(ydlist%n3d.ge.2)
+!$acc data present(ydlist%yl3d(3)%zspg,ydlist%yl3d(3)%zsp) if(ydlist%n3d.ge.3)
+!$acc data present(ydlist%yl3d(4)%zspg,ydlist%yl3d(4)%zsp) if(ydlist%n3d.ge.4)
+!$acc data present(ydlist%yl3d(5)%zspg,ydlist%yl3d(5)%zsp) if(ydlist%n3d.ge.5)
+!$acc data present(ydlist%yl2d(1)%zsp,ydlist%yl2d(1)%lbcast,ydlist%yl2d(1)%zspg) if(ydlist%n2d.ge.1)
+
 IRECVSET=MYRECVSET(NPRTRN,MYSETN,KJR)
 
 IF (PRESENT (KPEER)) THEN
@@ -504,30 +564,27 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_s_2d',0,ZHOOK_HANDLE2)
 
 #if defined(_OPENACC)
 DO JFLD = 1, YDLIST%N2D
-  !$acc data present(pbuf_s,ydlist%yl2d(jfld)%zspg,ydlist%yl2d(jfld)%lbcast)
   IF ((NPSURF (IRECVSET) == 1) .OR. &
     &  YDLIST%YL2D (JFLD)%LBCAST) THEN ! Only for KWHAT == NPACK (KDIR=NEXCHANGE_STOM)
     IF (KWHAT == NPACK) THEN
-      !$acc parallel private(icnt)
+      !$acc parallel private(ICNT)
       !$acc loop gang vector
-      do icnt=1,kspec2v
-        pbuf_s(ioff+icnt)=ydlist%yl2d(jfld)%zspg(icnt)
-      enddo
+      DO ICNT=1,KSPEC2V
+        PBUF_S(IOFF+ICNT)=YDLIST%YL2D(JFLD)%ZSPG(ICNT)
+      ENDDO
       !$acc end parallel
-!!      PBUF_S(IOFF+1:IOFF+KSPEC2V) = YDLIST%YL2D (JFLD)%ZSPG (1:KSPEC2V) 
     ELSEIF (KWHAT == NUNPACK) THEN
-      !$acc parallel private(icnt)
+      !$acc parallel private(ICNT)
       !$acc loop gang vector
-      do icnt=1,kspec2v
-        ydlist%yl2d (jfld)%zspg (icnt) = pbuf_s(ioff+icnt)
+      do ICNT=1,KSPEC2V
+        YDLIST%YL2D(JFLD)%ZSPG(ICNT) = PBUF_S(IOFF+ICNT)
       enddo
       !$acc end parallel
-!!      YDLIST%YL2D (JFLD)%ZSPG (1:KSPEC2V) = PBUF_S(IOFF+1:IOFF+KSPEC2V)
     ENDIF
     IOFF = IOFF + KSPEC2V
   ENDIF
-  !$acc end data
 ENDDO
+
 #else
 DO JFLD = 1, YDLIST%N2D
   IF ((NPSURF (IRECVSET) == 1) .OR. &
@@ -550,20 +607,34 @@ IF (KWHAT /= NQUERY) THEN
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_s_3d',0,ZHOOK_HANDLE2)
 
 #if defined(_OPENACC)
-  do jfld = 1, ydlist%n3d
-    !$acc data present(pbuf_s,ydlist%yl3d(jfld)%zspg)
-    !$acc parallel loop private(ISPE,IPOS) default(none)
-    DO ISPE = 1, KSPEC2V
-      IPOS=IOFF+ILEN*(ISPE-1)+(jfld-1)*ilevl
-      IF (KWHAT == NPACK) THEN
-        PBUF_S(IPOS+1:IPOS+ILEVL) = YDLIST%YL3D (JFLD)%ZSPG (ispe,ILEV1:ILEV2) 
-      ELSEIF (KWHAT == NUNPACK) THEN
-        YDLIST%YL3D (JFLD)%ZSPG (ispe,ILEV1:ILEV2) = PBUF_S(IPOS+1:IPOS+ILEVL)
-      ENDIF
+!    !$acc parallel default(none) 
+!    !$acc loop gang private(ISPE,IPOS) collapse(2)
+!    DO ISPE = 1, KSPEC2V
+!      do jfld=1,ydlist%n3d
+!        IPOS=IOFF+ILEN*(ISPE-1)+(jfld-1)*ilevl
+!        IF (KWHAT == NPACK) THEN
+!          PBUF_S(IPOS+1:IPOS+ILEVL) = YDLIST%YL3D (JFLD)%ZSPG (ispe,ILEV1:ILEV2) 
+!        ELSEIF (KWHAT == NUNPACK) THEN
+!          YDLIST%YL3D (JFLD)%ZSPG (ispe,ILEV1:ILEV2) = PBUF_S(IPOS+1:IPOS+ILEVL)
+!        ENDIF
+!      enddo
+!    ENDDO
+!    !$acc end parallel
+
+    !$acc parallel default(none) 
+    !$acc loop gang private(ilev,jfld,IPOS) collapse(2)
+    do ilev= ilev1,ilev2
+      do jfld = 1,ydlist%n3d
+        IPOS=IOFF+kspec2v*(ilev-ilev1)*ydlist%n3d+(jfld-1)*kspec2V 
+        IF (KWHAT == NPACK) THEN
+          PBUF_S(IPOS+1:IPOS+kspec2v) = YDLIST%YL3D (JFLD)%ZSPG (1:kspec2v,ilev) 
+        ELSEIF (KWHAT == NUNPACK) THEN
+          YDLIST%YL3D (JFLD)%ZSPG (1:kspec2v,ilev) = PBUF_S(IPOS+1:IPOS+kspec2v)
+        ENDIF
+      enddo
     ENDDO
     !$acc end parallel
-    !$acc end data
-  enddo
+
 #else
 !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(ISPE,IPOS,JFLD) 
   DO ISPE = 1, KSPEC2V
@@ -585,6 +656,13 @@ ENDIF
 
 IF (PRESENT (KSIZE)) KSIZE = IOFF + KSPEC2V * ILEN
 !$acc end data
+!$acc end data
+!$acc end data
+!$acc end data
+!$acc end data 
+!$acc end data
+!$acc end data
+
 END ASSOCIATE
 END ASSOCIATE
 
@@ -790,6 +868,33 @@ ENDDO
 999 CONTINUE
 
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:ADD3DFL',1,ZHOOK_HANDLE)
+
+END SUBROUTINE
+
+SUBROUTINE TERMINATE_LIST (YDLIST)
+
+TYPE (FIELDLIST)             :: YDLIST
+
+INTEGER (KIND=JPIM)          :: JFLD
+REAL(KIND=JPRB)              :: ZHOOK_HANDLE
+
+IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:TERMINATE_LIST',0,ZHOOK_HANDLE)
+
+DO JFLD=YDLIST%N2D,1
+!$acc exit data detach(ydlist%yl2d(JFLD)%zsp)
+!$acc exit data detach(ydlist%yl2d(JFLD)%zspg)
+!$acc exit data delete(ydlist%yl2d(JFLD)%zsp)
+!$acc exit data delete(ydlist%yl2d(JFLD)%zspg)
+ENDDO
+DO JFLD=YDLIST%N3D,1
+!$acc exit data detach(ydlist%yl3d(JFLD)%zsp)
+!$acc exit data detach(ydlist%yl3d(JFLD)%zspg)
+!$acc exit data delete(ydlist%yl3d(JFLD)%zsp)
+!$acc exit data delete(ydlist%yl3d(JFLD)%zspg)
+ENDDO
+!$acc exit data delete(ydlist)
+
+IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:TERMINATE_LIST',1,ZHOOK_HANDLE)
 
 END SUBROUTINE
 
