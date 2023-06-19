@@ -450,7 +450,7 @@ ILEN = NFLEVL * YDLIST%N3D
 IF (KWHAT /= NQUERY) THEN
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_m_3d',0,ZHOOK_HANDLE2)
 
-#if defined(_OPENACC)
+!#if defined(_OPENACC)
 !!do jfld = 1, ydlist%n3d   !!!vérifier s'il faut inverser
 !  !$acc parallel default(none) 
 !  !$acc loop gang private(ISPE,IPOS,JFLD) collapse(2)
@@ -468,22 +468,8 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_m_3d',0,ZHOOK_HANDLE2)
 
 !!ENDDO
 
-  !$acc parallel default(none) 
-  !$acc loop gang private(ILEV,JFLD,IPOS) collapse(2) 
-  DO ILEV = 1,NFLEVL
-    DO JFLD=1,YDLIST%N3D
-      IPOS=IOFF+ISPEL*(ILEV-1)*YDLIST%N3D+(JFLD-1)*ISPEL 
-      IF (KWHAT == NPACK) THEN
-        PBUF_M(IPOS+1:IPOS+ISPEL) = YDLIST%YL3D (JFLD)%ZSP (ISPE1:ISPE2,ILEV)
-      ELSEIF (KWHAT == NUNPACK) THEN
-        YDLIST%YL3D (JFLD)%ZSP (ISPE1:ISPE2,ILEV) =PBUF_M(IPOS+1:IPOS+ISPEL) 
-      ENDIF
-    ENDDO
-  ENDDO
-  !$acc end parallel
+IF (LDTRANSPOSE) THEN
 
-
-#else
 !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE (ISPE,IPOS,JFLD)
   DO ISPE = ISPE1,ISPE2
     IPOS=IOFF+(ISPE-ISPE1)*ILEN
@@ -497,7 +483,47 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_m_3d',0,ZHOOK_HANDLE2)
     ENDDO
   ENDDO
 !$OMP END PARALLEL DO
+
+ELSE
+#if defined(_OPENACC)
+  !$acc parallel default(none) 
+  !$acc loop gang private(ILEV,JFLD,IPOS) collapse(2) 
+#else
+!$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE (ISPE,IPOS,JFLD)
 #endif
+  DO ILEV = 1,NFLEVL
+    DO JFLD=1,YDLIST%N3D
+      IPOS=IOFF+ISPEL*(ILEV-1)*YDLIST%N3D+(JFLD-1)*ISPEL 
+      IF (KWHAT == NPACK) THEN
+        PBUF_M(IPOS+1:IPOS+ISPEL) = YDLIST%YL3D (JFLD)%ZSP (ISPE1:ISPE2,ILEV)
+      ELSEIF (KWHAT == NUNPACK) THEN
+        YDLIST%YL3D (JFLD)%ZSP (ISPE1:ISPE2,ILEV) =PBUF_M(IPOS+1:IPOS+ISPEL) 
+      ENDIF
+    ENDDO
+  ENDDO
+#if defined(_OPENACC)
+  !$acc end parallel
+#else
+!$OMP END PARALLEL DO
+#endif
+
+ENDIF
+
+!#else
+!!$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE (ISPE,IPOS,JFLD)
+!  DO ISPE = ISPE1,ISPE2
+!    IPOS=IOFF+(ISPE-ISPE1)*ILEN
+!    DO JFLD = 1, YDLIST%N3D
+!      IF (KWHAT == NPACK) THEN
+!         PBUF_M(IPOS+1:IPOS+NFLEVL) = YDLIST%YL3D (JFLD)%ZSP (1:NFLEVL,ispe)
+!      ELSEIF (KWHAT == NUNPACK) THEN
+!        YDLIST%YL3D (JFLD)%ZSP (1:NFLEVL,ispe) = PBUF_M(IPOS+1:IPOS+NFLEVL) 
+!      ENDIF
+!      IPOS = IPOS + NFLEVL
+!    ENDDO
+!  ENDDO
+!!$OMP END PARALLEL DO
+!#endif
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_m_3d',1,ZHOOK_HANDLE2)
 
 ENDIF
@@ -606,7 +632,7 @@ ILEN = ILEVL * YDLIST%N3D
 IF (KWHAT /= NQUERY) THEN
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_s_3d',0,ZHOOK_HANDLE2)
 
-#if defined(_OPENACC)
+!#if defined(_OPENACC)
 !    !$acc parallel default(none) 
 !    !$acc loop gang private(ISPE,IPOS) collapse(2)
 !    DO ISPE = 1, KSPEC2V
@@ -621,21 +647,8 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_s_3d',0,ZHOOK_HANDLE2)
 !    ENDDO
 !    !$acc end parallel
 
-    !$acc parallel default(none) 
-    !$acc loop gang private(ilev,jfld,IPOS) collapse(2)
-    do ilev= ilev1,ilev2
-      do jfld = 1,ydlist%n3d
-        IPOS=IOFF+kspec2v*(ilev-ilev1)*ydlist%n3d+(jfld-1)*kspec2V 
-        IF (KWHAT == NPACK) THEN
-          PBUF_S(IPOS+1:IPOS+kspec2v) = YDLIST%YL3D (JFLD)%ZSPG (1:kspec2v,ilev) 
-        ELSEIF (KWHAT == NUNPACK) THEN
-          YDLIST%YL3D (JFLD)%ZSPG (1:kspec2v,ilev) = PBUF_S(IPOS+1:IPOS+kspec2v)
-        ENDIF
-      enddo
-    ENDDO
-    !$acc end parallel
+IF (LDTRANSPOSE) THEN
 
-#else
 !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(ISPE,IPOS,JFLD) 
   DO ISPE = 1, KSPEC2V
     IPOS=IOFF+ILEN*(ISPE-1)
@@ -649,7 +662,47 @@ IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_s_3d',0,ZHOOK_HANDLE2)
     ENDDO
   ENDDO
 !$OMP END PARALLEL DO
+
+ELSE
+#if defined(_OPENACC)
+    !$acc parallel default(none) 
+    !$acc loop gang private(ilev,jfld,IPOS) collapse(2)
+#else
+    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(ISPE,IPOS,JFLD)
 #endif
+    do ilev= ilev1,ilev2
+      do jfld = 1,ydlist%n3d
+        IPOS=IOFF+kspec2v*(ilev-ilev1)*ydlist%n3d+(jfld-1)*kspec2V 
+        IF (KWHAT == NPACK) THEN
+          PBUF_S(IPOS+1:IPOS+kspec2v) = YDLIST%YL3D (JFLD)%ZSPG (1:kspec2v,ilev) 
+        ELSEIF (KWHAT == NUNPACK) THEN
+          YDLIST%YL3D (JFLD)%ZSPG (1:kspec2v,ilev) = PBUF_S(IPOS+1:IPOS+kspec2v)
+        ENDIF
+      enddo
+    ENDDO
+#if defined(_OPENACC)
+    !$acc end parallel
+#else
+    !$OMP END PARALLEL DO
+#endif
+
+ENDIF
+
+!#else
+!!$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(ISPE,IPOS,JFLD) 
+!  DO ISPE = 1, KSPEC2V
+!    IPOS=IOFF+ILEN*(ISPE-1)
+!    DO JFLD = 1, YDLIST%N3D
+!      IF (KWHAT == NPACK) THEN
+!        PBUF_S(IPOS+1:IPOS+ILEVL) = YDLIST%YL3D (JFLD)%ZSPG (ispe,ILEV1:ILEV2) 
+!      ELSEIF (KWHAT == NUNPACK) THEN
+!        YDLIST%YL3D (JFLD)%ZSPG (ispe,ILEV1:ILEV2) = PBUF_S(IPOS+1:IPOS+ILEVL)
+!      ENDIF
+!      IPOS = IPOS + ILEVL
+!    ENDDO
+!  ENDDO
+!!$OMP END PARALLEL DO
+!#endif
 IF (LHOOK) CALL DR_HOOK('EXCHANGE_MS:m_s_3d',1,ZHOOK_HANDLE2)
 
 ENDIF

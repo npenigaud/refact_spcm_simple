@@ -27,15 +27,7 @@ REAL(KIND=JPRB)     ,INTENT(INOUT) :: PSPSVD(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY
 #include "spcimpfpost.intfb.h"
 
 #if defined(_OPENACC)
-REAL(KIND=JPRB)  :: zsdivpl(YDGEOMETRY%yrdim%nsmax+1,YDGEOMETRY%yrdimv%nflevg,2,499)
-REAL(KIND=JPRB)  :: zspdivpl(YDGEOMETRY%yrdim%nsmax+1,YDGEOMETRY%yrdimv%nflevg,2,499)
 REAL(KIND=JPRB),ALLOCATABLE  :: param_mxture(:,:,:)
-INTEGER(KIND=JPIM),PARAMETER :: taillec=2001
-REAL(KIND=JPRB)   :: pa(taillec)
-REAL(KIND=JPRB)   :: pb(taillec)
-REAL(KIND=JPRB)   :: pc(taillec)
-REAL(KIND=JPRB)   :: entree(taillec)
-REAL(KIND=JPRB)   :: sortie(taillec)
 #else
 REAL(KIND=JPRB)  :: SIMIT(YDGEOMETRY%yrdimv%nflevg,YDGEOMETRY%yrdimv%nflevg)
 REAL(KIND=JPRB)  :: SIMOT(YDGEOMETRY%yrdimv%nflevg,YDGEOMETRY%yrdimv%nflevg)
@@ -65,7 +57,7 @@ REAL(KIND=JPRB), ALLOCATABLE :: PSPSPD2(:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: PSPSVD2(:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: PSPSP2 (:)
 
-LOGICAL :: LLONEM
+LOGICAL :: LLONEM, LDTRANSPOSE
 
 INTEGER(KIND=JPIM) :: IM, ISPEC2V
 INTEGER (KIND=JPIM) :: JMLOC, ISTA, IEND
@@ -83,6 +75,12 @@ ASSOCIATE(NFLEVG=>YDDIMV%NFLEVG, NSPEC2V=>YDMP%NSPEC2V, NSPEC2VF=>YDMP%NSPEC2VF,
 & NFLSUR=>YDDIMV%NFLSUR, NSPEC2=>YDDIM%NSPEC2, NUMP=>YDDIM%NUMP, NSMAX=>YDDIM%NSMAX,nflevl=>yddimv%nflevl, &
 & simi=>YDDYN%SIMI,simo=>YDDYN%SIMO,siheg=>yddyn%siheg,siheg2=>yddyn%siheg2, &
 & nptrmf=>ydmp%nptrmf,LSIDG=>YDDYN%LSIDG)
+
+#if defined(_OPENACC)
+LDTRANSPOSE=.FALSE.
+#else
+LDTRANSPOSE=.TRUE.
+#endif
 
 #if defined(_OPENACC)
 if (LSIDG) then
@@ -269,7 +267,7 @@ ELSE
 #endif
 
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',0,zhook_handle2)
-    !$acc data create(zspvorg,zspdivg,zsptg,zspspdg,zspsvdg,zspspg) create(zsdivpl,zspdivpl,pa,pb,pc,entree,sortie)
+    !$acc data create(zspvorg,zspdivg,zsptg,zspspdg,zspsvdg,zspspg) 
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',1,zhook_handle2)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',0,zhook_handle2)
     !$acc data copy(pspvor2,pspdiv2,pspt2,pspspd2,pspsvd2,pspsp2)
@@ -279,7 +277,7 @@ ELSE
 
 #if defined(_OPENACC)
 
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.FALSE.,&
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
     & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -288,19 +286,21 @@ ELSE
 
   CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
   & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
-  & taillec,zsdivpl,zspdivpl,pa,pb,pc,entree,sortie,param_mxture)
+  & param_mxture)
 
   CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.FALSE.,&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
     & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
     & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
 
-#else
+#else 
 
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.TRUE.,&
+if (LDTRANSPOSE) then
+
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -312,12 +312,58 @@ ELSE
   & SIMIT,SIMOT)
 
   CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.TRUE.,&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,&
     & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
+
+else
+
+    pspsp2(:)=pspsp(:)
+    do icnt1=1,nspec2
+      do icnt2=1,nflevl
+        pspvor2(icnt1,icnt2)=pspvor(icnt2,icnt1)
+        pspdiv2(icnt1,icnt2)=pspdiv(icnt2,icnt1)
+        pspt2(icnt1,icnt2)=pspt(icnt2,icnt1)
+        pspspd2(icnt1,icnt2)=pspspd(icnt2,icnt1)
+        pspsvd2(icnt1,icnt2)=pspsvd(icnt2,icnt1)
+      enddo
+    enddo
+
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
+    & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
+    & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
+    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
+    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
+    & LDFULLM=LLONEM)
+
+  CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
+  & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
+  & SIMIT,SIMOT)
+
+  CALL TRSTOM(&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
+    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
+    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
+    & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
+    & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
+    & LDFULLM=LLONEM,LDNEEDPS=.TRUE.) 
+
+    pspsp(:)=pspsp2(:)
+    do icnt2=1,nspec2
+      do icnt1=1,nflevl
+        pspvor(icnt1,icnt2)=pspvor2(icnt2,icnt1)
+        pspdiv(icnt1,icnt2)=pspdiv2(icnt2,icnt1)
+        pspt(icnt1,icnt2)=pspt2(icnt2,icnt1)
+        pspspd(icnt1,icnt2)=pspspd2(icnt2,icnt1)
+        pspsvd(icnt1,icnt2)=pspsvd2(icnt2,icnt1)
+      enddo
+    enddo
+
+
+endif
 
 #endif
 
@@ -331,7 +377,6 @@ ELSE
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',1,zhook_handle2)
 
 #if defined(_OPENACC)
-
     pspsp(:)=pspsp2(:)
     do icnt2=1,nspec2
       do icnt1=1,nflevl

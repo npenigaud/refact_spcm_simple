@@ -1,5 +1,5 @@
 #if defined(_OPENACC)
-SUBROUTINE MXTURE(KLX,KT,LDMT,PA,PB,PC,PY,PX,pas,pbs,pcs,pys,pxs)
+SUBROUTINE MXTURE(KLX,KVX,KVXS,KIX,KIXS,tnsmax,KT,LDMT,PA,PB,PC,PY,PX,tbloc,pas,pbs,pcs,pys,pxs)
 !$acc routine vector
 #else
 SUBROUTINE MXTURE(KLX,KVX,KVXS,KIX,tnsmax,KT,LDMT,PA,PB,PC,PY,PX)
@@ -111,19 +111,24 @@ IMPLICIT NONE
 
 #if defined(_OPENACC)
 INTEGER(KIND=JPIM),INTENT(IN),value :: KLX
+INTEGER(KIND=JPIM),INTENT(IN),value :: KVX
+INTEGER(KIND=JPIM),INTENT(IN),value :: KVXS
+INTEGER(KIND=JPIM),INTENT(IN),value :: KIX
+INTEGER(KIND=JPIM),INTENT(IN),value :: KIXS
+INTEGER(KIND=JPIM),INTENT(IN),value :: tnsmax
 INTEGER(KIND=JPIM),INTENT(IN),value :: KT
 LOGICAL ,INTENT(IN),value :: LDMT
-REAL(KIND=JPRB) ,INTENT(IN) :: PA(klx)
-REAL(KIND=JPRB) ,INTENT(IN) :: PB(klx)
-REAL(KIND=JPRB) ,INTENT(IN) :: PC(klx)
-REAL(KIND=JPRB) ,INTENT(INOUT) :: PY(klx)
-REAL(KIND=JPRB) ,INTENT(INOUT) :: PX(klx)
-integer(kind=jpim), parameter :: tbloc=254!!94 !!blocs de traitement, on stocke tbloc+2, plus 1 pour décalage
-REAL(KIND=JPRB) ,INTENT(INout) :: PAs(tbloc+3)
-REAL(KIND=JPRB) ,INTENT(INout) :: PBs(tbloc+3)
-REAL(KIND=JPRB) ,INTENT(INout) :: PCs(tbloc+3)
-REAL(KIND=JPRB) ,INTENT(INOUT) :: PYs(tbloc+3)
-REAL(KIND=JPRB) ,INTENT(INOUT) :: PXs(tbloc+3)
+REAL(KIND=JPRB) ,INTENT(IN) :: PA(klx,kvx)
+REAL(KIND=JPRB) ,INTENT(IN) :: PB(klx,kvx)
+REAL(KIND=JPRB) ,INTENT(IN) :: PC(klx,kvx)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PY(tnsmax+1,kixs,kvx)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PX(tnsmax+1,kixs,kvx)
+integer(kind=jpim), intent(in),value :: tbloc
+REAL(KIND=JPRB) ,INTENT(INout) :: PAs(tbloc+3,kvxs)
+REAL(KIND=JPRB) ,INTENT(INout) :: PBs(tbloc+3,kvxs)
+REAL(KIND=JPRB) ,INTENT(INout) :: PCs(tbloc+3,kvxs)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PYs(tbloc+3,kvxs,kixs)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PXs(tbloc+3,kvxs,kixs)
 #else
 INTEGER(KIND=JPIM),INTENT(IN) :: KLX
 INTEGER(KIND=JPIM),INTENT(IN) :: KVX
@@ -143,7 +148,7 @@ REAL(KIND=JPRB) ,INTENT(INOUT) :: PX(KVXS,tnsmax+1,KIX)
 !     ------------------------------------------------------------------
 
 #if defined(_OPENACC)
-INTEGER(KIND=JPIM) :: IT, JL,jlb,reste,decalage
+INTEGER(KIND=JPIM) :: IT, JL,jlb,reste,decalage,jv,ji
 #else
 INTEGER(KIND=JPIM) :: IIX, IT, JI, JL, JV
 REAL(KIND=JPRB) :: ZBB, ZCC
@@ -176,197 +181,250 @@ IF (KT == 0.OR.KT == -1) IT=-2
 IF (IT == -3) THEN
 
 
-  IF (KLX >= 3) THEN
-    !$acc loop seq
-    do jlb=1,(klx-3)/tbloc+1  !!klx-3+1 elements, de 3 a klx
-      decalage=(jlb-1)*tbloc
-      !$acc loop vector
-      do jl=decalage+1,min(decalage+tbloc+2,klx)
-        pbs(jl-decalage)=pb(jl)
-        pcs(jl-decalage)=pc(jl)
-        pys(jl-decalage)=py(jl)
-      enddo
-      if (jlb==1) then
-        pxs(1)=pys(1)
-        pxs(2)=pys(2)-pbs(1)*pxs(1)
-      else
-        pxs(1:2)=px(decalage+1:decalage+2)
-      endif
-      !$acc loop seq
-      do jl=3,min(decalage+tbloc+2,klx)-decalage
-        PXs(JL)=PYs(JL)-pbs(jl-1)*PXs(JL-1)-pcs(jl-2)*PXs(JL-2)       
-      enddo
-      !$acc loop vector
-      do jl=decalage+1,min(decalage+tbloc+2,klx)
-        px(jl)=pxs(jl-decalage)
-      enddo
-    enddo
-  ELSE
-      PX(1)=PY(1)
-      IF (KLX >= 2) THEN
-        PX(2)=PY(2)-pb(1)*PX(1)
-      ENDIF
-  ENDIF
 
 ELSEIF (IT == -2) THEN
-
-  IF (KLX >= 3) THEN
-    !$acc loop seq
-    do jlb=1,(klx-3)/tbloc+1  !!klx-3+1 elements, de 3 a klx
-      decalage=(jlb-1)*tbloc
-      !$acc loop vector
-      do jl=decalage+1,min(decalage+tbloc+2,klx)
-        pas(jl-decalage)=pa(jl)
-        pbs(jl-decalage)=pb(jl)
-        pcs(jl-decalage)=pc(jl)
-        pys(jl-decalage)=py(jl)
-      enddo
-      if (jlb==1) then
-        pxs(1)=pys(1)/pas(1)
-        pxs(2)=(pys(2)-pbs(1)*pxs(1))/pas(2)
-      else
-        pxs(1:2)=px(decalage+1:decalage+2)
-      endif
-      !$acc loop seq
-      do jl=3,min(decalage+tbloc+2,klx)-decalage
-        PXs(JL)=(PYs(JL)-PCs(JL-2)*PXs(JL-2)&
-         & -PBs(JL-1)*PXs(JL-1))/PAs(JL)  
-      enddo
-      !$acc loop vector
-      do jl=decalage+1,min(decalage+tbloc+2,klx)
-        px(jl)=pxs(jl-decalage)
-      enddo
-    enddo
-  ELSE
-    PX(1)=PY(1)/PA(1)
-    IF (KLX >= 2) THEN
-        PX(2)=(PY(2)-PB(1)*PX(1))/PA(2)
-    ENDIF
-  ENDIF
+!bloclev => kvxs min(nflevg-(compteurb-1)*bloclev => kvx 
+!pys pys pxs pxs 
+!param_mxture => PA PB PC à passer avec le bon décalage 
+!decalage1 => COMPTEURC*kvx si param_mxture passé avec decalage de compteurb
+!COMPTEURC => jv
+        IF (KLX >= 3) THEN
+          !$acc loop seq
+          do jlb=1,(klx-3)/tbloc+1  !!klx-3+1 elements, de 3 a klx
+            decalage=(jlb-1)*tbloc
+            !$acc loop vector private(jv,ji)
+            do jl=decalage+1,min(decalage+tbloc+2,klx)
+              do jv=1,kvx
+                pas(jl-decalage,jv)=pa(jl,jv)
+                pbs(jl-decalage,jv)=pb(jl,jv)
+                pcs(jl-decalage,jv)=pc(jl,jv)
+                do ji=1,kix
+                  pys(jl-decalage,jv,ji)=PY(jl,ji,jv)
+                enddo
+              enddo
+            enddo
+            if (jlb==1) then
+              !$acc loop vector collapse(2)
+              do jv=1,kvx
+                do ji=1,kix
+                  pxs(1,jv,ji)=pys(1,jv,ji)/pas(1,jv)
+                  pxs(2,jv,ji)=(pys(2,jv,ji)-pbs(1,jv)*pxs(1,jv,ji))/pas(2,jv)
+                enddo
+              enddo
+            else
+              !$acc loop vector collapse(2)
+              do jv=1,kvx
+                do ji=1,kix
+                  pxs(1,jv,ji)=PX(decalage+1,ji,jv)
+                  pxs(2,jv,ji)=PX(decalage+2,ji,jv)
+                enddo
+              enddo
+            endif
+            !$acc loop vector private(jl) collapse(2)
+            do jv=1,kvx
+              do ji=1,kix
+                do jl=3,min(decalage+tbloc+2,klx)-decalage
+                  pxs(JL,jv,ji)=(pys(JL,jv,ji)-pcs(JL-2,jv)*pxs(JL-2,jv,ji)&
+                   & -pbs(JL-1,jv)*pxs(JL-1,jv,ji))/pas(JL,jv)  
+                enddo
+              enddo
+            enddo
+            !$acc loop vector private(jv,ji)
+            do jl=decalage+1,min(decalage+tbloc+2,klx)
+              do jv=1,kvx
+                do ji=1,kix
+                  PX(jl,ji,jv)=pxs(jl-decalage,jv,ji)
+                enddo
+              enddo
+            enddo
+          enddo
+        ELSE
+          !$acc loop vector collapse(2)
+          do jv=1,kvx
+            do ji=1,kix
+              PX(1,ji,jv)=PY(1,ji,jv)/pa(1,jv) 
+              IF (KLX >= 2) THEN
+                PX(2,ji,jv)=(PY(2,ji,jv)&
+                 &-pb(1,jv)*PX(1,ji,jv))/pa(2,jv)
+              ENDIF
+            enddo
+          enddo
+        ENDIF
 
 ELSEIF (IT == 1) THEN
-!if (klx<97) then
-  IF (KLX >= 3) THEN
-    reste=mod(klx-3,tbloc)+1
-    !$acc loop seq
-    do jlb=(klx-3)/tbloc+1,1,-1  !!klx-3+1 elements, de klx-2 a 1
-      decalage=(jlb-2)*tbloc+reste
-      !$acc loop vector
-      do jl=decalage+tbloc+2,max(decalage+1,1),-1
-        pas(jl-decalage)=pa(jl)
-        pbs(jl-decalage)=pb(jl)
-        pcs(jl-decalage)=pc(jl)
-        pys(jl-decalage)=py(jl)
-      enddo
-      if (jlb==(klx-3)/tbloc+1) then
-         !!pxs(klx-decalage)=pys(klx-decalage)
-         !!pxs(klx-1-decalage)=pys(klx-1-decalage)-pbs(klx-1-decalage)/pas(klx-1-decalage)*pxs(klx-decalage)
-         pxs(klx-decalage)=pys(klx-decalage)
-         pxs(klx-1-decalage)=pys(klx-1-decalage)-pbs(klx-1-decalage)/pas(klx-1-decalage)*pxs(klx-decalage)
-      else
-         pxs(tbloc+1:tbloc+2)=px(decalage+tbloc+1:decalage+tbloc+2)
-      endif
-      !$acc loop seq
-      do jl=tbloc,max(decalage+1,1)-decalage,-1
-        PXs(JL)=PYs(JL)-pbs(jl)/pas(jl)*PXs(JL+1)-pcs(jl)/pas(jl)*PXs(JL+2)     
-      enddo
-      !$acc loop vector
-      do jl=decalage+tbloc+2,max(decalage+1,1),-1
-        px(jl)=pxs(jl-decalage)
-      enddo
-    enddo
-  ELSE
-    PX(KLX)=PY(KLX)
-    IF (KLX >= 2) THEN
-      PX(KLX-1)=PY(KLX-1)-pb(klx-1)/pa(klx-1)*PX(KLX)
-    ENDIF
-  ENDIF
 
-!else
-!  !$acc loop vector
-!  do jl=1,klx
-!    px(jl)=py(jl)
-!  enddo
-!endif
+       IF (KLX >= 3) THEN
+         reste=mod(klx-3,tbloc)+1
+         !$acc loop seq
+         do jlb=(klx-3)/tbloc+1,1,-1  !!klx-3+1 elements, de klx-2 a 1
+           decalage=(jlb-2)*tbloc+reste
+           !$acc loop vector private(jv,ji)
+           do jl=decalage+tbloc+2,max(decalage+1,1),-1
+             do jv=1,kvx
+               pas(jl-decalage,jv)=pa(jl,jv)
+               pbs(jl-decalage,jv)=pb(jl,jv)
+               pcs(jl-decalage,jv)=pc(jl,jv)
+               do ji=1,kix
+                 pys(jl-decalage,jv,ji)=PY(jl,ji,jv)
+               enddo
+             enddo
+           enddo
+           if (jlb==(klx-3)/tbloc+1) then
+              !$acc loop vector collapse(2)
+              do jv=1,kvx
+                do ji=1,kix
+                  pxs(klx-decalage,jv,ji)=pys(klx-decalage,jv,ji)
+                  pxs(klx-1-decalage,jv,ji)=pys(klx-1-decalage,jv,ji)&
+                   &-pbs(klx-1-decalage,jv)/pas(klx-1-decalage,jv)*pxs(klx-decalage,jv,ji)
+                enddo
+              enddo
+           else
+              !$acc loop vector collapse(2)
+              do jv=1,kvx
+                do ji=1,kix
+                  pxs(tbloc+1,jv,ji)=PX(decalage+tbloc+1,ji,jv)
+                  pxs(tbloc+2,jv,ji)=PX(decalage+tbloc+2,ji,jv)
+                enddo
+              enddo
+           endif
+           !$acc loop vector private(jl) collapse(2)
+           do jv=1,kvx
+             do ji=1,kix
+               !$acc loop seq
+               do jl=tbloc,max(decalage+1,1)-decalage,-1
+                 pxs(JL,jv,ji)=pys(JL,jv,ji)-pbs(jl,jv)/pas(jl,jv)*pxs(JL+1,jv,ji)&
+                   &-pcs(jl,jv)/pas(jl,jv)*pxs(JL+2,jv,ji)     
+               enddo
+             enddo
+           enddo
+           !$acc loop vector private(jv,ji)
+           do jl=decalage+tbloc+2,max(decalage+1,1),-1
+             do jv=1,kvx
+               do ji=1,kix
+                 PX(jl,ji,jv)=pxs(jl-decalage,jv,ji)
+               enddo
+             enddo
+           enddo
+         enddo
+       ELSE
+         !$acc loop vector collapse(2)
+         do jv=1,kvx
+           do ji=1,kix
+             PX(KLX,ji,jv)=PY(KLX,ji,jv)
+             IF (KLX >= 2) THEN
+               PX(KLX-1,ji,jv)=PY(KLX-1,ji,jv)&
+                &-pb(klx-1,jv)/pa(klx-1,jv)*PX(KLX,ji,jv)
+             ENDIF
+           enddo
+         enddo
+       ENDIF
+
 
 ELSEIF (IT == 2) THEN
  
-  IF (KLX >= 3) THEN
-    reste=mod(klx-3,tbloc)+1
-    !$acc loop seq
-    do jlb=(klx-3)/tbloc+1,1,-1  !!klx-3+1 elements, de klx-2 a 1
-      decalage=(jlb-2)*tbloc+reste
-      !$acc loop vector
-      do jl=decalage+tbloc+2,max(decalage+1,1),-1
-        pas(jl-decalage)=pa(jl)
-        pbs(jl-decalage)=pb(jl)
-        pcs(jl-decalage)=pc(jl)
-        pys(jl-decalage)=py(jl)
-      enddo
-      if (jlb==(klx-3)/tbloc+1) then
-        pxs(klx-decalage)=pys(klx-decalage)
-        pxs(klx-1-decalage)=(pys(klx-1-decalage)-pbs(klx-1-decalage)*pxs(klx-decalage))/pas(klx-1-decalage)
-      else
-        pxs(tbloc+1:tbloc+2)=px(decalage+tbloc+1:decalage+tbloc+2)
-      endif
-      !$acc loop seq
-      do jl=tbloc,max(decalage+1,1)-decalage,-1
-        PXs(JL)=(PYs(JL)-PBs(JL)*PXs(JL+1)&
-         & -PCs(JL)*PXs(JL+2))/PAs(JL)  
-      enddo
-      !$acc loop vector
-      do jl=decalage+tbloc+2,max(decalage+1,1),-1
-        px(jl)=pxs(jl-decalage)
-      enddo
-    enddo
-  ELSE
-    PX(KLX)=PY(KLX)/PA(KLX)
-    IF (KLX >= 2) THEN
-      PX(KLX-1)=&
-       & (PY(KLX-1)-PB(KLX-1)*PX(KLX))/PA(KLX-1)  
-    ENDIF
-  ENDIF
+!  IF (KLX >= 3) THEN
+!    reste=mod(klx-3,tbloc)+1
+!    !$acc loop seq
+!    do jlb=(klx-3)/tbloc+1,1,-1  !!klx-3+1 elements, de klx-2 a 1
+!      decalage=(jlb-2)*tbloc+reste
+!      !$acc loop vector
+!      do jl=decalage+tbloc+2,max(decalage+1,1),-1
+!        pas(jl-decalage)=pa(jl)
+!        pbs(jl-decalage)=pb(jl)
+!        pcs(jl-decalage)=pc(jl)
+!        pys(jl-decalage)=py(jl)
+!      enddo
+!      if (jlb==(klx-3)/tbloc+1) then
+!        pxs(klx-decalage)=pys(klx-decalage)
+!        pxs(klx-1-decalage)=(pys(klx-1-decalage)-pbs(klx-1-decalage)*pxs(klx-decalage))/pas(klx-1-decalage)
+!      else
+!        pxs(tbloc+1:tbloc+2)=px(decalage+tbloc+1:decalage+tbloc+2)
+!      endif
+!      !$acc loop seq
+!      do jl=tbloc,max(decalage+1,1)-decalage,-1
+!        PXs(JL)=(PYs(JL)-PBs(JL)*PXs(JL+1)&
+!         & -PCs(JL)*PXs(JL+2))/PAs(JL)  
+!      enddo
+!      !$acc loop vector
+!      do jl=decalage+tbloc+2,max(decalage+1,1),-1
+!        px(jl)=pxs(jl-decalage)
+!      enddo
+!    enddo
+!  ELSE
+!    PX(KLX)=PY(KLX)/PA(KLX)
+!    IF (KLX >= 2) THEN
+!      PX(KLX-1)=&
+!       & (PY(KLX-1)-PB(KLX-1)*PX(KLX))/PA(KLX-1)  
+!    ENDIF
+!  ENDIF
 
 ELSEIF (IT == 3) THEN
-!if (.false.) then
-  IF (KLX >= 3) THEN
-    reste=mod(klx-3,tbloc)+1
-    !$acc loop seq
-    do jlb=(klx-3)/tbloc+1,1,-1  !!klx-3+1 elements, de klx-2 a 1
-      decalage=(jlb-2)*tbloc+reste
-      !$acc loop vector
-      do jl=decalage+tbloc+2,max(decalage+1,1),-1
-        pbs(jl-decalage)=pb(jl)
-        pcs(jl-decalage)=pc(jl)
-        pys(jl-decalage)=py(jl)
-      enddo
-      if (jlb==(klx-3)/tbloc+1) then
-        pxs(klx-decalage)=pys(klx-decalage)
-        pxs(klx-1-decalage)=pys(klx-1-decalage)-pbs(klx-1-decalage)*pxs(klx-decalage)
-      else
-        pxs(tbloc+1:tbloc+2)=px(decalage+tbloc+1:decalage+tbloc+2)
-      endif
-      !$acc loop seq
-      do jl=tbloc,max(decalage+1,1)-decalage,-1
-        PXs(JL)=PYs(JL)-pbs(jl)*PXs(JL+1)-pcs(jl)*PXs(JL+2)
-      enddo
-      !$acc loop vector
-      do jl=decalage+tbloc+2,max(decalage+1,1),-1
-        px(jl)=pxs(jl-decalage)
-      enddo
-    enddo
-  ELSE
-    PX(KLX)=PY(KLX)
-    IF (KLX >= 2) THEN
-      PX(KLX-1)=PY(KLX-1)-pb(klx-1)*PX(KLX)
-    ENDIF
-  ENDIF
-!else
-!  !$acc loop vector
-!  do jl=1,klx
-!    px(jl)=py(jl)
-!  enddo
-!endif
+
+     IF (KLX >= 3) THEN
+       reste=mod(klx-3,tbloc)+1
+       !$acc loop seq
+       do jlb=(klx-3)/tbloc+1,1,-1  !!klx-3+1 elements, de klx-2 a 1
+         decalage=(jlb-2)*tbloc+reste
+         !$acc loop vector private(jv,ji)
+         do jl=decalage+tbloc+2,max(decalage+1,1),-1
+           do jv=1,kvx
+             pbs(jl-decalage,jv)=pb(jl,jv)
+             pcs(jl-decalage,jv)=pc(jl,jv)
+             do ji=1,kix
+               pys(jl-decalage,jv,ji)=PY(jl,ji,jv)
+             enddo
+           enddo
+         enddo
+         if (jlb==(klx-3)/tbloc+1) then
+           !$acc loop vector collapse(2)
+           do jv=1,kvx
+             do ji=1,kix
+               pxs(klx-decalage,jv,ji)=pys(klx-decalage,jv,ji)
+               pxs(klx-1-decalage,jv,ji)=pys(klx-1-decalage,jv,ji)&
+                 &-pbs(klx-1-decalage,jv)*pxs(klx-decalage,jv,ji)
+             enddo
+           enddo
+         else
+           !$acc loop vector collapse(2)
+           do jv=1,kvx
+             do ji=1,kix
+               pxs(tbloc+1,jv,ji)=PX(decalage+tbloc+1,ji,jv)
+               pxs(tbloc+2,jv,ji)=PX(decalage+tbloc+2,ji,jv)
+             enddo
+           enddo
+         endif
+         !$acc loop vector private(jl) collapse(2)
+         do jv=1,kvx
+           do ji=1,kix
+             !$acc loop seq
+             do jl=tbloc,max(decalage+1,1)-decalage,-1
+               pxs(JL,jv,ji)=pys(JL,jv,ji)-pbs(jl,jv)*pxs(JL+1,jv,ji)&
+                 &-pcs(jl,jv)*pxs(JL+2,jv,ji)
+             enddo
+           enddo
+         enddo
+         !$acc loop vector private(jv,ji)
+         do jl=decalage+tbloc+2,max(decalage+1,1),-1
+           do jv=1,kvx
+             do ji=1,kix
+               PX(jl,ji,jv)=pxs(jl-decalage,jv,ji)
+             enddo
+           enddo
+         enddo
+       enddo
+     ELSE
+       !$acc loop vector collapse(2)
+       do jv=1,kvx
+         do ji=1,kix
+           PX(KLX,ji,jv)=PY(KLX,ji,jv)
+           IF (KLX >= 2) THEN
+             PX(KLX-1,ji,jv)=PY(KLX-1,ji,jv)&
+               &-pb(klx-1,jv)*PX(KLX,ji,jv)
+           ENDIF
+         enddo
+       enddo
+     ENDIF
+
 
 ENDIF
 
@@ -644,9 +702,13 @@ ENDIF
 IF (LDMT) THEN
 #if defined(_OPENACC)
 
- !$acc loop vector
+ !$acc loop vector private(ji,jv)
   do jl=1,klx
-    PY(JL)=PX(JL)
+    do ji=1,kix
+      do jv=1,kvx    
+        PY(JL,ji,jv)=PX(JL,ji,jv)
+      enddo
+    enddo 
   ENDDO
 
 #else

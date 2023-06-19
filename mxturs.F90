@@ -1,5 +1,5 @@
 #if defined(_OPENACC)
-SUBROUTINE MXTURS(KLX,PA,PB,PC,PY,PX,pas,pbs,pcs,pys,pxs)
+SUBROUTINE MXTURS(KLX,KVX,KVXS,KIX,KIXS,tnsmax,PA,PB,PC,PY,PX,tbloc,pas,pbs,pcs,pys,pxs)
 !$acc routine vector
 #else
 SUBROUTINE MXTURS(KLX,KVX,KVXS,KIX,tnsmax,PA,PB,PC,PY,PX)
@@ -85,16 +85,22 @@ IMPLICIT NONE
 
 #if defined(_OPENACC)
 INTEGER(KIND=JPIM),INTENT(IN),value :: KLX
-REAL(KIND=JPRB) ,INTENT(IN) :: PA(klx)
-REAL(KIND=JPRB) ,INTENT(IN) :: PB(klx)
-REAL(KIND=JPRB) ,INTENT(IN) :: PC(klx)
-REAL(KIND=JPRB) ,INTENT(INOUT) :: PY(klx)
-REAL(KIND=JPRB) ,INTENT(INOUT) :: PX(klx)
-REAL(KIND=JPRB) ,INTENT(INout) :: PAs(97)
-REAL(KIND=JPRB) ,INTENT(INout) :: PBs(97)
-REAL(KIND=JPRB) ,INTENT(INout) :: PCs(97)
-REAL(KIND=JPRB) ,INTENT(INOUT) :: PYs(97)
-REAL(KIND=JPRB) ,INTENT(INOUT) :: PXs(97)
+INTEGER(KIND=JPIM),INTENT(IN),value :: KVX
+INTEGER(KIND=JPIM),INTENT(IN),value :: KVXS
+INTEGER(KIND=JPIM),INTENT(IN),value :: KIX
+INTEGER(KIND=JPIM),INTENT(IN),value :: KIXS
+INTEGER(KIND=JPIM),INTENT(IN),value :: tnsmax
+REAL(KIND=JPRB) ,INTENT(IN) :: PA(klx,kvx)
+REAL(KIND=JPRB) ,INTENT(IN) :: PB(klx,kvx)
+REAL(KIND=JPRB) ,INTENT(IN) :: PC(klx,kvx)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PY(tnsmax+1,kixs,kvx)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PX(tnsmax+1,kixs,kvx)
+integer(kind=jpim),intent(in),value :: tbloc
+REAL(KIND=JPRB) ,INTENT(INout) :: PAs(tbloc+3,kvxs)
+REAL(KIND=JPRB) ,INTENT(INout) :: PBs(tbloc+3,kvxs)
+REAL(KIND=JPRB) ,INTENT(INout) :: PCs(tbloc+3,kvxs)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PYs(tbloc+3,kvxs,kixs)
+REAL(KIND=JPRB) ,INTENT(INOUT) :: PXs(tbloc+3,kvxs,kixs)
 #else
 INTEGER(KIND=JPIM),INTENT(IN) :: KLX
 INTEGER(KIND=JPIM),INTENT(IN) :: KVX
@@ -121,10 +127,8 @@ REAL(KIND=JPRB) ,INTENT(INOUT) :: PX(KVXS,tnsmax+1,KIX)
 !*       1.    INVERSION OF THE TWO TRIANGULAR TRIDIAGONAL MATRIXES.
 !              -----------------------------------------------------
 #if defined(_OPENACC)
-!$acc data present(pa,pb,pc,py,px)
-CALL MXTURE(KLX,-2,.TRUE. ,PA,PB,PC,PY,PX,pas,pbs,pcs,pys,pxs)
-CALL MXTURE(KLX, 1,.FALSE.,PA,PB,PC,PY,PX,pas,pbs,pcs,pys,pxs)
-!$acc end data
+CALL MXTURE(KLX,KVX,KVXS,KIX,KIXS,tnsmax,-2,.TRUE. ,PA,PB,PC,PY,PX,tbloc,pas,pbs,pcs,pys,pxs)
+CALL MXTURE(KLX,KVX,KVXS,KIX,KIXS,tnsmax, 1,.FALSE.,PA,PB,PC,PY,PX,tbloc,pas,pbs,pcs,pys,pxs)
 #else
 CALL MXTURE(KLX,KVX,KVXS,KIX,tnsmax,-2,.TRUE. ,PA,PB,PC,PY,PX)
 CALL MXTURE(KLX,KVX,KVXS,KIX, tnsmax,1,.FALSE.,PA,PB,PC,PY,PX)

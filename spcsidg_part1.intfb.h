@@ -1,7 +1,7 @@
 INTERFACE
 #if defined(_OPENACC)
-SUBROUTINE SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, PSDIVP, PSPDIVP,taillec,&
-  &zsdivpl,zspdivpl,pas,pbs,pcs,entree,sortie,param_mxture,kmlocsta,kmlocend)
+SUBROUTINE SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, PSDIVP, PSPDIVP,&
+  &zsdivpl,zspdivpl,param_mxture,kmlocsta,kmlocend)
 !$acc routine vector
 #else
 SUBROUTINE SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, PSDIVP, PSPDIVP,kmlocsta,kmlocend)
@@ -14,21 +14,15 @@ IMPLICIT NONE
 TYPE(GEOMETRY)    ,INTENT(IN)    :: YDGEOMETRY
 TYPE(TDYN)        ,INTENT(IN)    :: YDDYN
 INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC2V
-INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOCsta
-INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOCend
+INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOCSTA
+INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOCEND
 
 REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
-integer(kind=jpim)               :: taillec
-real(kind=JPRB),   intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,499)
-real(kind=JPRB),   intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,499)
+REAL(KIND=JPRB),   INTENT(INOUT) :: ZSDIVPL (1:YDGEOMETRY%YRDIM%NSMAX+1,2,YDGEOMETRY%YRDIMV%NFLEVG,500)
+REAL(KIND=JPRB),   INTENT(INOUT) :: ZSPDIVPL(1:YDGEOMETRY%YRDIM%NSMAX+1,2,YDGEOMETRY%YRDIMV%NFLEVG,500)
 real(kind=jprb),   intent(in)    :: param_mxture(:,:,:)
-real(kind=jprb),   intent(inout) :: pas(129,9)
-real(kind=jprb),   intent(inout) :: pbs(129,9)
-real(kind=jprb),   intent(inout) :: pcs(129,9)
-real(kind=jprb),   intent(inout) :: entree(129,9)
-real(kind=jprb),   intent(inout) :: sortie(129,9)
 #endif
 END SUBROUTINE SPCSIDG_PART1
 
