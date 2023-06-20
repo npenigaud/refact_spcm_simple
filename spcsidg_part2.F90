@@ -65,63 +65,19 @@ DO JMLOC=KMLOCSTA,KMLOCEND
     ENDDO
 
 !        ZSPDIV=(DIVprim(t+dt)) --> ZPSPDIVG=(GMBAR**2 * DIVprim(t+dt)).
-if (.true.) then  !!fonction routine vector copié dans routine principale
-if (ii==1 .and. ji==2) then
-       !$acc loop vector
-       do jn=1,klx
-         zspdivpl(jn,JCNTV,2,JMLOC)=zsdivpl(jn,JCNTV,2,JMLOC)
-       enddo
-elseIF (KLX >= 4) THEN
-      zspdivpl(1,JCNTV,JI,JMLOC) = scgmap (is0+1,1)*zsdivpl(1,JCNTV,JI,JMLOC)+scgmap(is0+1,2)*zsdivpl(2,JCNTV,JI,JMLOC)+scgmap(is0+1,3)*zsdivpl(3,JCNTV,JI,JMLOC)
-      zspdivpl(2,JCNTV,JI,JMLOC) = scgmap(is0+1,2)*zsdivpl(1,JCNTV,JI,JMLOC)&
-       & +scgmap(is0+2,1)*zsdivpl(2,JCNTV,JI,JMLOC)&
-       & +scgmap(is0+2,2)*zsdivpl(3,JCNTV,JI,JMLOC)&
-       & +scgmap(is0+2,3)*zsdivpl(4,JCNTV,JI,JMLOC)  
 
-  !$acc loop vector 
-  do jn=3,klx-2 !!jl=jn
-        zspdivpl(jn,JCNTV,JI,JMLOC) = scgmap(is0+jn-2,3)*zsdivpl(jn-2,JCNTV,JI,JMLOC)&
-         & +scgmap(is0+jn-1,2)*zsdivpl(jn-1,JCNTV,JI,JMLOC)&
-         & +scgmap(is0+jn,1  )*zsdivpl(jn,JCNTV  ,JI,JMLOC)&
-         & +scgmap(is0+jn,2  )*zsdivpl(jn+1,JCNTV,JI,JMLOC)&
-         & +scgmap(is0+jn,3  )*zsdivpl(jn+2,JCNTV,JI,JMLOC)  
-  ENDDO
-      zspdivpl(KLX-1,JCNTV,JI,JMLOC) = scgmap(is0+KLX-3,3)*zsdivpl(KLX-3,JCNTV,JI,JMLOC)&
-       & +scgmap(is0+KLX-2,2)*zsdivpl(KLX-2,JCNTV,JI,JMLOC)&
-       & +scgmap (is0+KLX-1,1)*zsdivpl(KLX-1,JCNTV,JI,JMLOC)&
-       & +scgmap(is0+KLX-1,2)*zsdivpl(KLX,JCNTV  ,JI,JMLOC)  
-      zspdivpl(KLX,JCNTV,JI,JMLOC) = scgmap(is0+KLX-2,3)*zsdivpl(KLX-2,JCNTV,JI,JMLOC)&
-       & +scgmap(is0+KLX-1,2)*zsdivpl(KLX-1,JCNTV,JI,JMLOC)&
-       & +scgmap (is0+KLX,1  )*zsdivpl(KLX,JCNTV  ,JI,JMLOC)  
-
-ELSEIF (KLX == 3) THEN
-      zspdivpl(1,JCNTV,JI,JMLOC) = scgmap(is0+ 1,1)*zsdivpl(1,JCNTV,JI,JMLOC)+scgmap(is0+1,2)*zsdivpl(2,JCNTV,JI,JMLOC)+scgmap(is0+1,3)*zsdivpl(3,JCNTV,JI,JMLOC)
-      zspdivpl(2,JCNTV,JI,JMLOC) = scgmap(is0+1,2)*zsdivpl(1,JCNTV,JI,JMLOC)+scgmap(is0+2,1)*zsdivpl(2,JCNTV,JI,JMLOC)+scgmap(is0+2,2)*zsdivpl(3,JCNTV,JI,JMLOC)
-      zspdivpl(3,JCNTV,JI,JMLOC) = scgmap(is0+1,3)*zsdivpl(1,JCNTV,JI,JMLOC)+scgmap(is0+2,2)*zsdivpl(2,JCNTV,JI,JMLOC)+scgmap (is0+3,1)*zsdivpl(3,JCNTV,JI,JMLOC)
-
-ELSEIF (KLX == 2) THEN
-      zspdivpl(1,JCNTV,JI,JMLOC) = scgmap(is0+1,1)*zsdivpl(1,JCNTV,JI,JMLOC)+scgmap(is0+1,2)*zsdivpl(2,JCNTV,JI,JMLOC)
-      zspdivpl(2,JCNTV,JI,JMLOC) = scgmap(is0+1,2)*zsdivpl(1,JCNTV,JI,JMLOC)+scgmap(is0+2,1)*zsdivpl(2,JCNTV,JI,JMLOC)
-
-ELSEIF (KLX == 1) THEN
-      zspdivpl(1,JCNTV,JI,JMLOC) = scgmap(is0+1,1)*zsdivpl(1,JCNTV,JI,JMLOC)
-
-ENDIF
-else   !!fonction dans une routine vector
 IF (IM>0 .OR. JI==1) THEN
-CALL MXPTMA(NSMAX+1-IM,1,1,1,NSMAX,SCGMAP(IS0+1,1),&
- & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
- & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
- & ZSDIVPL(1,JCNTV,JI,JMLOC),ZSPDIVPL(1,JCNTV,JI,JMLOC))  
-
+  CALL MXPTMA(NSMAX+1-IM,1,1,1,NSMAX,SCGMAP(IS0+1,1),&
+   & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
+   & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
+   & ZSDIVPL(1,JCNTV,JI,JMLOC),ZSPDIVPL(1,JCNTV,JI,JMLOC))  
 ELSE
-       !$ACC LOOP VECTOR
-       DO JN=1,KLX
-         ZSPDIVPL(JN,JCNTV,2,JMLOC)=ZSDIVPL(JN,JCNTV,2,JMLOC)  !!a changer pour 0
-       ENDDO
-
+  !$ACC LOOP VECTOR
+  DO JN=1,KLX
+    ZSPDIVPL(JN,JCNTV,2,JMLOC)=0.0_JPRB !!ZSDIVPL(JN,JCNTV,2,JMLOC)  
+  ENDDO
 ENDIF
-endif   !!manière d'appeler mxptma
+
 !           Reorganisation of ZSPDIVPL
 
     !$acc loop vector private(ISE)
@@ -129,7 +85,7 @@ endif   !!manière d'appeler mxptma
       ISE=ISTA+2*(JN-IM)
       PHELP(ISE+JI-1,JCNTV)=ZSPDIVPL(JN-IM+1,JCNTV,JI,JMLOC)
     ENDDO
-   ENDDO !!ji
+   ENDDO !!JI
   ENDDO !!JCNTV
 ENDDO !!JMLOC
 !$ACC END PARALLEL
