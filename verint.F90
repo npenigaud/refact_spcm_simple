@@ -91,7 +91,7 @@ INTEGER(KIND=JPIM) ::  JLEV, JROF
 REAL(KIND=JPRD),CONTIGUOUS,POINTER :: ZIN(:,:)
 REAL(KIND=JPRD),CONTIGUOUS,POINTER :: ZOUT(:,:)
 
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,ZHOOK_HANDLE_XGEMM,zhook_handle2
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,ZHOOK_HANDLE_XGEMM,ZHOOK_HANDLE2
 
 #include "abor1.intfb.h"
 
@@ -103,15 +103,15 @@ IF (LHOOK) CALL DR_HOOK('VERINT',0,ZHOOK_HANDLE)
   ALLOCATE(ZOUT(KPROMA,KLEVOUT))
   ALLOCATE(ZIN(KPROMA,KLEVIN))
 #if defined(_OPENACC)
-  !$acc data create(zin,zout) present(pin)
-  !$acc parallel private(JLEV,JROF) default(none)
-  !$acc loop gang vector collapse(2)
+  !$ACC DATA CREATE(ZIN,ZOUT) PRESENT(PIN)
+  !$ACC PARALLEL PRIVATE(JLEV,JROF) DEFAULT(NONE)
+  !$ACC LOOP GANG VECTOR COLLAPSE(2)
   DO JLEV=1,KLEVIN
     DO JROF=KSTART,KPROF
       ZIN(JROF,JLEV) = PIN(JROF,JLEV)
     ENDDO
   ENDDO
-  !$acc end parallel
+  !$ACC END PARALLEL
 #else
   ZIN(KSTART:KPROF,:) = PIN(KSTART:KPROF,:)
 #endif
@@ -122,13 +122,13 @@ IF (LHOOK) CALL DR_HOOK('VERINT',0,ZHOOK_HANDLE)
 
 LPAR = OML_IN_PARALLEL()
 
-!$acc data present(zin,zout,pout,pinte)
+!$ACC DATA PRESENT(ZIN,ZOUT,POUT,PINTE)
 
 IF (LPAR) THEN
   IF (LHOOK) CALL DR_HOOK('VERINT_DGEMM_1',0,ZHOOK_HANDLE_XGEMM)
 
   CALL DGEMM('N','T',KPROF-KSTART+1,KLEVOUT,KLEVIN, &
-       & 1.0_JPRD,ZIN,KPROMA,PINTE,klevout,0.0_JPRD,ZOUT,KPROMA)  
+       & 1.0_JPRD,ZIN,KPROMA,PINTE,KLEVOUT,0.0_JPRD,ZOUT,KPROMA)  
 
   IF (LHOOK) CALL DR_HOOK('VERINT_DGEMM_1',1,ZHOOK_HANDLE_XGEMM)
 ELSE
@@ -136,11 +136,11 @@ ELSE
 
   if (.true.) then
 #if defined(_OPENACC)
-  !$acc host_data use_device(ZIN,ZOUT,PINTE)
-    CALL cublasDGEMM('N','T',KPROMA,KLEVOUT,KLEVIN,&
+  !$ACC HOST_DATA USE_DEVICE(ZIN,ZOUT,PINTE)
+    CALL CUBLASDGEMM('N','T',KPROMA,KLEVOUT,KLEVIN,&
          & 1.0_JPRD,ZIN,KPROMA,PINTE,KLEVOUT,0.0_JPRD,ZOUT,KPROMA)
-  !$acc end host_data
-  !$acc wait
+  !$ACC END HOST_DATA
+  !$ACC WAIT
 #else
    ! Chunking across KPROMA
 !$OMP PARALLEL DO PRIVATE(JROF,JLEN)
@@ -167,24 +167,24 @@ ENDIF
 
 IF(KTYPE == 1) THEN
   ! warning: dependence on last level in OMP case, last level is done separately
-if (lhook) call dr_hook('VERINT_calcul',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('VERINT_calcul',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-  !$acc PARALLEL PRIVATE(JLEV,JROF) if (.not.lpar) default(none)
-  !$acc loop gang vector collapse(2) 
+  !$ACC PARALLEL PRIVATE(JLEV,JROF) if (.not.lpar) DEFAULT(NONE)
+  !$ACC LOOP GANG VECTOR COLLAPSE(2) 
   DO JLEV=1,KLEVOUT-1
     DO JROF=KSTART,KPROF
       POUT(JROF,JLEV)=ZOUT(JROF,JLEV)-ZOUT(JROF,KLEVOUT) 
     ENDDO
   ENDDO
-  !$acc END PARALLEL 
+  !$ACC END PARALLEL 
 
   ! last level substraction summarizes to zeroing
-  !$acc parallel private(jrof) default(none)
-  !$acc loop gang vector
-  do jrof=kstart,kprof
-    POUT(jrof,KLEVOUT)=0._JPRB
+  !$ACC PARALLEL private(JROF) DEFAULT(NONE)
+  !$ACC LOOP GANG VECTOR
+  do JROF=KSTART,KPROF
+    POUT(JROF,KLEVOUT)=0._JPRB
   enddo
-  !$acc end parallel
+  !$ACC END PARALLEL
 #else
 
 !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE(JLEV,JROF) if (.not.lpar)
@@ -198,21 +198,21 @@ if (lhook) call dr_hook('VERINT_calcul',0,zhook_handle2)
   ! last level substraction summarizes to zeroing
   POUT(KSTART:KPROF,KLEVOUT)=0._JPRB
 #endif
-if (lhook) call dr_hook('VERINT_calcul',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('VERINT_calcul',1,ZHOOK_HANDLE2)
 
 ELSEIF (KTYPE /= 0) THEN
   WRITE(NULERR,*) ' INVALID KTYPE IN VERINT =',KTYPE
   CALL ABOR1(' VERINT: ABOR1 CALLED')
-else if (llsingle) then
+ELSE IF (LLSINGLE) THEN
 #if defined(_OPENACC)
-!$acc parallel private(jrof,jlev) default(none)
-!$acc loop gang vector collapse(2)
-do jlev=1,klevout
-  do jrof=kstart,kprof
-    pout(jrof,jlev)=zout(jrof,jlev)
-  enddo
-enddo
-!$acc end parallel
+!$ACC PARALLEL PRIVATE(JROF,JLEV) DEFAULT(NONE)
+!$ACC LOOP GANG VECTOR COLLAPSE(2)
+DO JLEV=1,KLEVOUT
+  DO JROF=KSTART,KPROF 
+    POUT(JROF,JLEV)=ZOUT(JROF,JLEV)
+  ENDDO
+ENDDO
+!$ACC END PARALLEL
 #else
 !$OMP PARALLEL DO SCHEDULE(STATIC) if (.not.lpar)
   DO JLEV=1,KLEVOUT
@@ -223,10 +223,10 @@ enddo
 ENDIF
 
 #ifdef PARKIND1_SINGLE 
-!$acc end data
+!$ACC END DATA
 #endif
 
-!$acc end data
+!$ACC END DATA
 IF (LLSINGLE) THEN
   DEALLOCATE(ZOUT)
   DEALLOCATE(ZIN)

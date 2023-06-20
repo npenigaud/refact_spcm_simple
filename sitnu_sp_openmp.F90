@@ -72,8 +72,8 @@ TYPE(TDYN)        ,INTENT(IN)    :: YDDYN
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC
 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PD(KSPEC,klev)
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PT(KSPEC,klev)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PD(KSPEC,KLEV)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PT(KSPEC,KLEV)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSP(KSPEC) 
 
 !     ------------------------------------------------------------------
@@ -85,7 +85,7 @@ REAL(KIND=JPRB) :: ZSDIVX(0:KLEV, KSPEC)
 INTEGER(KIND=JPIM) :: JLEV, JSPEC
 REAL(KIND=JPRB) :: ZREC
 REAL(KIND=JPRB) :: ZDETAH
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,zhook_handle2
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,ZHOOK_HANDLE2
 
 !     ------------------------------------------------------------------
 
@@ -105,93 +105,93 @@ ASSOCIATE(SIALPH=>YDDYN%SIALPH, SIDELP=>YDDYN%SIDELP, SILNPR=>YDDYN%SILNPR, SIRD
 !              ----------------------------------------
 
 IF(YDCVER%LVERTFE) THEN
-!$acc data present(pd,psp,pt,YDDYN%SIDELP,YDDYN%SITLAF,YDGEOMETRY%YRVETA,ydcst,YDDYN%SIRPRN)
-!$acc data create(zsdiv,zout) present(yddyn,ydgeometry,ydgeometry%yrveta%vfe_rdetah) 
+!$ACC DATA PRESENT(PD,PSP,PT,YDDYN%SIDELP,YDDYN%SITLAF,YDGEOMETRY%YRVETA,YDCST,YDDYN%SIRPRN)
+!$ACC DATA CREATE(ZSDIV,ZOUT) PRESENT(YDDYN,YDGEOMETRY,YDGEOMETRY%YRVETA%VFE_RDETAH) 
 
-if (lhook) call dr_hook('SITNU_transpose1',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SITNU_transpose1',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH) default(none)
-!$acc loop gang 
+!$ACC PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH) DEFAULT(NONE)
+!$ACC LOOP GANG 
 #else
 !$OMP PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH)
 !$OMP DO SCHEDULE(STATIC) 
 #endif
   DO JLEV=1,KLEV
-    zdetah=YDGEOMETRY%YRVETA%VFE_RDETAH(JLEV)*YDDYN%SIDELP(JLEV)
-    !$acc loop vector
+    ZDETAH=YDGEOMETRY%YRVETA%VFE_RDETAH(JLEV)*YDDYN%SIDELP(JLEV)
+    !$ACC LOOP VECTOR
     DO JSPEC=1,KSPEC
-      ZSDIV(JSPEC,JLEV)=PD(JSPEC,jlev)*zdetah
+      ZSDIV(JSPEC,JLEV)=PD(JSPEC,JLEV)*ZDETAH
     ENDDO
   ENDDO
 #if defined(_OPENACC)
-!$acc END PARALLEL
+!$ACC END PARALLEL
 #else
 !$OMP END DO
 !$OMP END PARALLEL
 #endif
 
-if (lhook) call dr_hook('SITNU_transpose1',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SITNU_transpose1',1,ZHOOK_HANDLE2)
 
   IF (KSPEC>=1) THEN
 !DEC$ IVDEP
-if (lhook) call dr_hook('SITNU_cond_lim',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SITNU_cond_lim',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-    !$acc parallel private(jspec) default(none)
-    !$acc loop gang
-    do jspec=1,kspec
-      ZSDIV(jspec,0)=0.0_JPRB
-      ZSDIV(jspec,KLEV+1)=0.0_JPRB
+    !$ACC PARALLEL PRIVATE(JSPEC) DEFAULT(NONE)
+    !$ACC LOOP GANG
+    do JSPEC=1,KSPEC
+      ZSDIV(JSPEC,0)=0.0_JPRB
+      ZSDIV(JSPEC,KLEV+1)=0.0_JPRB
     enddo
-    !$acc end parallel
+    !$ACC END PARALLEL
 #else
     ZSDIV(1:KSPEC,0)=0.0_JPRB
     ZSDIV(1:KSPEC,KLEV+1)=0.0_JPRB
 #endif
-if (lhook) call dr_hook('SITNU_cond_lim',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SITNU_cond_lim',1,ZHOOK_HANDLE2)
 
     CALL VERDISINT(YDVFE,YDCVER,'ITOP','11',KSPEC,1,KSPEC,KLEV,ZSDIV,ZOUT,KCHUNK=YDGEOMETRY%YRDIM%NPROMA)
   ENDIF
 
-if (lhook) call dr_hook('SITNU_transpose2',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SITNU_transpose2',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JLEV,JSPEC,ZREC) default(none)
-!$acc loop gang
+!$ACC PARALLEL PRIVATE(JLEV,JSPEC,ZREC) DEFAULT(NONE)
+!$ACC LOOP GANG
 #else
 !$OMP PARALLEL PRIVATE(JLEV,JSPEC,ZREC)
 !$OMP DO SCHEDULE(STATIC) 
 #endif
   DO JLEV=1,KLEV
-    zrec=(1.0_JPRB/YDDYN%SITLAF(JLEV))*YDCST%RKAPPA*YDDYN%SITR
-    !$acc loop vector
+    ZREC=(1.0_JPRB/YDDYN%SITLAF(JLEV))*YDCST%RKAPPA*YDDYN%SITR
+    !$ACC LOOP VECTOR
     DO JSPEC=1,KSPEC
-      PT(JSPEC,jlev)=ZOUT(JSPEC,JLEV-1)*ZREC
+      PT(JSPEC,JLEV)=ZOUT(JSPEC,JLEV-1)*ZREC
     ENDDO
   ENDDO
 #if defined(_OPENACC)
-!$acc END PARALLEL
+!$ACC END PARALLEL
 #else
 !$OMP END DO
 !$OMP END PARALLEL
 #endif
 
-if (lhook) call dr_hook('SITNU_transpose2',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SITNU_transpose2',1,ZHOOK_HANDLE2)
 
-if (lhook) call dr_hook('SITNU_calcul1',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SITNU_calcul1',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-  !$acc parallel loop private(jspec) default(none)
+  !$ACC PARALLEL LOOP PRIVATE(JSPEC) DEFAULT(NONE)
   DO JSPEC=1,KSPEC
     PSP(JSPEC)=ZOUT(JSPEC,KLEV)*YDDYN%SIRPRN
   ENDDO
-  !$acc end parallel
+  !$ACC END PARALLEL
 #else
   DO JSPEC=1,KSPEC
     PSP(JSPEC)=ZOUT(JSPEC,KLEV)*SIRPRN
   ENDDO
 #endif
-if (lhook) call dr_hook('SITNU_calcul1',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SITNU_calcul1',1,ZHOOK_HANDLE2)
 
-!$acc end data
-!$acc end data
+!$ACC END DATA
+!$ACC END DATA
 
 ELSE
 

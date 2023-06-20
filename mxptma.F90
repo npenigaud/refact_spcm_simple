@@ -1,8 +1,8 @@
 #if defined(_OPENACC)
-SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,tnsmax,PA,PBI,PCI,PBS,PCS,PX,PY)
-!$acc routine vector
+SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,KTNSMAX,PA,PBI,PCI,PBS,PCS,PX,PY)
+!$ACC ROUTINE VECTOR
 #else
-SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,tnsmax,PA,PBI,PCI,PBS,PCS,PX,PY)
+SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,KTNSMAX,PA,PBI,PCI,PBS,PCS,PX,PY)
 #endif
 
 !**** *MXPTMA*   - Multiplication of a pentadiagonal matrix by a matrix.
@@ -66,20 +66,23 @@ SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,tnsmax,PA,PBI,PCI,PBS,PCS,PX,PY)
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
 
+#if defined(_OPENACC)
+INTEGER(KIND=JPIM),INTENT(IN),VALUE    :: KLX 
+INTEGER(KIND=JPIM),INTENT(IN),VALUE    :: KVXS 
+INTEGER(KIND=JPIM),INTENT(IN),VALUE    :: KIX 
+INTEGER(KIND=JPIM),INTENT(IN),VALUE    :: KVX
+INTEGER(KIND=JPIM),INTENT(IN),VALUE    :: KTNSMAX
+#else
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLX 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVXS 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIX 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVX
-#if defined(_OPENACC)
-integer(kind=jpim),intent(in),value :: tnsmax
-#else
-integer(kind=jpim),intent(in) :: tnsmax
+INTEGER(KIND=JPIM),INTENT(IN)    :: KTNSMAX
 #endif 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PBI(KLX) 
@@ -87,80 +90,76 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PCI(KLX)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PBS(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PCS(KLX)
 #if defined(_OPENACC)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(tnsmax+1,kvxs,KIX) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(tnsmax+1,kvxs,KIX) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KTNSMAX+1,KVXS,KIX) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KTNSMAX+1,KVXS,KIX) 
 #else 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(tnsmax+1,KVXS,KIX) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(tnsmax+1,KVXS,KIX) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(KTNSMAX+1,KVXS,KIX) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(KTNSMAX+1,KVXS,KIX) 
 #endif
 
 !     ------------------------------------------------------------------
 
 INTEGER(KIND=JPIM) :: JI, JL, JV
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
-!     ------------------------------------------------------------------
-!!IF (LHOOK) CALL DR_HOOK('MXPTMA',0,ZHOOK_HANDLE)
-!     ------------------------------------------------------------------
 
 !*       1.    COMPUTATION OF PY.
 !              ------------------
 
 IF (KLX >= 4) THEN
-  do jv=1,kvx
+  DO JV=1,KVX
     DO JI=1,KIX
-      PY(1,jv,JI) = PA (1)*PX(1,jv,JI)+PBS(1)*PX(2,jv,JI)+PCS(1)*PX(3,jv,JI)
-      PY(2,jv,JI) = PBI(1)*PX(1,jv,JI)&
-       & +PA (2)*PX(2,jv,JI)&
-       & +PBS(2)*PX(3,jv,JI)&
-       & +PCS(2)*PX(4,jv,JI)  
+      PY(1,JV,JI) = PA (1)*PX(1,JV,JI)+PBS(1)*PX(2,JV,JI)+PCS(1)*PX(3,JV,JI)
+      PY(2,JV,JI) = PBI(1)*PX(1,JV,JI)&
+       & +PA (2)*PX(2,JV,JI)&
+       & +PBS(2)*PX(3,JV,JI)&
+       & +PCS(2)*PX(4,JV,JI)  
     ENDDO
   ENDDO
-  !$acc loop vector 
-  do jl=3,klx-2 
+  !$ACC LOOP VECTOR 
+  DO JL=3,KLX-2 
     DO JI=1,KIX
-      DO JV=1,kvx
-        PY(JL,jv,JI) = PCI(JL-2)*PX(JL-2,jv,JI)&
-         & +PBI(JL-1)*PX(JL-1,jv,JI)&
-         & +PA (JL  )*PX(JL,jv  ,JI)&
-         & +PBS(JL  )*PX(JL+1,jv,JI)&
-         & +PCS(JL  )*PX(JL+2,jv,JI)  
+      DO JV=1,KVX
+        PY(JL,JV,JI) = PCI(JL-2)*PX(JL-2,JV,JI)&
+         & +PBI(JL-1)*PX(JL-1,JV,JI)&
+         & +PA (JL  )*PX(JL,JV  ,JI)&
+         & +PBS(JL  )*PX(JL+1,JV,JI)&
+         & +PCS(JL  )*PX(JL+2,JV,JI)  
       ENDDO
     ENDDO
   ENDDO
-  do jv=1,kvx
+  DO JV=1,KVX
     DO JI=1,KIX
-      PY(KLX-1,jv,JI) = PCI(KLX-3)*PX(KLX-3,jv,JI)&
-       & +PBI(KLX-2)*PX(KLX-2,jv,JI)&
-       & +PA (KLX-1)*PX(KLX-1,jv,JI)&
-       & +PBS(KLX-1)*PX(KLX,jv  ,JI)  
-      PY(KLX,jv,JI) = PCI(KLX-2)*PX(KLX-2,jv,JI)&
-       & +PBI(KLX-1)*PX(KLX-1,jv,JI)&
-       & +PA (KLX  )*PX(KLX,jv  ,JI)  
+      PY(KLX-1,JV,JI) = PCI(KLX-3)*PX(KLX-3,JV,JI)&
+       & +PBI(KLX-2)*PX(KLX-2,JV,JI)&
+       & +PA (KLX-1)*PX(KLX-1,JV,JI)&
+       & +PBS(KLX-1)*PX(KLX,JV  ,JI)  
+      PY(KLX,JV,JI) = PCI(KLX-2)*PX(KLX-2,JV,JI)&
+       & +PBI(KLX-1)*PX(KLX-1,JV,JI)&
+       & +PA (KLX  )*PX(KLX,JV  ,JI)  
     ENDDO
   ENDDO
 
 ELSEIF (KLX == 3) THEN
-  do jv=1,kvx
+  DO JV=1,KVX
     DO JI=1,KIX
-      PY(1,jv,JI) = PA (1)*PX(1,jv,JI)+PBS(1)*PX(2,jv,JI)+PCS(1)*PX(3,jv,JI)
-      PY(2,jv,JI) = PBI(1)*PX(1,jv,JI)+PA (2)*PX(2,jv,JI)+PBS(2)*PX(3,jv,JI)
-      PY(3,jv,JI) = PCI(1)*PX(1,jv,JI)+PBI(2)*PX(2,jv,JI)+PA (3)*PX(3,jv,JI)
+      PY(1,JV,JI) = PA (1)*PX(1,JV,JI)+PBS(1)*PX(2,JV,JI)+PCS(1)*PX(3,JV,JI)
+      PY(2,JV,JI) = PBI(1)*PX(1,JV,JI)+PA (2)*PX(2,JV,JI)+PBS(2)*PX(3,JV,JI)
+      PY(3,JV,JI) = PCI(1)*PX(1,JV,JI)+PBI(2)*PX(2,JV,JI)+PA (3)*PX(3,JV,JI)
     ENDDO
   ENDDO
 
 ELSEIF (KLX == 2) THEN
-  do jv=1,kvx
+  DO JV=1,KVX
     DO JI=1,KIX
-      PY(1,jv,JI) = PA (1)*PX(1,jv,JI)+PBS(1)*PX(2,jv,JI)
-      PY(2,jv,JI) = PBI(1)*PX(1,jv,JI)+PA (2)*PX(2,jv,JI)
+      PY(1,JV,JI) = PA (1)*PX(1,JV,JI)+PBS(1)*PX(2,JV,JI)
+      PY(2,JV,JI) = PBI(1)*PX(1,JV,JI)+PA (2)*PX(2,JV,JI)
     ENDDO
   ENDDO
 
 ELSEIF (KLX == 1) THEN
-  do jv=1,kvx
+  DO JV=1,KVX
     DO JI=1,KIX
-      PY(1,jv,JI) = PA (1)*PX(1,jv,JI)
+      PY(1,JV,JI) = PA (1)*PX(1,JV,JI)
     ENDDO
   ENDDO
 
@@ -168,6 +167,5 @@ ENDIF
 
 !     ------------------------------------------------------------------
 
-!!IF (LHOOK) CALL DR_HOOK('MXPTMA',1,ZHOOK_HANDLE)
 END SUBROUTINE MXPTMA
 

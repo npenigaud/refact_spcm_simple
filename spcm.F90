@@ -12,10 +12,10 @@ USE MPL_BARRIER_MOD    , ONLY : MPL_BARRIER
 USE UTIL_MODEL_MOD
 USE UTIL_GEOMETRY_MOD
 USE UTIL_YOMMP0_MOD, ONLY : LOAD_YOMMP0
-use yommp0, only          : mysetv,mysetn,mysetw
+USE YOMMP0, ONLY          : MYSETV,MYSETN,MYSETW 
 
 #if defined(_OPENACC)
-use cublas
+USE CUBLAS
 #endif
 
 IMPLICIT NONE
@@ -58,8 +58,8 @@ INTEGER :: IPRINTLEV
 CHARACTER (LEN=64) :: CLFILE, CLPROC, CLCASE
 LOGICAL :: LLVERBOSE, LLWRITEGRIB1, LLWRITETEXT1, LLWRITEGRIB2, LLWRITETEXT2, LLSTATGP, LLSTATSP
 
-REAL(KIND=JPHOOK)  :: zhook_handle,zhook_handle2
-integer            :: repetition,repetition2
+REAL(KIND=JPHOOK)  :: ZHOOK_HANDLE, ZHOOK_HANDLE2
+INTEGER            :: JCNTREP,JCNTREP2
 #define repetitif 1
 call flush(0)
 
@@ -94,7 +94,7 @@ ILUN = 77
 CALL SETUP
 
 #if defined(_OPENACC)
-call initialisegpu(myproc-1)
+CALL INITIALISEGPU(MYPROC-1)
 #endif
 
 WRITE (CLPROC, '(I4.4)') MYPROC
@@ -128,12 +128,12 @@ READ (ILUN) PSPT
 READ (ILUN) PSPSPD
 READ (ILUN) PSPSVD
 
-pspsp2(:)=pspsp(:)
-pspvor2(:,:)=pspvor(:,:)
-pspdiv2(:,:)=pspdiv(:,:)
-pspt2(:,:)=pspt(:,:)
-pspspd2(:,:)=pspspd(:,:)
-pspsvd2(:,:)=pspsvd(:,:)
+PSPSP2(:)=PSPSP(:)
+PSPVOR2(:,:)=PSPVOR(:,:)
+PSPDIV2(:,:)=PSPDIV(:,:)
+PSPT2(:,:)=PSPT(:,:)
+PSPSPD2(:,:)=PSPSPD(:,:)
+PSPSVD2(:,:)=PSPSVD(:,:)
 
 CLOSE (ILUN)
 
@@ -141,15 +141,15 @@ IF (LLWRITETEXT1) CALL WRTEXT (PSPT, 'PSPT-1')
 IF (LLWRITEGRIB1) CALL WRGRIB (PSPT, 'PSPT-1')
 
 #if defined(_OPENACC)
-!!dummy operations to ensure card is initialised
+!!dummy operations 
   call copy(ydmodel)
   call copy(ydgeometry)
   associate(simi=>ydmodel%yrml_dyn%yrdyn%simi,nflevg=>ydgeometry%yrdimv%nflevg)
-  !$acc data copy(pspdiv2)
-  do repetition=1,3
-    !$acc host_data use_device(simi,pspdiv2)
+  !$acc data copy(PSPDIV2)
+  do JCNTREP=1,3
+    !$acc host_data use_device(simi,PSPDIV2)
     call cublasDgemm('N','N',nflevg,nflevg,nflevg,1.0_JPRB,&
-        &SIMI,nflevg,simi,nflevg,0.0_JPRB,pspdiv2(1,1),nflevg)
+        &SIMI,nflevg,simi,nflevg,0.0_JPRB,PSPDIV2(1,1),nflevg)
     !$acc end host_data
   enddo
   !$acc end data
@@ -157,49 +157,49 @@ IF (LLWRITEGRIB1) CALL WRGRIB (PSPT, 'PSPT-1')
   call wipe(ydgeometry)
   call wipe(ydmodel)
 
-pspsp2(:)=pspsp(:)
-pspvor2(:,:)=pspvor(:,:)
-pspdiv2(:,:)=pspdiv(:,:)
-pspt2(:,:)=pspt(:,:)
-pspspd2(:,:)=pspspd(:,:)
-pspsvd2(:,:)=pspsvd(:,:)
+PSPSP2(:)=PSPSP(:)
+PSPVOR2(:,:)=PSPVOR(:,:)
+PSPDIV2(:,:)=PSPDIV(:,:)
+PSPT2(:,:)=PSPT(:,:)
+PSPSPD2(:,:)=PSPSPD(:,:)
+PSPSVD2(:,:)=PSPSVD(:,:)
 #endif
 
-if (lhook) call dr_hook('SPCM',0,zhook_handle)
+IF (LHOOK) CALL DR_HOOK('SPCM',0,zhook_handle)
 
 #if defined(_OPENACC)
-if (lhook) call dr_hook('SPCM_transferts1',0,zhook_handle2)
-call copy(YDMODEL)
-call copy(YDGEOMETRY)
-if (lhook) call dr_hook('SPCM_transferts1',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCM_transferts1',0,ZHOOK_HANDLE2)
+CALL COPY(YDMODEL)
+CALL COPY(YDGEOMETRY)
+IF (LHOOK) CALL DR_HOOK('SPCM_transferts1',1,ZHOOK_HANDLE2)
 #endif
 
 #if repetitif
-do repetition2=1,20
-if (lhook) call dr_hook('SPCM_repetitif',0,zhook_handle2)
-pspsp(:)=pspsp2(:)
-pspvor(:,:)=pspvor2(:,:)
-pspdiv(:,:)=pspdiv2(:,:)
-pspt(:,:)=pspt2(:,:)
-pspspd(:,:)=pspspd2(:,:)
-pspsvd(:,:)=pspsvd2(:,:)
-if (lhook) call dr_hook('SPCM_repetitif',1,zhook_handle2)
+do JCNTREP2=1,20
+IF (LHOOK) CALL DR_HOOK('SPCM_repetitif',0,ZHOOK_HANDLE2)
+PSPSP(:)=PSPSP2(:)
+PSPVOR(:,:)=PSPVOR2(:,:)
+PSPDIV(:,:)=PSPDIV2(:,:)
+PSPT(:,:)=PSPT2(:,:)
+PSPSPD(:,:)=PSPSPD2(:,:)
+PSPSVD(:,:)=PSPSVD2(:,:)
+IF (LHOOK) CALL DR_HOOK('SPCM_repetitif',1,ZHOOK_HANDLE2)
 #endif
 
 CALL SPCM_SIMPLE (YDGEOMETRY,YDMODEL,PSPSP,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD)
 
 #if repetitif
-enddo !repetition2
+enddo !JCNTREP2
 #endif
 
 #if defined(_OPENACC)
-if (lhook) call dr_hook('SPCM_transferts2',0,zhook_handle2)
-call wipe(YDGEOMETRY)
-call wipe(YDMODEL)
-if (lhook) call dr_hook('SPCM_transferts2',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SPCM_transferts2',0,ZHOOK_HANDLE2)
+CALL WIPE(YDGEOMETRY)
+CALL WIPE(YDMODEL)
+IF (LHOOK) CALL DR_HOOK('SPCM_transferts2',1,ZHOOK_HANDLE2)
 #endif
 
-if (lhook) call dr_hook('SPCM',1,zhook_handle)
+IF (LHOOK) CALL DR_HOOK('SPCM',1,ZHOOK_HANDLE)
 
 ILUN = 77
 
@@ -273,13 +273,13 @@ CALL MPL_END ()
 CONTAINS
 
 #if defined(_OPENACC)
-subroutine initialisegpu(rang)
-!!use mpl_module
-!!use mpi
-use openacc
-implicit none
-integer, intent(in) :: rang
-integer :: dev,namelength,ierr
+SUBROUTINE INITIALISEGPU(KRANK)
+USE OPENACC
+IMPLICIT NONE
+INTEGER, INTENT(IN)                   :: KRANK
+INTEGER                               :: IDEV
+
+!!integer           :: namelength,ierr
 !!character (len=MPL_MAX_PROCESSOR_NAME), allocatable :: hosts(:)
 !!character (len=MPI_MAX_PROCESSOR_NAME)              :: hostname
 
@@ -288,14 +288,13 @@ integer :: dev,namelength,ierr
 !!print *,"nom :",hostname
 !!print *,"statut ope:",ierr
 
-dev=mod(rang,4)
-!!dev=mod(rang,1) !!essai sur 2 et 1 cartes
-call acc_set_device_num(dev,ACC_DEVICE_NVIDIA)
-call acc_init(ACC_DEVICE_NVIDIA)
-!$acc update device(mysetv)
-print *,"rang ",rang," utilise la carte ",dev
+IDEV=MOD(KRANK,4)
 
-end subroutine initialisegpu
+CALL ACC_SET_DEVICE_NUM(IDEV,ACC_DEVICE_NVIDIA)
+CALL ACC_INIT(ACC_DEVICE_NVIDIA)
+PRINT *,"rank ",KRANK," uses device number ",IDEV
+
+END SUBROUTINE INITIALISEGPU
 #endif
 
 SUBROUTINE STATSP (CDNAME, PSPL1, PSPL2)

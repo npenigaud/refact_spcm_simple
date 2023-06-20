@@ -1,9 +1,8 @@
 #if defined(_OPENACC)
 SUBROUTINE SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, PSDIVP,PSPDIVP,&
-  &zsdivpl,zspdivpl,param_mxture, kmlocsta, kmlocend)
-
+  &ZSDIVPL,ZSPDIVPL,param_mxture, KMLOCSTA, KMLOCEND)
 #else
-SUBROUTINE SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, PSDIVP, PSPDIVP ,kmlocsta, kmlocend)
+SUBROUTINE SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, PSDIVP, PSPDIVP ,KMLOCSTA, KMLOCEND)
 #endif
 USE GEOMETRY_MOD , ONLY : GEOMETRY
 USE PARKIND1     , ONLY : JPIM, JPRB
@@ -21,18 +20,17 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOCSTA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KMLOCEND
 
 
-REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
-REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
-INTEGER(KIND=JPIM)               :: taillec
-INTEGER(KIND=JPIM), PARAMETER    :: tbloc=62
-INTEGER(KIND=JPIM), PARAMETER     :: bloclev=8
+INTEGER(KIND=JPIM), PARAMETER    :: ITBLOC=62
+INTEGER(KIND=JPIM), PARAMETER     :: IBLOCLEV=8
 REAL(KIND=JPRB),   INTENT(IN)    :: param_mxture(:,:,:)
-REAL(KIND=JPRB) :: pas(tbloc+3,bloclev)
-REAL(KIND=JPRB) :: pbs(tbloc+3,bloclev)
-REAL(KIND=JPRB) :: pcs(tbloc+3,bloclev)
-REAL(KIND=JPRB) :: entree(tbloc+3,bloclev,2)
-REAL(KIND=JPRB) :: sortie(tbloc+3,bloclev,2)
+REAL(KIND=JPRB) :: PAS(ITBLOC+3,IBLOCLEV)
+REAL(KIND=JPRB) :: PBS(ITBLOC+3,IBLOCLEV)
+REAL(KIND=JPRB) :: PCS(ITBLOC+3,IBLOCLEV)
+REAL(KIND=JPRB) :: PINS(ITBLOC+3,IBLOCLEV,2)
+REAL(KIND=JPRB) :: POUTS(ITBLOC+3,IBLOCLEV,2)
 REAL(KIND=JPRB),INTENT(INOUT)    :: ZSDIVPL (1:YDGEOMETRY%YRDIM%NSMAX+1,2,YDGEOMETRY%YRDIMV%NFLEVG,500)
 REAL(KIND=JPRB),INTENT(INOUT)    :: ZSPDIVPL(1:YDGEOMETRY%YRDIM%NSMAX+1,2,YDGEOMETRY%YRDIMV%NFLEVG,500)
 
@@ -41,8 +39,8 @@ REAL(KIND=JPRB) :: ZSDIVPL  (YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIM%NSMAX+1,2
 REAL(KIND=JPRB) :: ZSPDIVPL (YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIM%NSMAX+1,2)
 #endif
 
-INTEGER(KIND=JPIM) :: II, IS0, IS02, ISE, JN,compteur,jmloc,ji,decalage1,klx
-INTEGER(KIND=JPIM) :: IM, ISTA, IEND,jl,jlb,decalage,reste,compteurc,compteurb
+INTEGER(KIND=JPIM) :: II, IS0, IS02, ISE, JN,JCNTV,JMLOC,JI,IOFFSET1,KLX
+INTEGER(KIND=JPIM) :: IM, ISTA, IEND,JL,JLB,IOFFSET2,IREM,JCNTVC,JCNTVB
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
@@ -57,105 +55,106 @@ ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,YDLAP=>YDGEOMETRY%YR
 ASSOCIATE(NSMAX=>YDDIM%NSMAX,NFLEVG=>YDDIMV%NFLEVG,SIHEG=>YDDYN%SIHEG,SIHEG2=>YDDYN%SIHEG2,NSPSTAF=>YDMP%NSPSTAF)
 
 !             Inversion of two tridiagonal systems (Helmholtz equation)
-!                --> (SIMI*DIVprim(t+dt)).
-!$acc data present(psdivp,pspdivp,nsmax,nflevg) create(pas,pbs,pcs,entree,sortie)
-!$acc data present(YDLAP,YDLAP%MYMS,NSPSTAF,SIHEG,siheg2,param_mxture) create(zsdivpl,zspdivpl)
+!                --> (SIMI*DIVprIM(t+dt)).
+
+!$ACC DATA PRESENT(PSDIVP,PSPDIVP,NSMAX,NFLEVG) CREATE(PAS,PBS,PBS,PINS,POUTS)
+!$ACC DATA PRESENT(YDLAP,YDLAP%MYMS,NSPSTAF,SIHEG,SIHEG2,param_mxture,ZSDIVPL,ZSPDIVPL)
 
 #if defined(_OPENACC)
 
-!$acc parallel private(ii,im,ista,klx,pas,pbs,pcs,entree,sortie,jlb,decalage,reste,tbloc,compteur,decalage1) default(none)
-!$acc cache(pas(1:tbloc+3,1:bloclev),pbs(1:tbloc+3,1:bloclev),pcs(1:tbloc+3,1:bloclev),entree(1:tbloc+3,1:bloclev,1:2),sortie(1:tbloc+3,1:bloclev,1:2))
-!$acc loop gang collapse(2) 
-do jmloc=kmlocsta,kmlocend
-  do compteurb=1,(nflevg-1)/bloclev+1
+!$ACC PARALLEL PRIVATE(II,IM,ISTA,KLX,PAS,PBS,PCS,PINS,POUTS,JLB,IOFFSET2,IREM,ITBLOC,JCNTV,IOFFSET1) DEFAULT(NONE)
+!$ACC CACHE(PAS(1:ITBLOC+3,1:IBLOCLEV),PBS(1:ITBLOC+3,1:IBLOCLEV),PCS(1:ITBLOC+3,1:IBLOCLEV),PINS(1:ITBLOC+3,1:IBLOCLEV,1:2),POUTS(1:ITBLOC+3,1:IBLOCLEV,1:2))
+!$ACC LOOP GANG COLLAPSE(2) 
+do JMLOC=KMLOCSTA,KMLOCEND
+  do JCNTVB=1,(NFLEVG-1)/IBLOCLEV+1
 
-      IM=YDLAP%MYMS(jmloc)
+      IM=YDLAP%MYMS(JMLOC)
       ISTA=NSPSTAF(IM)
-      klx=nsmax+1-im
-      II=min(IM,1)+1
-      !!zsdivpl(:,:,(compteurb-1)*bloclev+1:min(nflevg,compteurb*bloclev),jmloc)=0.0_JPRB
-      !!zspdivpl(:,:,(compteurb-1)*bloclev+1:min(nflevg,compteurb*bloclev),jmloc)=0.0_JPRB
+      KLX=NSMAX+1-IM
+      II=MIN(IM,1)+1
+      !!zsdivpl(:,:,(JCNTVB-1)*IBLOCLEV+1:MIN(NFLEVG,JCNTVB*IBLOCLEV),JMLOC)=0.0_JPRB
+      !!zspdivpl(:,:,(JCNTVB-1)*IBLOCLEV+1:MIN(NFLEVG,JCNTVB*IBLOCLEV),JMLOC)=0.0_JPRB
      
-      !$acc loop vector private(ise,compteurc,compteur,ji)      
+      !$ACC LOOP VECTOR PRIVATE(ISE,JCNTVC,JCNTV,JI)      
       DO JN=IM,NSMAX
         ISE=ISTA+2*(JN-IM)
-        do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-          compteur=compteurc+(compteurb-1)*bloclev
-          do ji=1,2
-            ZSDIVPL(JN-im+1,ji,compteur,jmloc)=PSDIVP(ISE+ji-1,compteur)
-          enddo
-        enddo
+        DO JCNTVC=1,MIN(IBLOCLEV,NFLEVG-(JCNTVB-1)*IBLOCLEV)
+          JCNTV=JCNTVC+(JCNTVB-1)*IBLOCLEV
+          DO JI=1,2
+            ZSDIVPL(JN-IM+1,JI,JCNTV,JMLOC)=PSDIVP(ISE+JI-1,JCNTV)
+          ENDDO
+        ENDDO
       ENDDO 
 
-      compteur=(compteurb-1)*bloclev
-      decalage1=compteur*(nsmax+1-im)
+      JCNTV=(JCNTVB-1)*IBLOCLEV
+      IOFFSET1=JCNTV*(NSMAX+1-IM)
      
       IF (IM > 0) THEN
 
         !               Inversion of a symmetric matrix.
 
-        CALL MXTURS(NSMAX+1-IM,min(bloclev,nflevg-compteur),bloclev,II,2,NSMAX,&
-          & param_mxture(decalage1+1,jmloc,1),param_mxture(decalage1+1,jmloc,2),&
-          & param_mxture(decalage1+1,jmloc,3),&
-          & ZSDIVPL(1,1,1+compteur,jmloc),ZSPDIVPL(1,1,1+compteur,jmloc),&
-          & tbloc,pas,pbs,pcs,entree,sortie)    
+        CALL MXTURS(NSMAX+1-IM,MIN(IBLOCLEV,NFLEVG-JCNTV),IBLOCLEV,II,2,NSMAX,&
+          & param_mxture(IOFFSET1+1,JMLOC,1),param_mxture(IOFFSET1+1,JMLOC,2),&
+          & param_mxture(IOFFSET1+1,JMLOC,3),&
+          & ZSDIVPL(1,1,1+JCNTV,JMLOC),ZSPDIVPL(1,1,1+JCNTV,JMLOC),&
+          & ITBLOC,PAS,PBS,PCS,PINS,POUTS)    
 
      ELSE
-      do ji=1,2
+      DO JI=1,2
         !               Inversion of a non-symmetric matrix.
-        if (ji==1) then
+        IF (JI==1) THEN
 
-          CALL MXTURE(NSMAX+1-IM,min(bloclev,nflevg-compteur),bloclev,II,2,NSMAX,-2,.TRUE.,&
-            & param_mxture(decalage1+1,jmloc,1),param_mxture(decalage1+1,jmloc,2),&
-            & param_mxture(decalage1+1,jmloc,3),&
-            & ZSDIVPL(1,1,1+compteur,jmloc),ZSPDIVPL(1,1,1+compteur,jmloc),&
-            & tbloc,pas,pbs,pcs,entree,sortie)
+          CALL MXTURE(NSMAX+1-IM,MIN(IBLOCLEV,NFLEVG-JCNTV),IBLOCLEV,II,2,NSMAX,-2,.TRUE.,&
+            & param_mxture(IOFFSET1+1,JMLOC,1),param_mxture(IOFFSET1+1,JMLOC,2),&
+            & param_mxture(IOFFSET1+1,JMLOC,3),&
+            & ZSDIVPL(1,1,1+JCNTV,JMLOC),ZSPDIVPL(1,1,1+JCNTV,JMLOC),&
+            & ITBLOC,PAS,PBS,PCS,PINS,POUTS)
 
-          CALL MXTURE(NSMAX+1-IM,min(bloclev,nflevg-compteur),bloclev,II,2,NSMAX,3,.FALSE.,&
-            & param_mxture(decalage1+1,jmloc,1),param_mxture(decalage1+1,jmloc,4),&
-            & param_mxture(decalage1+1,jmloc,5),&
-            & ZSDIVPL(1,1,1+compteur,jmloc),ZSPDIVPL(1,1,1+compteur,jmloc),&
-            & tbloc,pas,pbs,pcs,entree,sortie) 
+          CALL MXTURE(NSMAX+1-IM,MIN(IBLOCLEV,NFLEVG-JCNTV),IBLOCLEV,II,2,NSMAX,3,.FALSE.,&
+            & param_mxture(IOFFSET1+1,JMLOC,1),param_mxture(IOFFSET1+1,JMLOC,4),&
+            & param_mxture(IOFFSET1+1,JMLOC,5),&
+            & ZSDIVPL(1,1,1+JCNTV,JMLOC),ZSPDIVPL(1,1,1+JCNTV,JMLOC),&
+            & ITBLOC,PAS,PBS,PCS,PINS,POUTS) 
 
-        else
-          !$acc loop vector private(compteur,compteurc)
-          do jn=1,nsmax+1-im
-            do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)
-              compteur=compteurc+(compteurb-1)*bloclev
-              zspdivpl(jn,ji,compteur,jmloc)=0.0_JPRB !!zsdivpl(jn,ji,compteur,jmloc)
-            enddo
-          enddo
-        endif
-       enddo !!ji im 0
+        ELSE
+          !$ACC LOOP VECTOR PRIVATE(JCNTV,JCNTVC)
+          DO JN=1,NSMAX+1-IM
+            DO JCNTVC=1,MIN(IBLOCLEV,NFLEVG-(JCNTVB-1)*IBLOCLEV)
+              JCNTV=JCNTVC+(JCNTVB-1)*IBLOCLEV
+              ZSPDIVPL(JN,JI,JCNTV,JMLOC)=0.0_JPRB !!zsdivpl(jn,JI,JCNTV,JMLOC)
+            ENDDO
+          ENDDO
+        ENDIF
+       ENDDO !!JI IM 0
       ENDIF
 
-      !$acc loop vector private(ise,compteurc,compteur,ji) 
+      !$ACC LOOP VECTOR PRIVATE(ise,JCNTVC,JCNTV,JI) 
       DO JN=IM,NSMAX
         ISE=ISTA+2*(JN-IM)
-        do compteurc=1,min(bloclev,nflevg-(compteurb-1)*bloclev)          
-          compteur=compteurc+(compteurb-1)*bloclev
-          do ji=1,2
-            PSPDIVP(ISE+ji-1,compteur)=ZSPDIVPL(JN-im+1,ji,compteur,jmloc)
-          enddo
-        enddo
-      enddo
-  enddo  !!compteur
-ENDDO    !!jmloc
-!$acc end parallel
+        DO JCNTVC=1,MIN(IBLOCLEV,NFLEVG-(JCNTVB-1)*IBLOCLEV)          
+          JCNTV=JCNTVC+(JCNTVB-1)*IBLOCLEV
+          DO JI=1,2
+            PSPDIVP(ISE+JI-1,JCNTV)=ZSPDIVPL(JN-IM+1,JI,JCNTV,JMLOC)
+          ENDDO
+        ENDDO
+      ENDDO
+  ENDDO  !!JCNTV
+ENDDO    !!JMLOC
+!$ACC END PARALLEL
 
-!$acc end data
-!$acc end data
+!$ACC END DATA
+!$ACC END DATA
 
 #else
 
-!$omp parallel do private(jmloc,im,ista,iend,is0,is02,ii,jn,ise,zsdivpl,zspdivpl)
-do jmloc=kmlocsta,kmlocend
+!$OMP PARALLEL DO PRIVATE(JMLOC,IM,ISTA,IEND,IS0,IS02,II,JN,ISE,ZSDIVPLl,ZSPDIVPL)
+do JMLOC=KMLOCSTA,KMLOCEND
 
-IM=YDLAP%MYMS(jmloc)
+IM=YDLAP%MYMS(JMLOC)
 ISTA=NSPSTAF(IM)
 IEND=ISTA+2*(NSMAX+1-IM)-1
 
-IS0=YDLAP%NSE0L(jmloc)
+IS0=YDLAP%NSE0L(JMLOC)
 IS02=0
 II=MIN(IM,1)+1
 ZSDIVPL(:,:,:)=0.0_JPRB
@@ -163,44 +162,39 @@ ZSPDIVPL(:,:,:)=0.0_JPRB
 
 DO JN=IM,NSMAX
     ISE=ISTA+2*(JN-IM)
-    ZSDIVPL(:,JN-im+1,1)=PSDIVP(ISE,:)
-    ZSDIVPL(:,JN-im+1,2)=PSDIVP(ISE+1,:)
+    ZSDIVPL(:,JN-IM+1,1)=PSDIVP(ISE,:)
+    ZSDIVPL(:,JN-IM+1,2)=PSDIVP(ISE+1,:)
 ENDDO
 
 IF (IM > 0) THEN
 
   !               Inversion of a symmetric matrix.
-  CALL MXTURS(NSMAX+1-IM,NFLEVG,NFLEVG,II,nsmax,&
+  CALL MXTURS(NSMAX+1-IM,NFLEVG,NFLEVG,II,NSMAX,&
    & SIHEG(1,IS0+1,1),SIHEG(1,IS0+1,2),SIHEG(1,IS0+1,3),&
    & ZSDIVPL,ZSPDIVPL)  
 ELSE
 
   !               Inversion of a non-symmetric matrix.
-  CALL MXTURE(NSMAX+1-IM,NFLEVG,NFLEVG,II,nsmax,-2,.TRUE.,&
+  CALL MXTURE(NSMAX+1-IM,NFLEVG,NFLEVG,II,NSMAX,-2,.TRUE.,&
    & SIHEG(1,IS0+1,1),SIHEG(1,IS0+1,2),SIHEG(1,IS0+1,3),&
    & ZSDIVPL,ZSPDIVPL)  
-  CALL MXTURE(NSMAX+1-IM,NFLEVG,NFLEVG,II,nsmax,3,.FALSE.,&
+  CALL MXTURE(NSMAX+1-IM,NFLEVG,NFLEVG,II,NSMAX,3,.FALSE.,&
    & SIHEG(1,IS0+1,1),SIHEG2(1,IS02+1,2),&
    & SIHEG2(1,IS02+1,3),ZSDIVPL,ZSPDIVPL)
 ENDIF
 
 DO JN=IM,NSMAX
-!!  do compteur=1,nflevg
+!!  do JCNTV=1,NFLEVG
     ISE=ISTA+2*(JN-IM)
-    PSPDIVP(ISE,:)=ZSPDIVPL(:,JN-im+1,1)
-    PSPDIVP(ISE+1,:)=ZSPDIVPL(:,JN-im+1,2)
+    PSPDIVP(ISE,:)=ZSPDIVPL(:,JN-IM+1,1)
+    PSPDIVP(ISE+1,:)=ZSPDIVPL(:,JN-IM+1,2)
 !!  enddo
 ENDDO
 
-enddo !!jmloc
-!$omp end parallel do
+ENDDO !!JMLOC
+!$OMP END PARALLEL DO
 
 #endif
-
-!!$acc update host(pspdivp)
-!write (0,*) __FILE__,';',__LINE__
-!write (0,*), pspdivp(:,:)
-!call flush(0)
 
 END ASSOCIATE
 END ASSOCIATE

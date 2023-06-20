@@ -40,10 +40,10 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_VORG(KSPEC2V,YDGEOMETRY%YRDIMV%NFLE
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_DIVG(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSPTNDSI_TG(KSPEC2V,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
-real(kind=jprb)   ,intent(in) :: param_mxture(:,:,:)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: param_mxture(:,:,:)
 #else
-real(kind=jprb)   ,intent(in)    :: simit(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
-real(kind=jprb)   ,intent(in)    :: simot(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: SIMIT(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: SIMOT(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
 #endif
 END SUBROUTINE SPCSI_STR
 

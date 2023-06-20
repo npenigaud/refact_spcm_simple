@@ -4,7 +4,7 @@ USE TYPE_MODEL         , ONLY : MODEL
 USE GEOMETRY_MOD       , ONLY : GEOMETRY
 USE PARKIND1           , ONLY : JPIM, JPRB
 USE YOMHOOK            , ONLY : LHOOK, DR_HOOK, JPHOOK
-use YOMMP0             , only : MYSETN
+use YOMMP0             , ONLY : MYSETN
 
 !     ------------------------------------------------------------------
 
@@ -57,13 +57,13 @@ REAL(KIND=JPRB), ALLOCATABLE :: PSPSPD2(:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: PSPSVD2(:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: PSPSP2 (:)
 
-LOGICAL :: LLONEM, LDTRANSPOSE
+LOGICAL :: LLONEM, LLTRANSPOSE
 
 INTEGER(KIND=JPIM) :: IM, ISPEC2V
 INTEGER (KIND=JPIM) :: JMLOC, ISTA, IEND
 
-REAL(KIND=JPHOOK) ::  ZHOOK_HANDLE,zhook_handle2,zhook_handle3
-INTEGER(KIND=JPIM)::  icnt1,icnt2,is0,is02,taille
+REAL(KIND=JPHOOK) ::  ZHOOK_HANDLE,ZHOOK_HANDLE2,ZHOOK_HANDLE3
+INTEGER(KIND=JPIM)::  JCNT1,JCNT2,is0,is02,taille
 
 IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE',0,ZHOOK_HANDLE)
 
@@ -72,14 +72,14 @@ ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,  YDMP=>YDGEOMETRY%Y
 &  YDLAP=>YDGEOMETRY%YRLAP)
 
 ASSOCIATE(NFLEVG=>YDDIMV%NFLEVG, NSPEC2V=>YDMP%NSPEC2V, NSPEC2VF=>YDMP%NSPEC2VF, LIMPF=>YDDYN%LIMPF, &
-& NFLSUR=>YDDIMV%NFLSUR, NSPEC2=>YDDIM%NSPEC2, NUMP=>YDDIM%NUMP, NSMAX=>YDDIM%NSMAX,nflevl=>yddimv%nflevl, &
-& simi=>YDDYN%SIMI,simo=>YDDYN%SIMO,siheg=>yddyn%siheg,siheg2=>yddyn%siheg2, &
-& nptrmf=>ydmp%nptrmf,LSIDG=>YDDYN%LSIDG)
+& NFLSUR=>YDDIMV%NFLSUR, NSPEC2=>YDDIM%NSPEC2, NUMP=>YDDIM%NUMP, NSMAX=>YDDIM%NSMAX,NFLEVL=>YDDIMV%NFLEVL, &
+& SIMI=>YDDYN%SIMI,SIMO=>YDDYN%SIMO,SIHEG=>YDDYN%SIHEG,SIHEG2=>YDDYN%SIHEG2, &
+& NPTRMF=>YDMP%NPTRMF,LSIDG=>YDDYN%LSIDG)
 
 #if defined(_OPENACC)
-LDTRANSPOSE=.FALSE.
+LLTRANSPOSE=.FALSE.
 #else
-LDTRANSPOSE=.TRUE.
+LLTRANSPOSE=.TRUE.
 #endif
 
 #if defined(_OPENACC)
@@ -104,52 +104,54 @@ if (LSIDG) then
   param_mxture(:,:,:)=0.0_JPRB
 
   !!charge et transp données sur carte
+  !$acc parallel private(JCNT2)
   do jmloc=nptrmf(mysetn),nptrmf(mysetn+1)-1
     im=ydlap%myms(jmloc)  
     is0=ydlap%nse0l(jmloc)
     is02=0
     if (.true.) then
-      !$acc parallel loop private(icnt2)
-      do icnt1=is0+1,is0+nsmax+1-im
-        do icnt2=1,nflevg
-          param_mxture(icnt1-is0-1+1+(nsmax+1-im)*(icnt2-1),jmloc,1)=siheg(icnt2,icnt1,1) 
-          param_mxture(icnt1-is0-1+1+(nsmax+1-im)*(icnt2-1),jmloc,2)=siheg(icnt2,icnt1,2) 
-          param_mxture(icnt1-is0-1+1+(nsmax+1-im)*(icnt2-1),jmloc,3)=siheg(icnt2,icnt1,3) 
+      !$acc loop private(JCNT2)
+      do JCNT1=is0+1,is0+nsmax+1-im
+        do JCNT2=1,nflevg
+          param_mxture(JCNT1-is0-1+1+(nsmax+1-im)*(JCNT2-1),jmloc,1)=siheg(JCNT2,JCNT1,1) 
+          param_mxture(JCNT1-is0-1+1+(nsmax+1-im)*(JCNT2-1),jmloc,2)=siheg(JCNT2,JCNT1,2) 
+          param_mxture(JCNT1-is0-1+1+(nsmax+1-im)*(JCNT2-1),jmloc,3)=siheg(JCNT2,JCNT1,3) 
         enddo
       enddo
-      !$acc end parallel
+      
 
-      !$acc parallel loop private(icnt2)
-      do icnt1=is02+1,is02+nsmax+1-im
-        do icnt2=1,nflevg
-          param_mxture(icnt1-is02-1+1+(nsmax+1-im)*(icnt2-1),jmloc,4)=siheg2(icnt2,icnt1,2) 
-          param_mxture(icnt1-is02-1+1+(nsmax+1-im)*(icnt2-1),jmloc,5)=siheg2(icnt2,icnt1,3) 
+      !$acc loop  private(JCNT2)
+      do JCNT1=is02+1,is02+nsmax+1-im
+        do JCNT2=1,nflevg
+          param_mxture(JCNT1-is02-1+1+(nsmax+1-im)*(JCNT2-1),jmloc,4)=siheg2(JCNT2,JCNT1,2) 
+          param_mxture(JCNT1-is02-1+1+(nsmax+1-im)*(JCNT2-1),jmloc,5)=siheg2(JCNT2,JCNT1,3) 
         enddo
       enddo
-      !$acc end parallel
+   
     else
-      !$acc parallel loop private(icnt2)
-      do icnt1=is0+1,is0+nsmax+1-im
-        do icnt2=1,nflevg
-          param_mxture((icnt1-is0-1)*nflevg+1+(icnt2-1),jmloc,1)=siheg(icnt2,icnt1,1) 
-          param_mxture((icnt1-is0-1)*nflevg+1+(icnt2-1),jmloc,2)=siheg(icnt2,icnt1,2) 
-          param_mxture((icnt1-is0-1)*nflevg+1+(icnt2-1),jmloc,3)=siheg(icnt2,icnt1,3) 
+      !$acc loop private(JCNT2)
+      do JCNT1=is0+1,is0+nsmax+1-im
+        do JCNT2=1,nflevg
+          param_mxture((JCNT1-is0-1)*nflevg+1+(JCNT2-1),jmloc,1)=siheg(JCNT2,JCNT1,1) 
+          param_mxture((JCNT1-is0-1)*nflevg+1+(JCNT2-1),jmloc,2)=siheg(JCNT2,JCNT1,2) 
+          param_mxture((JCNT1-is0-1)*nflevg+1+(JCNT2-1),jmloc,3)=siheg(JCNT2,JCNT1,3) 
         enddo
       enddo
-      !$acc end parallel
+    
 
-      !$acc parallel loop private(icnt2)
-      do icnt1=is02+1,is02+nsmax+1-im
-        do icnt2=1,nflevg
-          param_mxture((icnt1-is02-1)*nflevg+1+(icnt2-1),jmloc,4)=siheg2(icnt2,icnt1,2) 
-          param_mxture((icnt1-is02-1)*nflevg+1+(icnt2-1),jmloc,5)=siheg2(icnt2,icnt1,3) 
+      !$acc loop private(JCNT2)
+      do JCNT1=is02+1,is02+nsmax+1-im
+        do JCNT2=1,nflevg
+          param_mxture((JCNT1-is02-1)*nflevg+1+(JCNT2-1),jmloc,4)=siheg2(JCNT2,JCNT1,2) 
+          param_mxture((JCNT1-is02-1)*nflevg+1+(JCNT2-1),jmloc,5)=siheg2(JCNT2,JCNT1,3) 
         enddo
       enddo
-      !$acc end parallel
+      
 
     endif !!choix du sens de transposition
 
   enddo   !!jmloc
+  !$acc end parallel
 
 else      !! non lsidg lsidg 
   allocate(param_mxture(1,1,1))
@@ -159,18 +161,18 @@ endif
 
 #else
 !!transposition de SIMIT SIMOT
-!$omp parallel do private(icnt1,icnt2)
-do icnt1=1,nflevg
-  do icnt2=1,nflevg
-    SIMIT(icnt1,icnt2)=simi(icnt2,icnt1)
+!$omp parallel do private(JCNT1,JCNT2)
+do JCNT1=1,NFLEVG
+  do JCNT2=1,NFLEVG
+    SIMIT(JCNT1,JCNT2)=SIMI(JCNT2,JCNT1)
   enddo
 enddo
 !$omp end parallel do
 
-!$omp parallel do private(icnt1,icnt2)
-do icnt1=1,nflevg
-  do icnt2=1,nflevg
-    SIMOT(icnt1,icnt2)=simo(icnt2,icnt1)
+!$omp parallel do private(JCNT1,JCNT2)
+do JCNT1=1,NFLEVG
+  do JCNT2=1,NFLEVG
+    SIMOT(JCNT1,JCNT2)=SIMO(JCNT2,JCNT1)
   enddo
 enddo
 !$omp end parallel do
@@ -191,12 +193,12 @@ ALLOCATE(ZSPSPDG2(NFLEVG,ISPEC2V))
 ALLOCATE(ZSPSVDG2(NFLEVG,ISPEC2V))
 ALLOCATE(ZSPSPG2 (ISPEC2V))
 
-ALLOCATE(PSPVOR2(nspec2,nflevl))
-ALLOCATE(PSPDIV2(nspec2,nflevl))
-ALLOCATE(PSPT2  (nspec2,nflevl))
-ALLOCATE(PSPSPD2(nspec2,nflevl))
-ALLOCATE(PSPSVD2(nspec2,nflevl))
-ALLOCATE(PSPSP2 (nspec2))
+ALLOCATE(PSPVOR2(NSPEC2,NFLEVL))
+ALLOCATE(PSPDIV2(NSPEC2,NFLEVL))
+ALLOCATE(PSPT2  (NSPEC2,NFLEVL))
+ALLOCATE(PSPSPD2(NSPEC2,NFLEVL))
+ALLOCATE(PSPSVD2(NSPEC2,NFLEVL))
+ALLOCATE(PSPSP2 (NSPEC2))
 
 ALLOCATE(ZSPVORG(ISPEC2V,nflevg))
 ALLOCATE(ZSPDIVG(ISPEC2V,nflevg))
@@ -222,7 +224,7 @@ IF (LIMPF) THEN
   ENDDO
 !$OMP END PARALLEL DO
 
-  !! LDTRANSPOSE to .false. as no data transposition implemented yet
+  !! LLTRANSPOSE to .false. as no data transposition implemented yet
   CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.FALSE.,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,PSPAUX=ZSPAUX,& 
@@ -254,30 +256,30 @@ IF (LIMPF) THEN
 ELSE
 
 #if defined(_OPENACC)
-    pspsp2(:)=pspsp(:)
-    do icnt1=1,nspec2
-      do icnt2=1,nflevl
-        pspvor2(icnt1,icnt2)=pspvor(icnt2,icnt1)
-        pspdiv2(icnt1,icnt2)=pspdiv(icnt2,icnt1)
-        pspt2(icnt1,icnt2)=pspt(icnt2,icnt1)
-        pspspd2(icnt1,icnt2)=pspspd(icnt2,icnt1)
-        pspsvd2(icnt1,icnt2)=pspsvd(icnt2,icnt1)
+    PSPSP2(:)=PSPSP(:)
+    do JCNT1=1,NSPEC2
+      do JCNT2=1,NFLEVL
+        PSPVOR2(JCNT1,JCNT2)=PSPVOR(JCNT2,JCNT1)
+        PSPDIV2(JCNT1,JCNT2)=PSPDIV(JCNT2,JCNT1)
+        PSPT2(JCNT1,JCNT2)=PSPT(JCNT2,JCNT1)
+        PSPSPD2(JCNT1,JCNT2)=PSPSPD(JCNT2,JCNT1)
+        PSPSVD2(JCNT1,JCNT2)=PSPSVD(JCNT2,JCNT1)
       enddo
     enddo
 #endif
 
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',0,zhook_handle2)
-    !$acc data create(zspvorg,zspdivg,zsptg,zspspdg,zspsvdg,zspspg) 
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',1,zhook_handle2)
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',0,zhook_handle2)
-    !$acc data copy(pspvor2,pspdiv2,pspt2,pspspd2,pspsvd2,pspsp2)
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',1,zhook_handle2)
+    IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_transferts1a',0,ZHOOK_HANDLE2)
+    !$ACC DATA CREATE(ZSPVORG,ZSPDIVG,ZSPTG,ZSPSPDG,ZSPSVDG,ZSPSPG) 
+    IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_transferts1a',1,ZHOOK_HANDLE2)
+    IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_transferts1b',0,ZHOOK_HANDLE2)
+    !$ACC DATA COPY(PSPVOR2,PSPDIV2,PSPT2,PSPSPD2,PSPSVD2,PSPSP2)
+    IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_transferts1b',1,ZHOOK_HANDLE2)
 
   IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_utile',0,ZHOOK_HANDLE3)
 
 #if defined(_OPENACC)
 
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
     & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -289,7 +291,7 @@ ELSE
   & param_mxture)
 
   CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
@@ -298,9 +300,9 @@ ELSE
 
 #else 
 
-if (LDTRANSPOSE) then
+IF (LLTRANSPOSE) THEN
 
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -312,25 +314,25 @@ if (LDTRANSPOSE) then
   & SIMIT,SIMOT)
 
   CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,&
     & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
 
-else
+ELSE
 
-    pspsp2(:)=pspsp(:)
-    do icnt1=1,nspec2
-      do icnt2=1,nflevl
-        pspvor2(icnt1,icnt2)=pspvor(icnt2,icnt1)
-        pspdiv2(icnt1,icnt2)=pspdiv(icnt2,icnt1)
-        pspt2(icnt1,icnt2)=pspt(icnt2,icnt1)
-        pspspd2(icnt1,icnt2)=pspspd(icnt2,icnt1)
-        pspsvd2(icnt1,icnt2)=pspsvd(icnt2,icnt1)
-      enddo
-    enddo
+    PSPSP2(:)=PSPSP(:)
+    DO JCNT1=1,NSPEC2
+      DO JCNT2=1,NFLEVL
+        PSPVOR2(JCNT1,JCNT2)=PSPVOR(JCNT2,JCNT1)
+        PSPDIV2(JCNT1,JCNT2)=PSPDIV(JCNT2,JCNT1)
+        PSPT2(JCNT1,JCNT2)=PSPT(JCNT2,JCNT1)
+        PSPSPD2(JCNT1,JCNT2)=PSPSPD(JCNT2,JCNT1)
+        PSPSVD2(JCNT1,JCNT2)=PSPSVD(JCNT2,JCNT1)
+      ENDDO
+    ENDDO
 
   CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LDTRANSPOSE,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
@@ -351,42 +353,42 @@ else
     & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
     & LDFULLM=LLONEM,LDNEEDPS=.TRUE.) 
 
-    pspsp(:)=pspsp2(:)
-    do icnt2=1,nspec2
-      do icnt1=1,nflevl
-        pspvor(icnt1,icnt2)=pspvor2(icnt2,icnt1)
-        pspdiv(icnt1,icnt2)=pspdiv2(icnt2,icnt1)
-        pspt(icnt1,icnt2)=pspt2(icnt2,icnt1)
-        pspspd(icnt1,icnt2)=pspspd2(icnt2,icnt1)
-        pspsvd(icnt1,icnt2)=pspsvd2(icnt2,icnt1)
-      enddo
-    enddo
+    PSPSP(:)=PSPSP2(:)
+    DO JCNT2=1,NSPEC2
+      DO JCNT1=1,NFLEVL
+        PSPVOR(JCNT1,JCNT2)=PSPVOR2(JCNT2,JCNT1)
+        PSPDIV(JCNT1,JCNT2)=PSPDIV2(JCNT2,JCNT1)
+        PSPT(JCNT1,JCNT2)=PSPT2(JCNT2,JCNT1)
+        PSPSPD(JCNT1,JCNT2)=PSPSPD2(JCNT2,JCNT1)
+        PSPSVD(JCNT1,JCNT2)=PSPSVD2(JCNT2,JCNT1)
+      ENDDO
+    ENDDO
 
 
-endif
+ENDIF
 
 #endif
 
     IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_utile',1,ZHOOK_HANDLE3)
 
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',0,zhook_handle2)
-    !$acc end data
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2b',1,zhook_handle2)
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',0,zhook_handle2)
-    !$acc end data
-    if (lhook) call dr_hook('SPCM_SIMPLE_transferts2a',1,zhook_handle2)
+    IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_transferts2b',0,ZHOOK_HANDLE2)
+    !$ACC END DATA
+    IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_transferts2b',1,ZHOOK_HANDLE2)
+    IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_transferts2a',0,ZHOOK_HANDLE2)
+    !$ACC END DATA
+    IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_transferts2a',1,ZHOOK_HANDLE2)
 
 #if defined(_OPENACC)
-    pspsp(:)=pspsp2(:)
-    do icnt2=1,nspec2
-      do icnt1=1,nflevl
-        pspvor(icnt1,icnt2)=pspvor2(icnt2,icnt1)
-        pspdiv(icnt1,icnt2)=pspdiv2(icnt2,icnt1)
-        pspt(icnt1,icnt2)=pspt2(icnt2,icnt1)
-        pspspd(icnt1,icnt2)=pspspd2(icnt2,icnt1)
-        pspsvd(icnt1,icnt2)=pspsvd2(icnt2,icnt1)
-      enddo
-    enddo
+    PSPSP(:)=PSPSP2(:)
+    DO JCNT2=1,NSPEC2
+      DO JCNT1=1,NFLEVL
+        PSPVOR(JCNT1,JCNT2)=PSPVOR2(JCNT2,JCNT1)
+        PSPDIV(JCNT1,JCNT2)=PSPDIV2(JCNT2,JCNT1)
+        PSPT(JCNT1,JCNT2)=PSPT2(JCNT2,JCNT1)
+        PSPSPD(JCNT1,JCNT2)=PSPSPD2(JCNT2,JCNT1)
+        PSPSVD(JCNT1,JCNT2)=PSPSVD2(JCNT2,JCNT1)
+      ENDDO
+    ENDDO
 
 #endif
 
@@ -406,19 +408,18 @@ IF (ALLOCATED(ZSPSPDG2)) DEALLOCATE(ZSPSPDG2)
 IF (ALLOCATED(ZSPSVDG2)) DEALLOCATE(ZSPSVDG2)
 IF (ALLOCATED(ZSPSPG2))  DEALLOCATE(ZSPSPG2)
 
-if (allocated(pspvor2)) DEALLOCATE(PSPVOR2)
-if (allocated(pspdiv2)) DEALLOCATE(PSPDIV2)
-if (allocated(pspt2)) DEALLOCATE(PSPT2)
-if (allocated(pspspd2)) DEALLOCATE(PSPSPD2)
-if (allocated(pspsvd2)) DEALLOCATE(PSPSVD2)
-if (allocated(pspsp2)) DEALLOCATE(PSPSP2)
+if (allocated(PSPVOR2)) DEALLOCATE(PSPVOR2)
+if (allocated(PSPDIV2)) DEALLOCATE(PSPDIV2)
+if (allocated(PSPT2)) DEALLOCATE(PSPT2)
+if (allocated(PSPSPD2)) DEALLOCATE(PSPSPD2)
+if (allocated(PSPSVD2)) DEALLOCATE(PSPSVD2)
+if (allocated(PSPSP2)) DEALLOCATE(PSPSP2)
 
 IF (ALLOCATED(ZSPTNDSI_VORG)) DEALLOCATE(ZSPTNDSI_VORG)
 IF (ALLOCATED(ZSPTNDSI_DIVG)) DEALLOCATE(ZSPTNDSI_DIVG)
 IF (ALLOCATED(ZSPTNDSI_TG))   DEALLOCATE(ZSPTNDSI_TG)
 #if defined(_OPENACC)
   !$acc exit data delete(param_mxture)
-!!!!!!  !$acc end data
   if (allocated(param_mxture)) deallocate(param_mxture)
 #endif
 

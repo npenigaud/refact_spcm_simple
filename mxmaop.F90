@@ -56,7 +56,7 @@ USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE OML_MOD   ,ONLY : OML_MAX_THREADS, OML_IN_PARALLEL
 
 #if defined(_OPENACC)
-use cublas
+USE CUBLAS
 #endif
 
 !     ------------------------------------------------------------------
@@ -88,13 +88,13 @@ IF (LHOOK) CALL DR_HOOK('MXMAOP',0,ZHOOK_HANDLE)
 !*       1.       PERFORM LEGENDRE TRANFORM.
 !                 --------------------------
 #if defined(_OPENACC)
-   !$acc data present(pa,pb,pc) 
-   !$acc host_data use_device(pa,pb,pc)
-     CALL cublasDgemm('N','T',kar,kbc,kac,1.0_JPRB,&
-      &pa,kad,pb,kbd,0.0_JPRB,pc,kca) 
-   !$acc end host_data
-   !$acc wait
-   !$acc end data
+   !$ACC DATA PRESENT(PA,PB,PC)
+   !$ACC HOST_DATA USE_DEVICE(PA,PB,PC) 
+     CALL CUBLASDGEMM('N','T',KAR,KBC,KAC,1.0_JPRB,&
+      &PA,KAD,PB,KBD,0.0_JPRB,PC,KCA) 
+   !$ACC END HOST_DATA
+   !$ACC WAIT
+   !$ACC END DATA
 #else
 IF(OML_IN_PARALLEL()) THEN
 

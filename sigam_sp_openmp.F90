@@ -74,8 +74,8 @@ TYPE(TDYN)        ,INTENT(IN)    :: YDDYN
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KSPEC
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PD(KSPEC,klev)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PT(KSPEC,klev)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PD(KSPEC,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PT(KSPEC,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSP(KSPEC)
 
 !     ------------------------------------------------------------------
@@ -88,7 +88,7 @@ REAL(KIND=JPRB) :: ZSPHIX(0:KLEV, KSPEC)
 INTEGER(KIND=JPIM) :: JLEV, JSPEC
 CHARACTER(LEN=4):: CLOPER
 REAL(KIND=JPRB) :: ZDETAH
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,zhook_handle2
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,ZHOOK_HANDLE2
 
 !     ------------------------------------------------------------------
 
@@ -110,80 +110,80 @@ CLOPER='IBOT'
 IF (YDCVER%LVERTFE) THEN
 
   IF (YDCVER%LVFE_COMPATIBLE) CLOPER='INTG'
-!$acc data present(pt,psp,pd,klev)
-!$acc data present(ydveta%vfe_rdetah,yddyn,YDDYN%SILNPR,YDDYN%SIALPH,YDDYN%SIRPRG,ydveta,ydcst)
-!$acc data create(zsphi,zout)
+!$ACC DATA PRESENT(PT,PSP,PD,KLEV)
+!$ACC DATA PRESENT(YDVETA%VFE_RDETAH,YDDYN,YDDYN%SILNPR,YDDYN%SIALPH,YDDYN%SIRPRG,YDVETA,YDCST)
+!$ACC DATA CREATE(ZSPHI,ZOUT)
 
-if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SIGAM_transpose1',0,ZHOOK_HANDLE2)
 
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH) default(none)
-!$acc loop gang
+!$ACC PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH) DEFAULT(NONE)
+!$ACC LOOP GANG
 #else
 !$OMP PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH)
 !$OMP DO SCHEDULE(STATIC) 
 #endif
   DO JLEV=1,KLEV
-    zdetah=-YDVETA%VFE_RDETAH(JLEV)*YDCST%RD*YDDYN%SILNPR(JLEV)
-    !$acc loop vector
+    ZDETAH=-YDVETA%VFE_RDETAH(JLEV)*YDCST%RD*YDDYN%SILNPR(JLEV)
+    !$ACC LOOP VECTOR
     DO JSPEC=1,KSPEC
-      ZSPHI(JSPEC,JLEV)=PT(JSPEC,jlev)*zdetah
+      ZSPHI(JSPEC,JLEV)=PT(JSPEC,JLEV)*ZDETAH
     ENDDO
   ENDDO
 #if defined(_OPENACC)
-!$acc END PARALLEL
+!$ACC END PARALLEL
 #else
 !$OMP END DO
 !$OMP END PARALLEL
 #endif
 
-if (lhook) call dr_hook('SIGAM_transpose1',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SIGAM_transpose1',1,ZHOOK_HANDLE2)
 
-if (lhook) call dr_hook('SIGAM_cond_lim',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SIGAM_cond_lim',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-!$acc parallel private(jspec) num_gangs(1) default(none)
-!$acc loop gang vector
+!$ACC PARALLEL PRIVATE(JSPEC) num_gangs(1) DEFAULT(NONE) !!a voir
+!$ACC LOOP GANG VECTOR
 #else
-!$omp parallel do private(jspec)  !!dans le code initial fait par :
+!$OMP PARALLEL DO PRIVATE(JSPEC)  
 #endif
-do jspec=1,kspec
-  ZSPHI(jspec,0)=0.0_JPRB
-  ZSPHI(jspec,KLEV+1)=0.0_JPRB
+do JSPEC=1,KSPEC
+  ZSPHI(JSPEC,0)=0.0_JPRB
+  ZSPHI(JSPEC,KLEV+1)=0.0_JPRB
 enddo
 #if defined(_OPENACC)
-!$acc end parallel
+!$ACC END PARALLEL
 #else
-!$omp end parallel do
+!$OMP END PARALLEL DO
 #endif
 
-if (lhook) call dr_hook('SIGAM_cond_lim',1,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SIGAM_cond_lim',1,ZHOOK_HANDLE2)
 
   CALL VERDISINT(YDVFE,YDCVER,CLOPER,'11',KSPEC,1,KSPEC,KLEV,ZSPHI,ZOUT,KCHUNK=YDGEOMETRY%YRDIM%NPROMA)
 
-if (lhook) call dr_hook('SIGAM_transpose2',0,zhook_handle2)
+IF (LHOOK) CALL DR_HOOK('SIGAM_transpose2',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JLEV,JSPEC) default(none)
-!$acc loop collapse(2) 
+!$ACC PARALLEL PRIVATE(JLEV,JSPEC) DEFAULT(NONE)
+!$ACC LOOP COLLAPSE(2) 
 #else
 !$OMP PARALLEL PRIVATE(JLEV,JSPEC)
 !$OMP DO SCHEDULE(STATIC) 
 #endif
   DO JLEV=1,KLEV
     DO JSPEC=1,KSPEC
-      PD(JSPEC,jlev)=ZOUT(JSPEC,JLEV-1)+PSP(JSPEC)*yddyn%SIRPRG
+      PD(JSPEC,JLEV)=ZOUT(JSPEC,JLEV-1)+PSP(JSPEC)*YDDYN%SIRPRG
     ENDDO
   ENDDO
 #if defined(_OPENACC)
-!$acc END PARALLEL
+!$ACC END PARALLEL
 #else
 !$OMP END DO
 !$OMP END PARALLEL
 #endif
 
-if (lhook) call dr_hook('SIGAM_transpose2',1,zhook_handle2)
-!$acc end data
-!$acc end data
-!$acc end data
+IF (LHOOK) CALL DR_HOOK('SIGAM_transpose2',1,ZHOOK_HANDLE2)
+!$ACC END DATA
+!$ACC END DATA
+!$ACC END DATA
 
 ELSE
 
