@@ -161,8 +161,6 @@ REAL(KIND=JPRB) :: ZBB, ZCC
 !*       1.    PRELIMINARY INITIALISATIONS.
 !              ----------------------------
 
-!$acc data present(pa,pb,pc,py,px)
-
 #if defined(_OPENACC)
 IT=MIN(3,MAX(-3,KT))
 IF (KT == 0.OR.KT == -1) IT=-2
@@ -685,10 +683,7 @@ IF (LDMT) THEN
 
 ENDIF
 
-!$acc end data
-
 !     ------------------------------------------------------------------
 
-!!IF (LHOOK) CALL DR_HOOK('MXTURE',1,ZHOOK_HANDLE)
 END SUBROUTINE MXTURE
 

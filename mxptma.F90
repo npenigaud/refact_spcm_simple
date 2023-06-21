@@ -115,7 +115,7 @@ IF (KLX >= 4) THEN
        & +PCS(2)*PX(4,JV,JI)  
     ENDDO
   ENDDO
-  !$ACC LOOP VECTOR 
+  !$ACC LOOP VECTOR PRIVATE(JI,JV) 
   DO JL=3,KLX-2 
     DO JI=1,KIX
       DO JV=1,KVX
