@@ -27,10 +27,10 @@ REAL(KIND=JPRB)     ,INTENT(INOUT) :: PSPSVD(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY
 #include "spcimpfpost.intfb.h"
 
 #if defined(_OPENACC)
-REAL(KIND=JPRB),ALLOCATABLE  :: param_mxture(:,:,:)
+REAL(KIND=JPRB),ALLOCATABLE  :: PARAM_MXTURE(:,:,:)
 #else
-REAL(KIND=JPRB)  :: SIMIT(YDGEOMETRY%yrdimv%nflevg,YDGEOMETRY%yrdimv%nflevg)
-REAL(KIND=JPRB)  :: SIMOT(YDGEOMETRY%yrdimv%nflevg,YDGEOMETRY%yrdimv%nflevg)
+REAL(KIND=JPRB)  :: SIMIT(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
+REAL(KIND=JPRB)  :: SIMOT(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
 #endif
 
 REAL(KIND=JPRB), ALLOCATABLE :: ZSPVORG2(:,:)
@@ -63,7 +63,7 @@ INTEGER(KIND=JPIM) :: IM, ISPEC2V
 INTEGER (KIND=JPIM) :: JMLOC, ISTA, IEND
 
 REAL(KIND=JPHOOK) ::  ZHOOK_HANDLE,ZHOOK_HANDLE2,ZHOOK_HANDLE3
-INTEGER(KIND=JPIM)::  JCNT1,JCNT2,is0,is02,taille
+INTEGER(KIND=JPIM)::  JCNT1,JCNT2,IS0,IS02,ITAILLE
 
 IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE',0,ZHOOK_HANDLE)
 
@@ -83,99 +83,88 @@ LLTRANSPOSE=.TRUE.
 #endif
 
 #if defined(_OPENACC)
-if (LSIDG) then
-  !!transposition temporaire des parametres mxture
-  !!calcul de la taille max d une plage de params
-  taille=0
-  do jmloc=nptrmf(mysetn),nptrmf(mysetn+1)-1
-    im=ydlap%myms(jmloc)  
-    taille=max(taille,nflevg*(nsmax+1-im))
-  enddo
+IF (LSIDG) THEN
+  ITAILLE=0
+  DO JMLOC=NPTRMF(MYSETN),NPTRMF(MYSETN+1)-1
+    IM=YDLAP%MYMS(JMLOC)  
+    ITAILLE=MAX(ITAILLE,NFLEVG*(NSMAX+1-IM))
+  ENDDO
 
-!!  print *,"taille",taille
-!!  print *,"nptrmf(mysetn)",nptrmf(mysetn)
-!!  print *,"nptrmf(mysetn+1)-1",nptrmf(mysetn+1)-1
-!!  call flush(0)
+  ALLOCATE(PARAM_MXTURE(ITAILLE,NPTRMF(MYSETN+1)-1,5))
+  !$ACC ENTER DATA CREATE(PARAM_MXTURE)
+  PARAM_MXTURE(:,:,:)=0.0_JPRB
 
-  !!allocation, passage sur carte et initialisation
-  allocate(param_mxture(taille,nptrmf(mysetn+1)-1,5))
-  !$acc enter data create(param_mxture)
-!!!!!!  !$acc data create(param_mxture)
-  param_mxture(:,:,:)=0.0_JPRB
-
-  !!charge et transp données sur carte
-  !$acc parallel private(JCNT2)
-  do jmloc=nptrmf(mysetn),nptrmf(mysetn+1)-1
-    im=ydlap%myms(jmloc)  
-    is0=ydlap%nse0l(jmloc)
-    is02=0
-    if (.true.) then
-      !$acc loop private(JCNT2)
-      do JCNT1=is0+1,is0+nsmax+1-im
-        do JCNT2=1,nflevg
-          param_mxture(JCNT1-is0-1+1+(nsmax+1-im)*(JCNT2-1),jmloc,1)=siheg(JCNT2,JCNT1,1) 
-          param_mxture(JCNT1-is0-1+1+(nsmax+1-im)*(JCNT2-1),jmloc,2)=siheg(JCNT2,JCNT1,2) 
-          param_mxture(JCNT1-is0-1+1+(nsmax+1-im)*(JCNT2-1),jmloc,3)=siheg(JCNT2,JCNT1,3) 
-        enddo
-      enddo
+  !$ACC PARALLEL PRIVATE(JCNT2)
+  DO JMLOC=NPTRMF(MYSETN),NPTRMF(MYSETN+1)-1
+    IM=YDLAP%MYMS(JMLOC)  
+    IS0=YDLAP%NSE0L(JMLOC)
+    IS02=0
+    IF (.TRUE.) THEN
+      !$ACC LOOP PRIVATE(JCNT2)
+      DO JCNT1=IS0+1,IS0+NSMAX+1-im
+        DO JCNT2=1,NFLEVG
+          PARAM_MXTURE(JCNT1-IS0-1+1+(NSMAX+1-IM)*(JCNT2-1),JMLOC,1)=SIHEG(JCNT2,JCNT1,1) 
+          PARAM_MXTURE(JCNT1-IS0-1+1+(NSMAX+1-IM)*(JCNT2-1),JMLOC,2)=SIHEG(JCNT2,JCNT1,2) 
+          PARAM_MXTURE(JCNT1-IS0-1+1+(NSMAX+1-IM)*(JCNT2-1),JMLOC,3)=SIHEG(JCNT2,JCNT1,3) 
+        ENDDO
+      ENDDO
       
 
-      !$acc loop  private(JCNT2)
-      do JCNT1=is02+1,is02+nsmax+1-im
-        do JCNT2=1,nflevg
-          param_mxture(JCNT1-is02-1+1+(nsmax+1-im)*(JCNT2-1),jmloc,4)=siheg2(JCNT2,JCNT1,2) 
-          param_mxture(JCNT1-is02-1+1+(nsmax+1-im)*(JCNT2-1),jmloc,5)=siheg2(JCNT2,JCNT1,3) 
-        enddo
-      enddo
+      !$ACC LOOP PRIVATE(JCNT2)
+      DO JCNT1=IS02+1,IS02+NSMAX+1-IM
+        DO JCNT2=1,NFLEVG
+          PARAM_MXTURE(JCNT1-IS02-1+1+(NSMAX+1-IM)*(JCNT2-1),JMLOC,4)=SIHEG2(JCNT2,JCNT1,2) 
+          PARAM_MXTURE(JCNT1-IS02-1+1+(NSMAX+1-IM)*(JCNT2-1),JMLOC,5)=SIHEG2(JCNT2,JCNT1,3) 
+        ENDDO
+      ENDDO
    
-    else
-      !$acc loop private(JCNT2)
-      do JCNT1=is0+1,is0+nsmax+1-im
-        do JCNT2=1,nflevg
-          param_mxture((JCNT1-is0-1)*nflevg+1+(JCNT2-1),jmloc,1)=siheg(JCNT2,JCNT1,1) 
-          param_mxture((JCNT1-is0-1)*nflevg+1+(JCNT2-1),jmloc,2)=siheg(JCNT2,JCNT1,2) 
-          param_mxture((JCNT1-is0-1)*nflevg+1+(JCNT2-1),jmloc,3)=siheg(JCNT2,JCNT1,3) 
-        enddo
-      enddo
+    ELSE
+      !$ACC LOOP PRIVATE(JCNT2)
+      DO JCNT1=IS0+1,IS0+NSMAX+1-im
+        DO JCNT2=1,NFLEVG
+          PARAM_MXTURE((JCNT1-IS0-1)*NFLEVG+1+(JCNT2-1),JMLOC,1)=SIHEG(JCNT2,JCNT1,1) 
+          PARAM_MXTURE((JCNT1-IS0-1)*NFLEVG+1+(JCNT2-1),JMLOC,2)=SIHEG(JCNT2,JCNT1,2) 
+          PARAM_MXTURE((JCNT1-IS0-1)*NFLEVG+1+(JCNT2-1),JMLOC,3)=SIHEG(JCNT2,JCNT1,3) 
+        ENDDO
+      ENDDO
     
 
-      !$acc loop private(JCNT2)
-      do JCNT1=is02+1,is02+nsmax+1-im
-        do JCNT2=1,nflevg
-          param_mxture((JCNT1-is02-1)*nflevg+1+(JCNT2-1),jmloc,4)=siheg2(JCNT2,JCNT1,2) 
-          param_mxture((JCNT1-is02-1)*nflevg+1+(JCNT2-1),jmloc,5)=siheg2(JCNT2,JCNT1,3) 
-        enddo
-      enddo
+      !$ACC LOOP PRIVATE(JCNT2)
+      DO JCNT1=IS02+1,IS02+NSMAX+1-IM
+        DO JCNT2=1,NFLEVG
+          PARAM_MXTURE((JCNT1-IS02-1)*NFLEVG+1+(JCNT2-1),JMLOC,4)=SIHEG2(JCNT2,JCNT1,2) 
+          PARAM_MXTURE((JCNT1-IS02-1)*NFLEVG+1+(JCNT2-1),JMLOC,5)=SIHEG2(JCNT2,JCNT1,3) 
+        ENDDO
+      ENDDO
       
 
-    endif !!choix du sens de transposition
+    ENDIF !!choix du sens de transposition
 
-  enddo   !!jmloc
-  !$acc end parallel
+  ENDDO   !!JMLOC
+  !$ACC END PARALLEL
 
-else      !! non lsidg lsidg 
-  allocate(param_mxture(1,1,1))
-  !$acc enter data create(param_mxture)
-endif
+ELSE      !! non lsidg lsidg 
+  ALLOCATE(PARAM_MXTURE(1,1,1))
+  !$ACC ENTER DATA CREATE(PARAM_MXTURE)
+ENDIF
 
 
 #else
-!!transposition de SIMIT SIMOT
-!$omp parallel do private(JCNT1,JCNT2)
-do JCNT1=1,NFLEVG
-  do JCNT2=1,NFLEVG
+!$OMP PARALLEL DO PRIVATE(JCNT1,JCNT2)
+DO JCNT1=1,NFLEVG
+  DO JCNT2=1,NFLEVG
     SIMIT(JCNT1,JCNT2)=SIMI(JCNT2,JCNT1)
-  enddo
-enddo
-!$omp end parallel do
+  ENDDO
+ENDDO
+!$OMP END PARALLEL DO
 
-!$omp parallel do private(JCNT1,JCNT2)
-do JCNT1=1,NFLEVG
-  do JCNT2=1,NFLEVG
+!$OMP PARALLEL DO PRIVATE(JCNT1,JCNT2)
+DO JCNT1=1,NFLEVG
+  DO JCNT2=1,NFLEVG
     SIMOT(JCNT1,JCNT2)=SIMO(JCNT2,JCNT1)
-  enddo
-enddo
-!$omp end parallel do
+  ENDDO
+ENDDO
+!$OMP END PARALLEL DO
 #endif
 
 LLONEM = .NOT. LIMPF
@@ -200,11 +189,11 @@ ALLOCATE(PSPSPD2(NSPEC2,NFLEVL))
 ALLOCATE(PSPSVD2(NSPEC2,NFLEVL))
 ALLOCATE(PSPSP2 (NSPEC2))
 
-ALLOCATE(ZSPVORG(ISPEC2V,nflevg))
-ALLOCATE(ZSPDIVG(ISPEC2V,nflevg))
-ALLOCATE(ZSPTG  (ISPEC2V,nflevg))
-ALLOCATE(ZSPSPDG(ISPEC2V,nflevg))
-ALLOCATE(ZSPSVDG(ISPEC2V,nflevg))
+ALLOCATE(ZSPVORG(ISPEC2V,NFLEVG))
+ALLOCATE(ZSPDIVG(ISPEC2V,NFLEVG))
+ALLOCATE(ZSPTG  (ISPEC2V,NFLEVG))
+ALLOCATE(ZSPSPDG(ISPEC2V,NFLEVG))
+ALLOCATE(ZSPSVDG(ISPEC2V,NFLEVG))
 ALLOCATE(ZSPSPG (ISPEC2V))
 
 ALLOCATE(ZSPTNDSI_VORG(1,1))
@@ -257,15 +246,15 @@ ELSE
 
 #if defined(_OPENACC)
     PSPSP2(:)=PSPSP(:)
-    do JCNT1=1,NSPEC2
-      do JCNT2=1,NFLEVL
+    DO JCNT1=1,NSPEC2
+      DO JCNT2=1,NFLEVL
         PSPVOR2(JCNT1,JCNT2)=PSPVOR(JCNT2,JCNT1)
         PSPDIV2(JCNT1,JCNT2)=PSPDIV(JCNT2,JCNT1)
         PSPT2(JCNT1,JCNT2)=PSPT(JCNT2,JCNT1)
         PSPSPD2(JCNT1,JCNT2)=PSPSPD(JCNT2,JCNT1)
         PSPSVD2(JCNT1,JCNT2)=PSPSVD(JCNT2,JCNT1)
-      enddo
-    enddo
+      ENDDO
+    ENDDO
 #endif
 
     IF (LHOOK) CALL DR_HOOK('SPCM_SIMPLE_transferts1a',0,ZHOOK_HANDLE2)
@@ -288,7 +277,7 @@ ELSE
 
   CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
   & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
-  & param_mxture)
+  & PARAM_MXTURE)
 
   CALL TRSTOM(&
     & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
@@ -419,8 +408,8 @@ IF (ALLOCATED(ZSPTNDSI_VORG)) DEALLOCATE(ZSPTNDSI_VORG)
 IF (ALLOCATED(ZSPTNDSI_DIVG)) DEALLOCATE(ZSPTNDSI_DIVG)
 IF (ALLOCATED(ZSPTNDSI_TG))   DEALLOCATE(ZSPTNDSI_TG)
 #if defined(_OPENACC)
-  !$acc exit data delete(param_mxture)
-  if (allocated(param_mxture)) deallocate(param_mxture)
+  !$ACC EXIT DATA DELETE(PARAM_MXTURE)
+  IF (ALLOCATED(PARAM_MXTURE)) DEALLOCATE(PARAM_MXTURE)
 #endif
 
 END ASSOCIATE
