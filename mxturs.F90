@@ -121,7 +121,6 @@ REAL(KIND=JPRB) ,INTENT(INOUT) :: PX(KVXS,KTNSMAX+1,KIX)
 #include "mxture.h"
 
 !     ------------------------------------------------------------------
-!!IF (LHOOK) CALL DR_HOOK('MXTURS',0,ZHOOK_HANDLE)
 !     ------------------------------------------------------------------
 
 !*       1.    INVERSION OF THE TWO TRIANGULAR TRIDIAGONAL MATRIXES.
@@ -135,6 +134,5 @@ CALL MXTURE(KLX,KVX,KVXS,KIX, KTNSMAX,1,.FALSE.,PA,PB,PC,PY,PX)
 #endif
 !     ------------------------------------------------------------------
 
-!!IF (LHOOK) CALL DR_HOOK('MXTURS',1,ZHOOK_HANDLE)
 END SUBROUTINE MXTURS
 
