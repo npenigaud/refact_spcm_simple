@@ -169,7 +169,7 @@ IF(KTYPE == 1) THEN
   ! warning: dependence on last level in OMP case, last level is done separately
 IF (LHOOK) CALL DR_HOOK('VERINT_calcul',0,ZHOOK_HANDLE2)
 #if defined(_OPENACC)
-  !$ACC PARALLEL PRIVATE(JLEV,JROF) if (.not.lpar) DEFAULT(NONE)
+  !$ACC PARALLEL PRIVATE(JLEV,JROF) DEFAULT(NONE)
   !$ACC LOOP GANG VECTOR COLLAPSE(2) 
   DO JLEV=1,KLEVOUT-1
     DO JROF=KSTART,KPROF
