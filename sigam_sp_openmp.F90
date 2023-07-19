@@ -1,4 +1,8 @@
+#if defined(_OPENACC)
+SUBROUTINE SIGAM_SP_OPENMP (YDGEOMETRY, YDCST, YDDYN, KLEV, KSPEC, PD, PT,PSP,zsphi,zout)
+#else
 SUBROUTINE SIGAM_SP_OPENMP (YDGEOMETRY, YDCST, YDDYN, KLEV, KSPEC, PD, PT, PSP)
+#endif
 
 !**** *SIGAM_SP_OPENMP* - Solve hydrostatic operator in semi-implicit
 
@@ -79,9 +83,13 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PT(KSPEC,klev)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSP(KSPEC)
 
 !     ------------------------------------------------------------------
-
+#if defined(_OPENACC)
+REAL(KIND=JPRB),intent(inout) :: ZSPHI(KSPEC,0:KLEV+1)
+REAL(KIND=JPRB),intent(inout) :: ZOUT(KSPEC,0:KLEV)
+#else
 REAL(KIND=JPRB) :: ZSPHI(KSPEC,0:KLEV+1)
 REAL(KIND=JPRB) :: ZOUT(KSPEC,0:KLEV)
+#endif
 
 
 REAL(KIND=JPRB) :: ZSPHIX(0:KLEV, KSPEC)
@@ -98,21 +106,20 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,zhook_handle2
 
 IF (LHOOK) CALL DR_HOOK('SIGAM_SP_OPENMP',0,ZHOOK_HANDLE)
 
-ASSOCIATE(YDVETA=>YDGEOMETRY%YRVETA,YDVFE=>YDGEOMETRY%YRVFE, YDCVER=>YDGEOMETRY%YRCVER)
+ASSOCIATE( YDCVER=>YDGEOMETRY%YRCVER)
 ASSOCIATE(SIALPH=>YDDYN%SIALPH, SILNPR=>YDDYN%SILNPR, SIRPRG=>YDDYN%SIRPRG)
 !     ------------------------------------------------------------------
 
 !*       1.    SUM GEOPOTENTIAL, COMPUTES P AND PUT IT IN PD.
 !              ----------------------------------------------
-
 CLOPER='IBOT'
 
 IF (YDCVER%LVERTFE) THEN
 
   IF (YDCVER%LVFE_COMPATIBLE) CLOPER='INTG'
 !$acc data present(pt,psp,pd,klev)
-!$acc data present(ydveta%vfe_rdetah,yddyn,YDDYN%SILNPR,YDDYN%SIALPH,YDDYN%SIRPRG,ydveta,ydcst)
-!$acc data create(zsphi,zout)
+!$acc data present(ydgeometry%YRVETA%vfe_rdetah,yddyn,YDDYN%SILNPR,YDDYN%SIALPH,YDDYN%SIRPRG,ydgeometry%YRVETA,ydcst)
+!$acc data present(zsphi,zout)
 
 if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
 
@@ -124,7 +131,7 @@ if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
 !$OMP DO SCHEDULE(STATIC) 
 #endif
   DO JLEV=1,KLEV
-    zdetah=-YDVETA%VFE_RDETAH(JLEV)*YDCST%RD*YDDYN%SILNPR(JLEV)
+    zdetah=-ydgeometry%YRVETA%VFE_RDETAH(JLEV)*YDCST%RD*YDDYN%SILNPR(JLEV)
     !$acc loop vector
     DO JSPEC=1,KSPEC
       ZSPHI(JSPEC,JLEV)=PT(JSPEC,jlev)*zdetah
@@ -136,7 +143,6 @@ if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
 !$OMP END DO
 !$OMP END PARALLEL
 #endif
-
 if (lhook) call dr_hook('SIGAM_transpose1',1,zhook_handle2)
 
 if (lhook) call dr_hook('SIGAM_cond_lim',0,zhook_handle2)
@@ -155,11 +161,9 @@ enddo
 #else
 !$omp end parallel do
 #endif
-
 if (lhook) call dr_hook('SIGAM_cond_lim',1,zhook_handle2)
 
-  CALL VERDISINT(YDVFE,YDCVER,CLOPER,'11',KSPEC,1,KSPEC,KLEV,ZSPHI,ZOUT,KCHUNK=YDGEOMETRY%YRDIM%NPROMA)
-
+  CALL VERDISINT(ydgeometry%YrVFE,YDCVER,CLOPER,'11',KSPEC,1,KSPEC,KLEV,ZSPHI,ZOUT,KCHUNK=YDGEOMETRY%YRDIM%NPROMA)
 if (lhook) call dr_hook('SIGAM_transpose2',0,zhook_handle2)
 #if defined(_OPENACC)
 !$acc PARALLEL PRIVATE(JLEV,JSPEC) default(none)

@@ -18,8 +18,8 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: kmlocend
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PSPDIVG(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG) 
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: PHELP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
-real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,130)
-real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,130)
+real(kind=JPRB)   ,intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,ydgeometry%yrdim%nump)
+real(kind=JPRB)   ,intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,ydgeometry%yrdim%nump)
 #else
 REAL(KIND=JPRB) :: ZSDIVPL (ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
 REAL(KIND=JPRB) :: ZSPDIVPL(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2)
@@ -36,30 +36,30 @@ INTEGER(KIND=JPIM) :: IM, ISTA, IEND
 !!IF (LHOOK) CALL DR_HOOK('SPCSIDG_PART2',0,ZHOOK_HANDLE)
 
 ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,YDLAP=>YDGEOMETRY%YRLAP,YDSPGEOM=>YDGEOMETRY%YSPGEOM,YDMP=>YDGEOMETRY%YRMP)
-ASSOCIATE(NSMAX=>YDDIM%NSMAX, NFLEVG=>YDDIMV%NFLEVG, SCGMAP=>YDSPGEOM%SCGMAP,NSPSTAF=>YDMP%NSPSTAF)
+ASSOCIATE(NSMAX=>YDDIM%NSMAX, NFLEVG=>YDDIMV%NFLEVG,NSPSTAF=>YDMP%NSPSTAF)
 !     ------------------------------------------------------------------
 
 #if defined(_OPENACC)
 
-!$acc data present(zsdivpl,zspdivpl,nsmax,nflevg,ydgeometry,ydgeometry%yspgeom,ydgeometry%yrmp,ydspgeom,ydmp) 
-!$acc data present(YDLAP,ydlap%MYMS,ydlap%nse0l,nspstaf,scgmap,phelp,pspdivg)
+!$acc data present(zsdivpl,zspdivpl,ydgeometry%yrdim%nsmax,ydgeometry%yrdimv%nflevg,ydgeometry,ydgeometry%yspgeom,ydgeometry%yrmp) 
+!$acc data present(ydgeometry%yrlap%MYMS,ydgeometry%yrlap%nse0l,ydgeometry%yrmp%nspstaf,ydgeometry%yspgeom%scgmap,phelp,pspdivg)
 
 !$acc parallel default(none) private(im,ista,iend,is0,ii,klx)
 !$acc loop gang collapse(3)
 do jmloc=kmlocsta,kmlocend
- do compteur=1,nflevg
+ do compteur=1,ydgeometry%yrdimv%nflevg
   do ji=1,2
-   IM=YDLAP%MYMS(jmloc)
-   ISTA=NSPSTAF(IM)
-   IEND=ISTA+2*(NSMAX+1-IM)-1
-   klx=nsmax+1-im
-   IS0=YDLAP%NSE0L(jmloc)
+   IM=ydgeometry%YrLAP%MYMS(jmloc)
+   ISTA=ydgeometry%yrmp%NSPSTAF(IM)
+   IEND=ISTA+2*(ydgeometry%yrdim%NSMAX+1-IM)-1
+   klx=ydgeometry%yrdim%nsmax+1-im
+   IS0=ydgeometry%YrLAP%NSE0L(jmloc)
    II=MIN(IM,1)+1
 !           ZSPDIV=(DIVprim(t+dt)) --> ZSPDIVG=(GM**2 * DIVprim(t+dt)) .
 
 !           Reorganisation of ZSDIVP (Back to the USSR)
     !$acc loop vector private(ISE)
-    DO JN=IM,NSMAX
+    DO JN=IM,ydgeometry%yrdim%NSMAX
       ise=ista+2*(jn-im)
       ZSDIVPL(JN-im+1,compteur,ji,jmloc)=PSPDIVG(ISE+ji-1,compteur)
     ENDDO
@@ -72,46 +72,46 @@ if (ii==1 .and. ji==2) then
          zspdivpl(jn,compteur,2,jmloc)=zsdivpl(jn,compteur,2,jmloc)
        enddo
 elseIF (KLX >= 4) THEN
-      zspdivpl(1,compteur,JI,jmloc) = scgmap (is0+1,1)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+1,2)*zsdivpl(2,compteur,JI,jmloc)+scgmap(is0+1,3)*zsdivpl(3,compteur,JI,jmloc)
-      zspdivpl(2,compteur,JI,jmloc) = scgmap(is0+1,2)*zsdivpl(1,compteur,JI,jmloc)&
-       & +scgmap(is0+2,1)*zsdivpl(2,compteur,JI,jmloc)&
-       & +scgmap(is0+2,2)*zsdivpl(3,compteur,JI,jmloc)&
-       & +scgmap(is0+2,3)*zsdivpl(4,compteur,JI,jmloc)  
+      zspdivpl(1,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap (is0+1,1)*zsdivpl(1,compteur,JI,jmloc)+ydgeometry%yspgeom%scgmap(is0+1,2)*zsdivpl(2,compteur,JI,jmloc)+ydgeometry%yspgeom%scgmap(is0+1,3)*zsdivpl(3,compteur,JI,jmloc)
+      zspdivpl(2,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap(is0+1,2)*zsdivpl(1,compteur,JI,jmloc)&
+       & +ydgeometry%yspgeom%scgmap(is0+2,1)*zsdivpl(2,compteur,JI,jmloc)&
+       & +ydgeometry%yspgeom%scgmap(is0+2,2)*zsdivpl(3,compteur,JI,jmloc)&
+       & +ydgeometry%yspgeom%scgmap(is0+2,3)*zsdivpl(4,compteur,JI,jmloc)  
 
   !$acc loop vector 
   do jn=3,klx-2 !!jl=jn
-        zspdivpl(jn,compteur,JI,jmloc) = scgmap(is0+jn-2,3)*zsdivpl(jn-2,compteur,JI,jmloc)&
-         & +scgmap(is0+jn-1,2)*zsdivpl(jn-1,compteur,JI,jmloc)&
-         & +scgmap(is0+jn,1  )*zsdivpl(jn,compteur  ,JI,jmloc)&
-         & +scgmap(is0+jn,2  )*zsdivpl(jn+1,compteur,JI,jmloc)&
-         & +scgmap(is0+jn,3  )*zsdivpl(jn+2,compteur,JI,jmloc)  
+        zspdivpl(jn,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap(is0+jn-2,3)*zsdivpl(jn-2,compteur,JI,jmloc)&
+         & +ydgeometry%yspgeom%scgmap(is0+jn-1,2)*zsdivpl(jn-1,compteur,JI,jmloc)&
+         & +ydgeometry%yspgeom%scgmap(is0+jn,1  )*zsdivpl(jn,compteur  ,JI,jmloc)&
+         & +ydgeometry%yspgeom%scgmap(is0+jn,2  )*zsdivpl(jn+1,compteur,JI,jmloc)&
+         & +ydgeometry%yspgeom%scgmap(is0+jn,3  )*zsdivpl(jn+2,compteur,JI,jmloc)  
   ENDDO
-      zspdivpl(KLX-1,compteur,JI,jmloc) = scgmap(is0+KLX-3,3)*zsdivpl(KLX-3,compteur,JI,jmloc)&
-       & +scgmap(is0+KLX-2,2)*zsdivpl(KLX-2,compteur,JI,jmloc)&
-       & +scgmap (is0+KLX-1,1)*zsdivpl(KLX-1,compteur,JI,jmloc)&
-       & +scgmap(is0+KLX-1,2)*zsdivpl(KLX,compteur  ,JI,jmloc)  
-      zspdivpl(KLX,compteur,JI,jmloc) = scgmap(is0+KLX-2,3)*zsdivpl(KLX-2,compteur,JI,jmloc)&
-       & +scgmap(is0+KLX-1,2)*zsdivpl(KLX-1,compteur,JI,jmloc)&
-       & +scgmap (is0+KLX,1  )*zsdivpl(KLX,compteur  ,JI,jmloc)  
+      zspdivpl(KLX-1,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap(is0+KLX-3,3)*zsdivpl(KLX-3,compteur,JI,jmloc)&
+       & +ydgeometry%yspgeom%scgmap(is0+KLX-2,2)*zsdivpl(KLX-2,compteur,JI,jmloc)&
+       & +ydgeometry%yspgeom%scgmap (is0+KLX-1,1)*zsdivpl(KLX-1,compteur,JI,jmloc)&
+       & +ydgeometry%yspgeom%scgmap(is0+KLX-1,2)*zsdivpl(KLX,compteur  ,JI,jmloc)  
+      zspdivpl(KLX,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap(is0+KLX-2,3)*zsdivpl(KLX-2,compteur,JI,jmloc)&
+       & +ydgeometry%yspgeom%scgmap(is0+KLX-1,2)*zsdivpl(KLX-1,compteur,JI,jmloc)&
+       & +ydgeometry%yspgeom%scgmap (is0+KLX,1  )*zsdivpl(KLX,compteur  ,JI,jmloc)  
 
 ELSEIF (KLX == 3) THEN
-      zspdivpl(1,compteur,JI,jmloc) = scgmap(is0+ 1,1)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+1,2)*zsdivpl(2,compteur,JI,jmloc)+scgmap(is0+1,3)*zsdivpl(3,compteur,JI,jmloc)
-      zspdivpl(2,compteur,JI,jmloc) = scgmap(is0+1,2)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+2,1)*zsdivpl(2,compteur,JI,jmloc)+scgmap(is0+2,2)*zsdivpl(3,compteur,JI,jmloc)
-      zspdivpl(3,compteur,JI,jmloc) = scgmap(is0+1,3)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+2,2)*zsdivpl(2,compteur,JI,jmloc)+scgmap (is0+3,1)*zsdivpl(3,compteur,JI,jmloc)
+      zspdivpl(1,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap(is0+ 1,1)*zsdivpl(1,compteur,JI,jmloc)+ydgeometry%yspgeom%scgmap(is0+1,2)*zsdivpl(2,compteur,JI,jmloc)+ydgeometry%yspgeom%scgmap(is0+1,3)*zsdivpl(3,compteur,JI,jmloc)
+      zspdivpl(2,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap(is0+1,2)*zsdivpl(1,compteur,JI,jmloc)+ydgeometry%yspgeom%scgmap(is0+2,1)*zsdivpl(2,compteur,JI,jmloc)+ydgeometry%yspgeom%scgmap(is0+2,2)*zsdivpl(3,compteur,JI,jmloc)
+      zspdivpl(3,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap(is0+1,3)*zsdivpl(1,compteur,JI,jmloc)+ydgeometry%yspgeom%scgmap(is0+2,2)*zsdivpl(2,compteur,JI,jmloc)+ydgeometry%yspgeom%scgmap (is0+3,1)*zsdivpl(3,compteur,JI,jmloc)
 
 ELSEIF (KLX == 2) THEN
-      zspdivpl(1,compteur,JI,jmloc) = scgmap(is0+1,1)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+1,2)*zsdivpl(2,compteur,JI,jmloc)
-      zspdivpl(2,compteur,JI,jmloc) = scgmap(is0+1,2)*zsdivpl(1,compteur,JI,jmloc)+scgmap(is0+2,1)*zsdivpl(2,compteur,JI,jmloc)
+      zspdivpl(1,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap(is0+1,1)*zsdivpl(1,compteur,JI,jmloc)+ydgeometry%yspgeom%scgmap(is0+1,2)*zsdivpl(2,compteur,JI,jmloc)
+      zspdivpl(2,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap(is0+1,2)*zsdivpl(1,compteur,JI,jmloc)+ydgeometry%yspgeom%scgmap(is0+2,1)*zsdivpl(2,compteur,JI,jmloc)
 
 ELSEIF (KLX == 1) THEN
-      zspdivpl(1,compteur,JI,jmloc) = scgmap(is0+1,1)*zsdivpl(1,compteur,JI,jmloc)
+      zspdivpl(1,compteur,JI,jmloc) = ydgeometry%yspgeom%scgmap(is0+1,1)*zsdivpl(1,compteur,JI,jmloc)
 
 ENDIF
 
 !           Reorganisation of ZSPDIVPL
 
     !$acc loop vector private(ISE)
-    DO JN=IM,NSMAX
+    DO JN=IM,ydgeometry%yrdim%NSMAX
       ise=ista+2*(jn-im)
       PHELP(ISE+ji-1,compteur)=ZSPDIVPL(JN-im+1,compteur,ji,jmloc)
     ENDDO
@@ -146,9 +146,9 @@ ZSPDIVPL(:,:,:)=0.0_JPRB
 
 !        ZSPDIV=(DIVprim(t+dt)) --> ZPSPDIVG=(GMBAR**2 * DIVprim(t+dt)).
 
-CALL MXPTMA(NSMAX+1-IM,NFLEVG,NFLEVG,II,nsmax,SCGMAP(IS0+1,1),&
- & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
- & SCGMAP(IS0+1,2),SCGMAP(IS0+1,3),&
+CALL MXPTMA(NSMAX+1-IM,NFLEVG,NFLEVG,II,nsmax,ydgeometry%yspgeom%scgmap(IS0+1,1),&
+ & ydgeometry%yspgeom%scgmap(IS0+1,2),ydgeometry%yspgeom%scgmap(IS0+1,3),&
+ & ydgeometry%yspgeom%scgmap(IS0+1,2),ydgeometry%yspgeom%scgmap(IS0+1,3),&
  & ZSDIVPL,ZSPDIVPL)  
 
 !           Reorganisation of ZSPDIVPL

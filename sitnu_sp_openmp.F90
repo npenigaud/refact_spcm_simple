@@ -1,4 +1,8 @@
+#if defined(_OPENACC)
+SUBROUTINE SITNU_SP_OPENMP (YDGEOMETRY, YDCST, YDDYN, KLEV, KSPEC, PD, PT,PSP,zsdiv,zout)
+#else
 SUBROUTINE SITNU_SP_OPENMP (YDGEOMETRY, YDCST, YDDYN, KLEV, KSPEC, PD, PT, PSP)
+#endif
 
 !**** *SITNU_SP_OPENMP*   - Continuity equation for semi-implicit.
 
@@ -77,9 +81,13 @@ REAL(KIND=JPRB)   ,INTENT(OUT)   :: PT(KSPEC,klev)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSP(KSPEC) 
 
 !     ------------------------------------------------------------------
-
+#if defined(_OPENACC)
+REAL(KIND=JPRB), intent(inout)   :: ZSDIV(KSPEC,0:KLEV+1)
+REAL(KIND=JPRB), intent(inout)   :: ZOUT(KSPEC,0:KLEV)
+#else
 REAL(KIND=JPRB) :: ZSDIV(KSPEC,0:KLEV+1)
 REAL(KIND=JPRB) :: ZOUT(KSPEC,0:KLEV)
+#endif
 
 REAL(KIND=JPRB) :: ZSDIVX(0:KLEV, KSPEC)
 INTEGER(KIND=JPIM) :: JLEV, JSPEC

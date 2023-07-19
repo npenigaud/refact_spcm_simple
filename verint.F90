@@ -97,7 +97,8 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE,ZHOOK_HANDLE_XGEMM,zhook_handle2
 IF (KSTART > KPROF) RETURN
 
 IF (LHOOK) CALL DR_HOOK('VERINT',0,ZHOOK_HANDLE)
-
+#if defined(_OPENACC)
+#else
 #ifdef PARKIND1_SINGLE        
   ALLOCATE(ZOUT(KPROMA,KLEVOUT))
   ALLOCATE(ZIN(KPROMA,KLEVIN))
@@ -105,6 +106,7 @@ IF (LHOOK) CALL DR_HOOK('VERINT',0,ZHOOK_HANDLE)
 #else
   ZOUT => POUT
   ZIN => PIN
+#endif
 #endif
 
 LPAR = OML_IN_PARALLEL()
@@ -121,7 +123,6 @@ IF (LPAR) THEN
 ELSE
   IF (LHOOK) CALL DR_HOOK('VERINT_DGEMM_2',0,ZHOOK_HANDLE_XGEMM)
 
-  if (.true.) then
 #if defined(_OPENACC)
   !$acc host_data use_device(PIN,POUT,PINTE)
     call cublasDGEMM('N','T',KPROMA,KLEVOUT,KLEVIN,&
@@ -129,6 +130,7 @@ ELSE
   !$acc end host_data
   !$acc wait
 #else
+  if (.true.) then
    ! Chunking across KPROMA
 !$OMP PARALLEL DO PRIVATE(JROF,JLEN)
     DO JROF=KSTART,KPROF,KCHUNK
@@ -137,7 +139,6 @@ ELSE
            & 1.0_JPRD,ZIN(JROF,1),KPROMA,PINTE,KLEVOUT,0.0_JPRD,ZOUT(JROF,1),KPROMA)
     ENDDO
 !$OMP END PARALLEL DO
-#endif
   else
     ! Chunking across KLEVOUT
 !$OMP PARALLEL DO PRIVATE(JLEV,JLEN)
@@ -148,7 +149,7 @@ ELSE
     ENDDO
 !$OMP END PARALLEL DO
   end if
-
+#endif
   IF (LHOOK) CALL DR_HOOK('VERINT_DGEMM_2',1,ZHOOK_HANDLE_XGEMM)
 ENDIF
 
@@ -157,14 +158,17 @@ IF(KTYPE == 1) THEN
   ! warning: dependence on last level in OMP case, last level is done separately
 if (lhook) call dr_hook('VERINT_calcul',0,zhook_handle2)
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JLEV,JROF) if (.not.lpar) default(none)
-!$acc loop collapse(2)
+!$acc PARALLEL PRIVATE(JLEV,JROF) default(none)
+!$acc loop gang vector collapse(2)
   DO JLEV=1,KLEVOUT-1
     DO JROF=KSTART,KPROF
       POUT(JROF,JLEV)=pout(JROF,JLEV)-pout(JROF,KLEVOUT)  !!changement zout =>pout à droite
     ENDDO
   ENDDO
 !$acc END PARALLEL 
+if (lhook) call dr_hook('VERINT_calcul',1,zhook_handle2)
+if (lhook) call dr_hook('VERINT_calcul_b',0,zhook_handle2)
+
 
   ! last level substraction summarizes to zeroing
   !$acc parallel private(jrof) default(none)
@@ -186,7 +190,7 @@ if (lhook) call dr_hook('VERINT_calcul',0,zhook_handle2)
   ! last level substraction summarizes to zeroing
   POUT(KSTART:KPROF,KLEVOUT)=0._JPRB
 #endif
-if (lhook) call dr_hook('VERINT_calcul',1,zhook_handle2)
+if (lhook) call dr_hook('VERINT_calcul_b',1,zhook_handle2)
 
 ELSEIF (KTYPE /= 0) THEN
   WRITE(NULERR,*) ' INVALID KTYPE IN VERINT =',KTYPE

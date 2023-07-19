@@ -27,15 +27,8 @@ REAL(KIND=JPRB)     ,INTENT(INOUT) :: PSPSVD(YDGEOMETRY%YRDIMV%NFLEVL,YDGEOMETRY
 #include "spcimpfpost.intfb.h"
 
 #if defined(_OPENACC)
-real(kind=JPRB)  :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,499)
-real(kind=JPRB)  :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,499)
 real(kind=jprb),allocatable  :: param_mxture(:,:,:)
 integer(kind=jpim), parameter :: taillec=2001
-real(kind=jprb)   :: pa(taillec)
-real(kind=jprb)   :: pb(taillec)
-real(kind=jprb)   :: pc(taillec)
-real(kind=jprb)   :: entree(taillec)
-real(kind=jprb)   :: sortie(taillec)
 #else
 real(kind=jprb)  :: simit(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
 real(kind=jprb)  :: simot(ydgeometry%yrdimv%nflevg,ydgeometry%yrdimv%nflevg)
@@ -65,7 +58,7 @@ REAL(KIND=JPRB), ALLOCATABLE :: PSPSPD2(:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: PSPSVD2(:,:)
 REAL(KIND=JPRB), ALLOCATABLE :: PSPSP2 (:)
 
-LOGICAL :: LLONEM
+LOGICAL :: LLONEM,LLTRANSPOSE
 
 INTEGER(KIND=JPIM) :: IM, ISPEC2V
 INTEGER (KIND=JPIM) :: JMLOC, ISTA, IEND
@@ -85,6 +78,12 @@ ASSOCIATE(NFLEVG=>YDDIMV%NFLEVG, NSPEC2V=>YDMP%NSPEC2V, NSPEC2VF=>YDMP%NSPEC2VF,
 & nptrmf=>ydmp%nptrmf,LSIDG=>YDDYN%LSIDG)
 
 #if defined(_OPENACC)
+LLTRANSPOSE=.FALSE.
+#else
+LLTRANSPOSE=.TRUE.
+#endif
+
+#if defined(_OPENACC)
 if (LSIDG) then
   !!transposition temporaire des parametres mxture
   !!calcul de la taille max d une plage de params
@@ -93,11 +92,6 @@ if (LSIDG) then
     im=ydlap%myms(jmloc)  
     taille=max(taille,nflevg*(nsmax+1-im))
   enddo
-
-  print *,"taille",taille
-  print *,"nptrmf(mysetn)",nptrmf(mysetn)
-  print *,"nptrmf(mysetn+1)-1",nptrmf(mysetn+1)-1
-  call flush(0)
 
   !!allocation, passage sur carte et initialisation
   allocate(param_mxture(taille,nptrmf(mysetn+1)-1,5))
@@ -224,7 +218,7 @@ IF (LIMPF) THEN
   ENDDO
 !$OMP END PARALLEL DO
 
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.false.,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,PSPAUX=ZSPAUX,& 
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -236,7 +230,7 @@ IF (LIMPF) THEN
   & PSPAUXG=ZSPAUXG)
 
   CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,.false.,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
@@ -268,7 +262,7 @@ ELSE
 #endif
 
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',0,zhook_handle2)
-    !$acc data create(zspvorg,zspdivg,zsptg,zspspdg,zspsvdg,zspspg) create(zsdivpl,zspdivpl,pa,pb,pc,entree,sortie)
+    !$acc data create(zspvorg,zspdivg,zsptg,zspspdg,zspsvdg,zspspg) 
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1a',1,zhook_handle2)
     if (lhook) call dr_hook('SPCM_SIMPLE_transferts1b',0,zhook_handle2)
     !$acc data copy(pspvor2,pspdiv2,pspt2,pspspd2,pspsvd2,pspsp2)
@@ -278,7 +272,7 @@ ELSE
 
 #if defined(_OPENACC)
 
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
     & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -287,10 +281,10 @@ ELSE
 
   CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
   & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
-  & taillec,zsdivpl,zspdivpl,pa,pb,pc,entree,sortie,param_mxture)
+  & taillec,param_mxture)
 
   CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
@@ -298,8 +292,9 @@ ELSE
     & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
 
 #else
+if (LLTRANSPOSE) THEN
 
-  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
@@ -310,13 +305,57 @@ ELSE
   & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
   & simit,simot)
 
+
   CALL TRSTOM(&
-    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
     & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
     & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
     & PSPVOR=PSPVOR,PSPDIV=PSPDIV,PSPT=PSPT,PSPSPD=PSPSPD,&
     & PSPSVD=PSPSVD,PSPSP=PSPSP,&
     & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
+else
+    pspsp2(:)=pspsp(:)
+    do compteur1=1,nspec2
+      do compteur2=1,nflevl
+        pspvor2(compteur1,compteur2)=pspvor(compteur2,compteur1)
+        pspdiv2(compteur1,compteur2)=pspdiv(compteur2,compteur1)
+        pspt2(compteur1,compteur2)=pspt(compteur2,compteur1)
+        pspspd2(compteur1,compteur2)=pspspd(compteur2,compteur1)
+        pspsvd2(compteur1,compteur2)=pspsvd(compteur2,compteur1)
+      enddo
+    enddo
+
+  CALL TRMTOS(YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
+    & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
+    & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
+    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
+    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
+    & LDFULLM=LLONEM)
+
+  CALL SPCSI_STR(YDGEOMETRY, YDMODEL%YRCST, YDLDDH, YDMODEL%YRML_GCONF%YRRIP, YDDYN, ISPEC2V, &
+  & ZSPVORG, ZSPDIVG, ZSPTG, ZSPSPG, ZSPTNDSI_VORG, ZSPTNDSI_DIVG, ZSPTNDSI_TG,&
+  & simit,simot)
+
+  CALL TRSTOM(&
+    & YDGEOMETRY,YDDYNA%LNHDYN,YDDYNA%LNHX,LLTRANSPOSE,&
+    & PSPVORG=ZSPVORG,PSPDIVG=ZSPDIVG,PSPTG=ZSPTG,PSPSPDG=ZSPSPDG,&
+    & PSPSVDG=ZSPSVDG,PSPSPG=ZSPSPG,&
+    & PSPVOR=PSPVOR2,PSPDIV=PSPDIV2,PSPT=PSPT2,PSPSPD=PSPSPD2,&
+    & PSPSVD=PSPSVD2,PSPSP=PSPSP2,&
+    & LDFULLM=LLONEM,LDNEEDPS=.TRUE.)  
+
+    pspsp(:)=pspsp2(:)
+    do compteur2=1,nspec2
+      do compteur1=1,nflevl
+        pspvor(compteur1,compteur2)=pspvor2(compteur2,compteur1)
+        pspdiv(compteur1,compteur2)=pspdiv2(compteur2,compteur1)
+        pspt(compteur1,compteur2)=pspt2(compteur2,compteur1)
+        pspspd(compteur1,compteur2)=pspspd2(compteur2,compteur1)
+        pspsvd(compteur1,compteur2)=pspsvd2(compteur2,compteur1)
+      enddo
+    enddo
+
+endif
 
 #endif
 

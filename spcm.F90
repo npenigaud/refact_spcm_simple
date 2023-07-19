@@ -12,6 +12,7 @@ USE MPL_BARRIER_MOD    , ONLY : MPL_BARRIER
 USE UTIL_MODEL_MOD
 USE UTIL_GEOMETRY_MOD
 USE UTIL_YOMMP0_MOD, ONLY : LOAD_YOMMP0
+USE YOMMP0, ONLY          : MYSETV,MYSETW,MYSETN
 
 #if defined(_OPENACC)
 use cublas
@@ -102,6 +103,7 @@ CLFILE = 'SPCM_SIMPLE.IN.'//TRIM (CLPROC)
 OPEN (ILUN, FILE=TRIM (CLCASE)//'/'//TRIM (CLFILE), FORM='UNFORMATTED')
 
 CALL LOAD_YOMMP0 (ILUN)
+!$acc update device(MYSETV,MYSETN,MYSETW)
 CALL LOAD (ILUN, YDMODEL)
 CALL LOAD (ILUN, YDGEOMETRY)
 
@@ -173,7 +175,7 @@ if (lhook) call dr_hook('SPCM_transferts1',1,zhook_handle2)
 #endif
 
 #if repetitif
-do repetition2=1,20
+do repetition2=1,200
 if (lhook) call dr_hook('SPCM_repetitif',0,zhook_handle2)
 pspsp(:)=pspsp2(:)
 pspvor(:,:)=pspvor2(:,:)
@@ -184,7 +186,9 @@ pspsvd(:,:)=pspsvd2(:,:)
 if (lhook) call dr_hook('SPCM_repetitif',1,zhook_handle2)
 #endif
 
+
 CALL SPCM_SIMPLE (YDGEOMETRY,YDMODEL,PSPSP,PSPVOR,PSPDIV,PSPT,PSPSPD,PSPSVD)
+
 
 #if repetitif
 enddo !repetition2
