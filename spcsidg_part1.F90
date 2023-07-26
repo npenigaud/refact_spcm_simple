@@ -25,7 +25,7 @@ REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
 integer(kind=jpim)               :: taillec
-integer(kind=jpim), parameter    :: tbloc=62!!28
+integer(kind=jpim), parameter    :: tbloc=62!!62
 integer(kind=jpim),parameter     :: bloclev=8!!8
 REAL(KIND=JPRB),   intent(inout) :: ZSDIVPL (1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,ydgeometry%yrdim%nump)
 REAL(KIND=JPRB),   intent(inout) :: ZSPDIVPL(1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,ydgeometry%yrdim%nump)

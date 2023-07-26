@@ -204,7 +204,7 @@ if (lhook) CALL DR_HOOK('SPCSI_sidg0',0,zhook_handle2)
   !$acc loop gang collapse(2) 
   DO JMLOC=ydgeometry%yrmp%NPTRMF(MYSETN), ydgeometry%yrmp%NPTRMF(MYSETN+1)-1
     do jlev=1,ydgeometry%yrdimv%NFLEVG
-  
+
       IM=ydgeometry%YRLAP%MYMS(jMLOC)
       ISTA=ydgeometry%yrmp%NSPSTAF(IM)
       IEND=ISTA+2*(ydgeometry%yrdim%NSMAX+1-IM)-1
@@ -239,14 +239,17 @@ ELSE
 
 if (lhook) call dr_hook('SPCSI_boucle1',0,zhook_handle2)
 #if defined(_OPENACC)
-!$acc PARALLEL loop collapse(2) PRIVATE(JSP,JLEV,IN,zbdtaux) default(none)
+!$ACC PARALLEL vector_length(128) PRIVATE(JSP,JLEV,IN,zbdtaux) default(none)
+!$acc loop gang vector collapse(2)
 #else
 !$OMP PARALLEL DO PRIVATE(JSP,JLEV,IN,zbdtaux)
 #endif
   DO JLEV=1,ydgeometry%yrdimv%NFLEVG
     DO JSP=1,kspec2v
+!      do jlev=1,ydgeometry%yrdimv%NFLEVG
       IN=YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)
       zbdtaux=ZBDT*YDGEOMETRY%YRLAP%RLAPDI(IN)
+
       ZSDIV(JSP,jlev)=PSPDIVG(JSP,jlev)-zbdtaux*ZSDIV(JSP,jlev)
     ENDDO
   ENDDO
@@ -294,8 +297,8 @@ ELSE
 
 if (lhook) call dr_hook('SPCSI_boucle2',0,zhook_handle2)
 #if defined(_OPENACC)
-    !$acc parallel private(JSP,JLEV,zbdtaux) default(none)
-    !$acc loop gang
+    !$acc parallel private(JSP,JLEV,zbdtaux) vector_length(128) default(none)
+    !$acc loop gang !vector !!collapse(2)
 #else
     !$omp parallel do private(jsp,jlev,zbdtaux) !!pas de parallelisation code initial
 #endif
@@ -303,6 +306,8 @@ if (lhook) call dr_hook('SPCSI_boucle2',0,zhook_handle2)
       zbdtaux=ZBDT2*YDDYN%SIVP(JLEV)
       !$acc loop vector
       DO JSP=1,KSPEC2V
+      !  DO JLEV=1,ydgeometry%yrdimv%NFLEVG
+      !  zbdtaux=ZBDT2*YDDYN%SIVP(JLEV)
         ZSPDIVP(JSP,jlev)=ZSDIVP(JSP,jlev)&
          & /(1.0_JPRB-zbdtaux*YDGEOMETRY%YRLAP%RLAPDI(YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)))  
       ENDDO
@@ -351,14 +356,15 @@ ELSE
 if (lhook) call dr_hook('SPCSI_boucle3',0,zhook_handle2)
 
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JSP,JLEV) default(none)
-!$acc loop gang
+!$acc PARALLEL vector_length(128) PRIVATE(JSP,JLEV) default(none)
+!$acc loop gang vector collapse(2)
 #else
 !$OMP PARALLEL DO PRIVATE(JSP,JLEV)
 #endif
   DO JLEV=1,ydgeometry%yrdimv%NFLEVG
-    !$acc loop vector
+    !!$acc loop vector
     DO JSP=1,kspec2v
+!      DO JLEV=1,ydgeometry%yrdimv%NFLEVG     
       ZHELP(JSP,jlev)=PSPDIVG(JSP,jlev)*ydgeometry%yrgem%RSTRET*ydgeometry%yrgem%RSTRET
     ENDDO
   ENDDO
@@ -388,13 +394,14 @@ CALL SITNU_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,ydgeometry%yrdimv%NFLEVG,KSPEC2V,ZHE
 
 if (lhook) call dr_hook('SPCSI_boucle4',0,zhook_handle2)
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JSP,JLEV) default(none)
+!$acc PARALLEL vector_length(128) PRIVATE(JSP,JLEV) default(none)
 !$acc loop gang vector collapse(2)
 #else
 !$OMP PARALLEL DO PRIVATE(JSP,JLEV)
 #endif
 DO JLEV=1,ydgeometry%yrdimv%NFLEVG
   DO JSP=1,kspec2v
+! DO JLEV=1,ydgeometry%yrdimv%NFLEVG  
     PSPTG(JSP,jlev)=PSPTG(JSP,jlev)-ZBDT*ZST(JSP,jlev)
   ENDDO
 ENDDO

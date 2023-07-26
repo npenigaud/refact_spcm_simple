@@ -124,21 +124,24 @@ IF (YDCVER%LVERTFE) THEN
 if (lhook) call dr_hook('SIGAM_transpose1',0,zhook_handle2)
 
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH) default(none)
-!$acc loop gang
+!$ACC PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH) vector_length(128) DEFAULT(NONE)
+!$ACC LOOP GANG VECTOR collapse(2)
 #else
 !$OMP PARALLEL PRIVATE(JLEV,JSPEC,ZDETAH)
 !$OMP DO SCHEDULE(STATIC) 
 #endif
-  DO JLEV=1,KLEV
-    zdetah=-ydgeometry%YRVETA%VFE_RDETAH(JLEV)*YDCST%RD*YDDYN%SILNPR(JLEV)
-    !$acc loop vector
-    DO JSPEC=1,KSPEC
-      ZSPHI(JSPEC,JLEV)=PT(JSPEC,jlev)*zdetah
+DO JLEV=1,KLEV
+
+!      ZDETAH=-YDGEOMETRY%YRVETA%VFE_RDETAH(JLEV)*YDCST%RD*YDDYN%SILNPR(JLEV)
+!  !$acc loop vector
+  DO JSPEC=1,KSPEC
+!    DO JLEV=1,KLEV
+      !ZDETAH=-YDGEOMETRY%YRVETA%VFE_RDETAH(JLEV)*YDCST%RD*YDDYN%SILNPR(JLEV)
+      ZSPHI(JSPEC,JLEV)=-PT(JSPEC,JLEV)*YDGEOMETRY%YRVETA%VFE_RDETAH(JLEV)*YDCST%RD*YDDYN%SILNPR(JLEV)!!ZDETAH
     ENDDO
   ENDDO
 #if defined(_OPENACC)
-!$acc END PARALLEL
+!$ACC END PARALLEL
 #else
 !$OMP END DO
 !$OMP END PARALLEL
@@ -147,7 +150,7 @@ if (lhook) call dr_hook('SIGAM_transpose1',1,zhook_handle2)
 
 if (lhook) call dr_hook('SIGAM_cond_lim',0,zhook_handle2)
 #if defined(_OPENACC)
-!$acc parallel private(jspec) num_gangs(1) default(none)
+!$acc parallel private(jspec) default(none)
 !$acc loop gang vector
 #else
 !$omp parallel do private(jspec)  !!dans le code initial fait par :
@@ -166,19 +169,24 @@ if (lhook) call dr_hook('SIGAM_cond_lim',1,zhook_handle2)
   CALL VERDISINT(ydgeometry%YrVFE,YDCVER,CLOPER,'11',KSPEC,1,KSPEC,KLEV,ZSPHI,ZOUT,KCHUNK=YDGEOMETRY%YRDIM%NPROMA)
 if (lhook) call dr_hook('SIGAM_transpose2',0,zhook_handle2)
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JLEV,JSPEC) default(none)
-!$acc loop collapse(2) 
+!$ACC PARALLEL PRIVATE(JLEV,JSPEC) vector_length(128) DEFAULT(NONE)
+!$ACC LOOP gang vector collapse(2)
 #else
 !$OMP PARALLEL PRIVATE(JLEV,JSPEC)
 !$OMP DO SCHEDULE(STATIC) 
 #endif
+!do jspec=1,kspec
+!  zdetah=PSP(JSPEC)*YDDYN%SIRPRG
+!  !$acc loop vector
+
   DO JLEV=1,KLEV
+!    !$acc loop vector
     DO JSPEC=1,KSPEC
-      PD(JSPEC,jlev)=ZOUT(JSPEC,JLEV-1)+PSP(JSPEC)*yddyn%SIRPRG
+      PD(JSPEC,JLEV)=ZOUT(JSPEC,JLEV-1)+PSP(JSPEC)*YDDYN%SIRPRG
     ENDDO
   ENDDO
 #if defined(_OPENACC)
-!$acc END PARALLEL
+!$ACC END PARALLEL
 #else
 !$OMP END DO
 !$OMP END PARALLEL

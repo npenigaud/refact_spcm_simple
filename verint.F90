@@ -158,10 +158,11 @@ IF(KTYPE == 1) THEN
   ! warning: dependence on last level in OMP case, last level is done separately
 if (lhook) call dr_hook('VERINT_calcul',0,zhook_handle2)
 #if defined(_OPENACC)
-!$acc PARALLEL PRIVATE(JLEV,JROF) default(none)
+!$acc PARALLEL vector_length(128) PRIVATE(JLEV,JROF) default(none)
 !$acc loop gang vector collapse(2)
   DO JLEV=1,KLEVOUT-1
     DO JROF=KSTART,KPROF
+!   do jlev=1,klevout-1
       POUT(JROF,JLEV)=pout(JROF,JLEV)-pout(JROF,KLEVOUT)  !!changement zout =>pout à droite
     ENDDO
   ENDDO
@@ -172,7 +173,7 @@ if (lhook) call dr_hook('VERINT_calcul_b',0,zhook_handle2)
 
   ! last level substraction summarizes to zeroing
   !$acc parallel private(jrof) default(none)
-  !$acc loop 
+  !$acc loop gang vector
   do jrof=kstart,kprof
     POUT(jrof,KLEVOUT)=0._JPRB
   enddo
