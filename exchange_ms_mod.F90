@@ -375,7 +375,7 @@ INTEGER(KIND=JPIM) ,INTENT(IN)              :: KWHAT
 #include "set2pe.intfb.h"
 
 INTEGER(KIND=JPIM) :: IPOS, IOFF, ILEN, ISENDSET, JFLD
-INTEGER(KIND=JPIM) :: ISPE, ISPEL, ISPE1, ISPE2,ICNT,ILEV
+INTEGER(KIND=JPIM) :: ISPE, ISPEL, ISPE1, ISPE2,ICNT,ILEV,compteur,longueur
 
 REAL(KIND=JPRB) :: ZHOOK_HANDLE,ZHOOK_HANDLE2
 
@@ -466,18 +466,21 @@ IF (KWHAT /= NQUERY) THEN
   ELSE
 #if defined(_OPENACC)
     !$ACC PARALLEL DEFAULT(NONE) 
-    !$ACC LOOP GANG PRIVATE(ILEV,JFLD,IPOS) COLLAPSE(2)
+    !$ACC LOOP GANG PRIVATE(ILEV,JFLD,IPOS) COLLAPSE(3)
 #else
-    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE (ISPE,IPOS,JFLD)
+    !$OMP PARALLEL DO SCHEDULE(STATIC) PRIVATE (ISPE,IPOS,JFLD,compteur,longueur)
 #endif
     DO ILEV = 1,NFLEVL
       DO JFLD=1,YDLIST%N3D
+       do compteur=ispe1,ispe2,256
+        longueur=min(256,ispe2-compteur+1)
         IPOS=IOFF+ISPEL*(ILEV-1)*YDLIST%N3D+(JFLD-1)*ISPEL 
         IF (KWHAT == NPACK) THEN
-          PBUF_M(IPOS+1:IPOS+ISPEL) = YDLIST%YL3D (JFLD)%ZSP (ISPE1:ISPE2,ILEV)
+          PBUF_M(IPOS+compteur-ispe1+1:IPOS+compteur-ispe1+longueur) = YDLIST%YL3D (JFLD)%ZSP (compteur:compteur+longueur-1,ILEV)
         ELSEIF (KWHAT == NUNPACK) THEN
-          YDLIST%YL3D (JFLD)%ZSP (ISPE1:ISPE2,ILEV) =PBUF_M(IPOS+1:IPOS+ISPEL) 
+          YDLIST%YL3D (JFLD)%ZSP (compteur:compteur+longueur-1,ILEV) =PBUF_M(IPOS+compteur-ispe1+1:IPOS+compteur-ispe1+longueur) 
         ENDIF
+       enddo
       ENDDO
     ENDDO
 #if defined(_OPENACC)

@@ -1,6 +1,5 @@
 #if defined(_OPENACC)
-SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,tnsmax,PA,PBI,PCI,PBS,PCS,PX,PY)
-!$acc routine vector
+SUBROUTINE MXPTMA(KLX,KVX,KVXS,PA,PBI,PCI,PBS,PCS,PX,PY)
 #else
 SUBROUTINE MXPTMA(KLX,KVX,KVXS,KIX,tnsmax,PA,PBI,PCI,PBS,PCS,PX,PY)
 #endif
@@ -74,11 +73,11 @@ IMPLICIT NONE
 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLX 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVXS 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KIX 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KVX
 #if defined(_OPENACC)
-integer(kind=jpim),intent(in),value :: tnsmax
+
 #else
+INTEGER(KIND=JPIM),INTENT(IN)    :: KIX 
 integer(kind=jpim),intent(in) :: tnsmax
 #endif 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PA(KLX) 
@@ -87,8 +86,8 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PCI(KLX)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PBS(KLX) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PCS(KLX)
 #if defined(_OPENACC)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(tnsmax+1,kvxs,KIX) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(tnsmax+1,kvxs,KIX) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(2*KLX,kvxs) 
+REAL(KIND=JPRB)   ,INTENT(INOUT)   :: PY(2*KLX,kvxs) 
 #else 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PX(tnsmax+1,KVXS,KIX) 
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PY(tnsmax+1,KVXS,KIX) 
@@ -105,7 +104,92 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !*       1.    COMPUTATION OF PY.
 !              ------------------
+  !$acc data present(px,py,pa,pbi,pci,pbs,pcs)
 
+#if defined(_OPENACC)
+IF (KLX >= 4) THEN
+  !$acc parallel private(ji,jv) default(none) async(1)
+  !$acc loop gang
+  do jv=1,kvx    
+    !$acc loop vector
+    do ji=-1,0
+      PY(2+ji,jv) = PA (1)*PX(2+ji,jv)+PBS(1)*PX(4+ji,jv)+PCS(1)*PX(6+ji,jv)
+      PY(4+ji,jv) = PBI(1)*PX(2+ji,jv)&
+       & +PA (2)*PX(4+ji,jv)&
+       & +PBS(2)*PX(6+ji,jv)&
+       & +PCS(2)*PX(8+ji,jv)  
+    enddo
+  ENDDO
+  !$acc end parallel
+
+  !$acc parallel private(jl,jv) default(none) async(2)
+  !$acc loop gang vector collapse(2)
+  do jv=1,kvx
+    do jl=3,klx-2        
+!    !$acc cache(px(jl-2:jl+2,:),pbi(jl-2),pci(jl-1),pa(jl),pbs(jl),pcs(jl))
+        PY(2*JL-1:2*jl,jv) = PCI(JL-2)*PX(2*(JL-2)-1:2*(jl-2),jv)&
+         & +PBI(JL-1)*PX(2*(JL-1)-1:2*(jl-1),jv)&
+         & +PA (JL  )*PX(2*JL-1:2*jl,jv  )&
+         & +PBS(JL  )*PX(2*(JL+1)-1:2*(jl+1),jv)&
+         & +PCS(JL  )*PX(2*(JL+2)-1:2*(jl+2),jv) 
+!        PY(jl,jv) = PCI(JL-2)*PX((jl-2),jv)&
+!         & +PBI(JL-1)*PX((jl-1),jv)&
+!         & +PA (JL  )*PX(jl,jv  )&
+!         & +PBS(JL  )*PX((jl+1),jv)&
+!         & +PCS(JL  )*PX((jl+2),jv) 
+      !  if (jv==10) then
+      !    print *,"PX",PX(2*jl-1,jv),PX(2*jl,jv)
+      !    print *,"PY",PY(2*jl-1,jv),PY(2*jl,jv)
+      !    print *,"coeffs",PCI(jl-2),PBI(JL-1),PA(jl),PBS(jl),pcs(jl)
+      !  endif
+     ENDDO
+  ENDDO
+  !$acc end parallel
+  
+  !$acc parallel private(ji,jv) async(3)
+  !$acc loop gang
+  do jv=1,kvx
+    !$acc loop vector
+    do ji=-1,0
+      PY(2*(KLX-1)+ji,jv) = PCI(KLX-3)*PX(2*(KLX-3)+ji,jv)&
+       & +PBI(KLX-2)*PX(2*(KLX-2)+ji,jv)&
+       & +PA (KLX-1)*PX(2*(KLX-1)+ji,jv)&
+       & +PBS(KLX-1)*PX(2*KLX+ji,jv)
+      PY(2*KLX+ji,jv) = PCI(KLX-2)*PX(2*(KLX-2)+ji,jv)&
+       & +PBI(KLX-1)*PX(2*(KLX-1)+ji,jv)&
+       & +PA (KLX  )*PX(2*KLX+ji,jv  )  
+    enddo
+  ENDDO
+  !$acc end parallel
+  !$acc wait
+ELSEIF (KLX == 3) THEN
+  !$acc parallel private(jv)
+  !$acc loop vector
+  do jv=1,kvx
+      PY(1:2,jv) = PA (1)*PX(1:2,jv)+PBS(1)*PX(3:4,jv)+PCS(1)*PX(5:6,jv)
+      PY(3:4,jv) = PBI(1)*PX(1:2,jv)+PA (2)*PX(3:4,jv)+PBS(2)*PX(5:6,jv)
+      PY(5:6,jv) = PCI(1)*PX(1:2,jv)+PBI(2)*PX(3:4,jv)+PA (3)*PX(5:6,jv)
+  ENDDO
+  !$acc end parallel
+ELSEIF (KLX == 2) THEN
+  !$acc parallel private(jv)
+  !$acc loop vector
+  do jv=1,kvx
+      PY(1:2,jv) = PA (1)*PX(1:2,jv)+PBS(1)*PX(3:4,jv)
+      PY(3:4,jv) = PBI(1)*PX(1:2,jv)+PA (2)*PX(3:4,jv)
+  ENDDO
+  !$acc end parallel
+ELSEIF (KLX == 1) THEN
+  !$acc parallel private(jv)
+  !$acc loop vector
+  do jv=1,kvx
+      PY(1:2,jv) = PA (1)*PX(1:2,jv)
+  enddo
+  !$acc end parallel
+ENDIF
+  !$acc end data
+
+#else
 IF (KLX >= 4) THEN
   do jv=1,kvx
     DO JI=1,KIX
@@ -116,7 +200,6 @@ IF (KLX >= 4) THEN
        & +PCS(2)*PX(4,jv,JI)  
     ENDDO
   ENDDO
-  !$acc loop vector 
   do jl=3,klx-2 
     DO JI=1,KIX
       DO JV=1,kvx
@@ -165,7 +248,7 @@ ELSEIF (KLX == 1) THEN
   ENDDO
 
 ENDIF
-
+#endif
 !     ------------------------------------------------------------------
 
 !!IF (LHOOK) CALL DR_HOOK('MXPTMA',1,ZHOOK_HANDLE)

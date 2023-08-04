@@ -58,6 +58,9 @@ INTEGER :: IPRINTLEV
 CHARACTER (LEN=64) :: CLFILE, CLPROC, CLCASE
 LOGICAL :: LLVERBOSE, LLWRITEGRIB1, LLWRITETEXT1, LLWRITEGRIB2, LLWRITETEXT2, LLSTATGP, LLSTATSP
 
+
+integer::jmloc,ista,iend,im,is0,is0c,is0cfin
+
 REAL(KIND=JPHOOK)  :: zhook_handle,zhook_handle2
 integer            :: repetition,repetition2
 #define repetitif 1
@@ -165,6 +168,37 @@ pspspd2(:,:)=pspspd(:,:)
 pspsvd2(:,:)=pspsvd(:,:)
 #endif
 
+!is0=ydgeometry%yrlap%nse0L(ydgeometry%yrmp%nptrmf(mysetn))
+!do jmloc =ydgeometry%yrmp%nptrmf(mysetn),ydgeometry%yrmp%nptrmf(mysetn+1)-1
+!  im=ydgeometry%yrlap%myms(jmloc)
+!  is0c=ydgeometry%yrlap%nse0L(jmloc)+1
+!  is0cfin=is0c+ydgeometry%yrdim%nsmax-im 
+!  ista=ydgeometry%yrmp%nspstaf(im)
+!  iend=ista+2*(ydgeometry%yrdim%nsmax+1-im)-1
+!  print *,"jmloc et im",jmloc,im
+!  print *,"ista / is0c ",ista,iend,is0c,is0cfin
+!  print *,"scgmap 1",ydgeometry%yspgeom%scgmap(ista:iend,1)
+!  print *,"scgmap 2",ydgeometry%yspgeom%scgmap(is0c:is0cfin,2)
+!  print *,"scgmap 3",ydgeometry%yspgeom%scgmap(is0c:is0cfin,3)
+!  print *,"siheg 1",ydmodel%yrml_dyn%yrdyn%siheg(1,ista:iend,1)
+!  print *,"siheg 2",ydmodel%yrml_dyn%yrdyn%siheg(1,ista:iend,2)
+!  print *,"siheg 3",ydmodel%yrml_dyn%yrdyn%siheg(1,ista:iend,3)
+
+!  print *,"siheg2 1",ydmodel%yrml_dyn%yrdyn%siheg(2,ista:iend,3)
+!  print *,"siheg2 2",ydmodel%yrml_dyn%yrdyn%siheg(3,ista:iend,3)
+!  print *,"siheg2 3",ydmodel%yrml_dyn%yrdyn%siheg(4,ista:iend,3)
+!  print *,"siheg2 1",ydmodel%yrml_dyn%yrdyn%siheg(2,ista:iend,2)
+!  print *,"siheg2 2",ydmodel%yrml_dyn%yrdyn%siheg(3,ista:iend,2)
+!  print *,"siheg2 3",ydmodel%yrml_dyn%yrdyn%siheg(4,ista:iend,2)
+!
+!enddo
+
+!print *, "long ind / long spec div 2 "
+!print *, is0cfin-is0, iend/2
+
+!print *,"longueur de scgmap",size(ydgeometry%yspgeom%scgmap,1)
+!print *,"kspec2v",ydgeometry%yrmp%nspec2Vf
+
 if (lhook) call dr_hook('SPCM',0,zhook_handle)
 
 #if defined(_OPENACC)
@@ -175,7 +209,7 @@ if (lhook) call dr_hook('SPCM_transferts1',1,zhook_handle2)
 #endif
 
 #if repetitif
-do repetition2=1,200
+do repetition2=1,200!1!200
 if (lhook) call dr_hook('SPCM_repetitif',0,zhook_handle2)
 pspsp(:)=pspsp2(:)
 pspvor(:,:)=pspvor2(:,:)

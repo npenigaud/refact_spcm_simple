@@ -127,7 +127,7 @@ REAL(KIND=JPRB) :: ZST    (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB) :: ZSP    (KSPEC2V)
 
 
-INTEGER(KIND=JPIM) :: IN, IOFF, JLEV, JSP  
+INTEGER(KIND=JPIM) :: IN, IOFF, JLEV, JSP,jspbis
 INTEGER(KIND=JPIM) :: JMLOC, IM, ISTA, IEND
 REAL(KIND=JPRB) :: ZBDT, ZBDT2
 
@@ -150,7 +150,7 @@ real(kind=jprb)    :: zbdtaux
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SPCSI_STR',0,ZHOOK_HANDLE)
 ASSOCIATE(YDDIM=>YDGEOMETRY%YRDIM,YDDIMV=>YDGEOMETRY%YRDIMV,YDGEM=>YDGEOMETRY%YRGEM, YDMP=>YDGEOMETRY%YRMP,   &
-&  YDSPGEOM=>YDGEOMETRY%YSPGEOM)
+&  YDSPGEOM=>YDGEOMETRY%YSPGEOM,YDLAP=>YDGEOMETRY%YRLAP)
 ASSOCIATE( LSIDG=>YDDYN%LSIDG,                                 &
 &   LRSIDDH=>YDLDDH%LRSIDDH,SIMI=>YDDYN%SIMI,SIMO=>YDDYN%SIMO)
 !     ------------------------------------------------------------------
@@ -197,40 +197,112 @@ CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,ydgeometry%yrdimv%NFLEVG,KSPEC2V,ZSD
 CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,ydgeometry%yrdimv%NFLEVG,KSPEC2V,ZSDIV,PSPTG(:,:),PSPSPG(1:kspec2v)) !!!ispcol remplacé par kspec2V
 #endif
 IF (LSIDG) THEN
-
+!print *  ,"position de M=0",ydgeometry%yrmp%NSPSTAF(0)
 if (lhook) CALL DR_HOOK('SPCSI_sidg0',0,zhook_handle2)
 #if defined(_OPENACC)
-  !$acc parallel private(im,ista,iend) default(none)
-  !$acc loop gang collapse(2) 
-  DO JMLOC=ydgeometry%yrmp%NPTRMF(MYSETN), ydgeometry%yrmp%NPTRMF(MYSETN+1)-1
-    do jlev=1,ydgeometry%yrdimv%NFLEVG
+!   DO JMLOC=YDGEOMETRY%YRMP%NPTRMF(MYSETN),YDGEOMETRY%YRMP%NPTRMF(MYSETN+1)-1
+!      IM=YDGEOMETRY%YRLAP%MYMS(jMLOC)
+!      ISTA=YDGEOMETRY%YRMP%NSPSTAF(IM)
+!      IEND=ISTA+2*(YDGEOMETRY%YRDIM%NSMAX+1-IM)-1
+!      if (IM>0) then
+!        !$acc parallel private(im,ista,iend) default(none) async(jmloc)
+!        !$acc loop gang vector private(in) collapse(2)
+!        do jlev=1,YDGEOMETRY%YRDIMV%NFLEVG
+!          do jsp=ISTA,IEND
+!           in=YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)
+!           ZSDIV(jsp,JLEV)=YDGEOMETRY%YRLAP%RLAPIN(IN)*PSPDIVG(jsp,JLEV)-ZBDT*ZSDIV(jsp,JLEV)
+!          enddo
+!        enddo 
+!        !$acc end parallel
+!      else
+!        !$acc parallel private(im,ista,iend) default(none) async(jmloc)
+!        !$acc loop gang vector private(in) collapse(2)
+!        do jlev=1,YDGEOMETRY%YRDIMV%NFLEVG
+!          do jsp=ISTA,IEND
+!           in=YDGEOMETRY%YRLAP%NVALUE(JSP+IOFF)
+!           ZSDIV(jsp,JLEV)=PSPDIVG(jsp,JLEV)-ZBDT*YDGEOMETRY%YRLAP%RLAPDI(IN)*ZSDIV(jsp,JLEV)
+!          enddo
+!        enddo 
+!        !$acc end parallel
+!      endif
+!    ENDDO
+!    !$acc wait
 
-      IM=ydgeometry%YRLAP%MYMS(jMLOC)
-      ISTA=ydgeometry%yrmp%NSPSTAF(IM)
-      IEND=ISTA+2*(ydgeometry%yrdim%NSMAX+1-IM)-1
-      IF (IM > 0) THEN
-        !$acc loop vector private(in) 
-        DO JSP=ISTA,IEND
-          IN=ydgeometry%YRLAP%NVALUE(JSP+IOFF)
-          ZSDIV(jsp,JLEV)=ydgeometry%YRLAP%RLAPIN(IN)*PSPDIVG(jsp,JLEV)-ZBDT*ZSDIV(jsp,JLEV)
-        ENDDO
 
-      ELSE
+!   !$acc parallel private(im,ista,iend) default(none)
+!   !$acc loop gang vector tile(32,1) private(in)
+!   DO JMLOC=ydgeometry%yrmp%NPTRMF(MYSETN), ydgeometry%yrmp%NPTRMF(MYSETN+1)-1
+!    !do jlev=1,ydgeometry%yrdimv%NFLEVG
+!      do jspbis=1,2*(ydgeometry%yrdim%NSMAX+1)
+!    do jlev=1,ydgeometry%yrdimv%NFLEVG
+!      IM=ydgeometry%YRLAP%MYMS(jMLOC)
+!      ISTA=ydgeometry%yrmp%NSPSTAF(IM)
+!      IEND=ISTA+2*(ydgeometry%yrdim%NSMAX+1-IM)-1
+!      jsp=jspbis+ista-1
+!      if (jsp .le. iend) then
+!        in=ydgeometry%YRLAP%NVALUE(JSP+IOFF)
+!        IF (IM > 0) ZSDIV(jsp,JLEV)=ydgeometry%YRLAP%RLAPIN(IN)*PSPDIVG(jsp,JLEV)-ZBDT*ZSDIV(jsp,JLEV)
+!        if (IM .eq. 0) ZSDIV(jsp,JLEV)=PSPDIVG(jsp,JLEV)-ZBDT*ydgeometry%YRLAP%RLAPDI(IN)*ZSDIV(jsp,JLEV)
+!      ENDIF
+!     enddo
+!    enddo 
+!  ENDDO
+!  !$acc end parallel
 
-        !$acc loop vector private(in)
-        DO JSP=ISTA,IEND
-          IN=ydgeometry%YRLAP%NVALUE(JSP+IOFF)
-          ZSDIV(jsp,JLEV)=PSPDIVG(jsp,JLEV)-ZBDT*ydgeometry%YRLAP%RLAPDI(IN)*ZSDIV(jsp,JLEV)
-        ENDDO
 
-      ENDIF
-    enddo 
-  ENDDO
+if (ydgeometry%yrmp%nspstaf(0) .gt. 0) then
+  !$acc parallel private(in) default(none)
+  !$acc loop gang vector collapse(2)
+  do jlev=1,ydgeometry%yrdimv%nflevg
+    do jsp=1,kspec2v
+      in=ydgeometry%yrlap%nvalue(jsp+ioff)
+      if (jsp .ge. 2*(ydgeometry%yrdim%nsmax+1)) zsdiv(jsp,jlev)=ydgeometry%yrlap%rlapin(in)*pspdivg(jsp,jlev)-zbdt*zsdiv(jsp,jlev)
+      if (jsp .lt. 2*(ydgeometry%yrdim%nsmax+1)) zsdiv(jsp,jlev)=pspdivg(jsp,jlev)-zbdt*ydgeometry%yrlap%rlapdi(in)*zsdiv(jsp,jlev)
+    enddo
+  enddo
   !$acc end parallel
+else
+  !$acc parallel private(in) default(none)
+  !$acc loop gang vector collapse(2)
+  do jlev=1,ydgeometry%yrdimv%nflevg
+    do jsp=1,kspec2v
+      in=ydgeometry%yrlap%nvalue(jsp+ioff)
+      zsdiv(jsp,jlev)=ydgeometry%yrlap%rlapin(in)*pspdivg(jsp,jlev)-zbdt*zsdiv(jsp,jlev)
+    enddo
+  enddo
+  !$acc end parallel
+endif
 #else
-  DO JMLOC=ydgeometry%yrmp%NPTRMF(MYSETN), ydgeometry%yrmp%NPTRMF(MYSETN+1)-1
-    CALL SPCSIDG_PART0 (YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, JMLOC, ZSDIV, PSPDIVG)
-  ENDDO
+
+!if (ydgeometry%yrmp%nspstaf(0) .gt. 0) then
+!  !$omp parallel do private(jlev,jsp,in)
+!  do jlev=1,ydgeometry%yrdimv%nflevg
+!    do jsp=1,2*(ydgeometry%yrdim%nsmax+1)-1
+!      in=ydgeometry%yrlap%nvalue(jsp+ioff)
+!      zsdiv(jsp,jlev)=pspdivg(jsp,jlev)-zbdt*ydgeometry%yrlap%rlapdi(in)*zsdiv(jsp,jlev)
+!    enddo
+!
+!    do jsp=2*(ydgeometry%yrdim%nsmax+1),kspec2v
+!      in=ydgeometry%yrlap%nvalue(jsp+ioff)
+!      zsdiv(jsp,jlev)=ydgeometry%yrlap%rlapin(in)*pspdivg(jsp,jlev)-zbdt*zsdiv(jsp,jlev)
+!    enddo
+!  enddo
+!  !$omp end parallel do
+!else
+!  !$omp parallel do private(jlev,jsp,in)
+!  do jlev=1,ydgeometry%yrdimv%nflevg
+!    do jsp=1,kspec2v
+!      in=ydgeometry%yrlap%nvalue(jsp+ioff)
+!      zsdiv(jsp,jlev)=ydgeometry%yrlap%rlapin(in)*pspdivg(jsp,jlev)-zbdt*zsdiv(jsp,jlev)
+!    enddo
+!  enddo
+!  !$omp end parallel do
+!endif
+
+
+!  DO JMLOC=ydgeometry%yrmp%NPTRMF(MYSETN), ydgeometry%yrmp%NPTRMF(MYSETN+1)-1
+!    CALL SPCSIDG_PART0 (YDGEOMETRY, YDDYN, YDRIP, KSPEC2V, JMLOC, ZSDIV, PSPDIVG)
+!  ENDDO
 #endif
 if (lhook) CALL DR_HOOK('SPCSI_sidg0',1,zhook_handle2) 
 ELSE
