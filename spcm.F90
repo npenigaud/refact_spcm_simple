@@ -169,8 +169,10 @@ pspsvd2(:,:)=pspsvd(:,:)
 #endif
 
 !is0=ydgeometry%yrlap%nse0L(ydgeometry%yrmp%nptrmf(mysetn))
-!do jmloc =ydgeometry%yrmp%nptrmf(mysetn),ydgeometry%yrmp%nptrmf(mysetn+1)-1
-!  im=ydgeometry%yrlap%myms(jmloc)
+print *,"nombre de niveaux : ",ydgeometry%yrmp%nptrmf(mysetn+1)-ydgeometry%yrmp%nptrmf(mysetn)
+do jmloc =ydgeometry%yrmp%nptrmf(mysetn),ydgeometry%yrmp%nptrmf(mysetn+1)-1
+  im=ydgeometry%yrlap%myms(jmloc)
+  print *,im
 !  is0c=ydgeometry%yrlap%nse0L(jmloc)+1
 !  is0cfin=is0c+ydgeometry%yrdim%nsmax-im 
 !  ista=ydgeometry%yrmp%nspstaf(im)
@@ -191,7 +193,7 @@ pspsvd2(:,:)=pspsvd(:,:)
 !  print *,"siheg2 2",ydmodel%yrml_dyn%yrdyn%siheg(3,ista:iend,2)
 !  print *,"siheg2 3",ydmodel%yrml_dyn%yrdyn%siheg(4,ista:iend,2)
 !
-!enddo
+enddo
 
 !print *, "long ind / long spec div 2 "
 !print *, is0cfin-is0, iend/2

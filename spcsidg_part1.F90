@@ -25,8 +25,8 @@ REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
 integer(kind=jpim)               :: taillec
-integer(kind=jpim), parameter    :: tbloc=62!!62
-integer(kind=jpim),parameter     :: bloclev=8!!8
+integer(kind=jpim), parameter    :: tbloc=54!!62
+integer(kind=jpim),parameter     :: bloclev=10!!8!!54-10 meilleur pour l'instant
 REAL(KIND=JPRB),   intent(inout) :: ZSDIVPL (1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,ydgeometry%yrdim%nump)
 REAL(KIND=JPRB),   intent(inout) :: ZSPDIVPL(1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,ydgeometry%yrdim%nump)
 real(kind=jprb),   intent(in)    :: param_mxture(:,:,:)
@@ -110,6 +110,10 @@ do jmloc=kmlocsta,kmlocend
                 do ji=1,2
                   sortie(1,compteurc,ji)=entree(1,compteurc,ji)/pas(1,compteurc)
                   sortie(2,compteurc,ji)=(entree(2,compteurc,ji)-pbs(1,compteurc)*sortie(1,compteurc,ji))/pas(2,compteurc)
+                  do jl=3,min(decalage+tbloc+2,klx)-decalage
+                    sortie(JL,compteurc,ji)=(entree(JL,compteurc,ji)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc,ji)&
+                     & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc,ji))/pas(JL,compteurc)  
+                  enddo
                 enddo
               enddo
             else
@@ -120,18 +124,22 @@ do jmloc=kmlocsta,kmlocend
                   compteur=compteurc+(compteurb-1)*bloclev
                   sortie(1,compteurc,ji)=pspdivp(ise+ji-1,compteur)!!zspdivpl(decalage+1,compteur,ji,jmloc)
                   sortie(2,compteurc,ji)=pspdivp(ise+ji+1,compteur)!!zspdivpl(decalage+2,compteur,ji,jmloc)
+                  do jl=3,min(decalage+tbloc+2,klx)-decalage
+                    sortie(JL,compteurc,ji)=(entree(JL,compteurc,ji)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc,ji)&
+                     & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc,ji))/pas(JL,compteurc)  
+                  enddo
                 enddo
               enddo
             endif
-            !$acc loop vector private(jl) collapse(2)
-            do compteurc=1,min(bloclev,ydgeometry%yrdimv%nflevg-(compteurb-1)*bloclev)
-              do ji=1,2
-                do jl=3,min(decalage+tbloc+2,klx)-decalage
-                  sortie(JL,compteurc,ji)=(entree(JL,compteurc,ji)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc,ji)&
-                   & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc,ji))/pas(JL,compteurc)  
-                enddo
-              enddo
-            enddo
+!!            !$acc loop vector private(jl) collapse(2)
+!!            do compteurc=1,min(bloclev,ydgeometry%yrdimv%nflevg-(compteurb-1)*bloclev)
+!!              do ji=1,2
+!!                do jl=3,min(decalage+tbloc+2,klx)-decalage
+!!                  sortie(JL,compteurc,ji)=(entree(JL,compteurc,ji)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc,ji)&
+!!                   & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc,ji))/pas(JL,compteurc)  
+!!                enddo
+!!              enddo
+!!            enddo
             !$acc loop vector private(compteurc,ji,ise)
             do jl=decalage+1,min(decalage+tbloc+2,klx)
               ise=ista+2*(jl-1)
@@ -200,6 +208,10 @@ do jmloc=kmlocsta,kmlocend
                   sortie(klx-decalage,compteurc,ji)=entree(klx-decalage,compteurc,ji)
                   sortie(klx-1-decalage,compteurc,ji)=entree(klx-1-decalage,compteurc,ji)&
                    &-pbs(klx-1-decalage,compteurc)/pas(klx-1-decalage,compteurc)*sortie(klx-decalage,compteurc,ji)
+                  do jl=tbloc,max(decalage+1,1)-decalage,-1
+                    sortie(JL,compteurc,ji)=entree(JL,compteurc,ji)-pbs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+1,compteurc,ji)&
+                     &-pcs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+2,compteurc,ji)     
+                  enddo
                 enddo
               enddo
            else
@@ -210,18 +222,22 @@ do jmloc=kmlocsta,kmlocend
                   compteur=compteurc+(compteurb-1)*bloclev
                   sortie(tbloc+1,compteurc,ji)=pspdivp(ise+ji-1,compteur)!!zspdivpl(decalage+tbloc+1,compteur,ji,jmloc)
                   sortie(tbloc+2,compteurc,ji)=pspdivp(ise+ji+1,compteur)!!zspdivpl(decalage+tbloc+2,compteur,ji,jmloc)
+                  do jl=tbloc,max(decalage+1,1)-decalage,-1
+                    sortie(JL,compteurc,ji)=entree(JL,compteurc,ji)-pbs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+1,compteurc,ji)&
+                    &-pcs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+2,compteurc,ji)     
+                  enddo
                 enddo
               enddo
            endif
-           !$acc loop vector private(jl) collapse(2)
-           do compteurc=1,min(bloclev,ydgeometry%yrdimv%nflevg-(compteurb-1)*bloclev)
-             do ji=1,2
-             do jl=tbloc,max(decalage+1,1)-decalage,-1
-                 sortie(JL,compteurc,ji)=entree(JL,compteurc,ji)-pbs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+1,compteurc,ji)&
-                   &-pcs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+2,compteurc,ji)     
-               enddo
-             enddo
-           enddo
+ !!          !$acc loop vector private(jl) collapse(2)
+ !!          do compteurc=1,min(bloclev,ydgeometry%yrdimv%nflevg-(compteurb-1)*bloclev)
+ !!            do ji=1,2
+ !!            do jl=tbloc,max(decalage+1,1)-decalage,-1
+ !!                sortie(JL,compteurc,ji)=entree(JL,compteurc,ji)-pbs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+1,compteurc,ji)&
+ !!                  &-pcs(jl,compteurc)/pas(jl,compteurc)*sortie(JL+2,compteurc,ji)     
+ !!              enddo
+ !!            enddo
+ !!          enddo
            !$acc loop vector private(compteurc,ji,ise)
            do jl=decalage+tbloc+2,max(decalage+1,1),-1
              ise=ista+2*(jl-1)
@@ -279,6 +295,10 @@ do jmloc=kmlocsta,kmlocend
               do compteurc=1,min(bloclev,ydgeometry%yrdimv%nflevg-(compteurb-1)*bloclev)
                 sortie(1,compteurc,ji)=entree(1,compteurc,ji)/pas(1,compteurc)
                 sortie(2,compteurc,ji)=(entree(2,compteurc,ji)-pbs(1,compteurc)*sortie(1,compteurc,ji))/pas(2,compteurc)
+                do jl=3,min(decalage+tbloc+2,klx)-decalage
+                  sortie(JL,compteurc,ji)=(entree(JL,compteurc,ji)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc,ji)&
+                   & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc,ji))/pas(JL,compteurc)  
+                enddo
               enddo
             else
               ise=ista+2*(decalage+1-1)
@@ -287,15 +307,19 @@ do jmloc=kmlocsta,kmlocend
                 compteur=compteurc+(compteurb-1)*bloclev
                 sortie(1,compteurc,ji)=pspdivp(ise+ji-1,compteur)!!zspdivpl(decalage+1,compteur,ji,jmloc)
                 sortie(2,compteurc,ji)=pspdivp(ise+ji+1,compteur)!!zspdivpl(decalage+2,compteur,ji,jmloc)
+                do jl=3,min(decalage+tbloc+2,klx)-decalage
+                  sortie(JL,compteurc,ji)=(entree(JL,compteurc,ji)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc,ji)&
+                   & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc,ji))/pas(JL,compteurc)  
+                enddo
               enddo
             endif
-            !$acc loop vector private(jl)
-            do compteurc=1,min(bloclev,ydgeometry%yrdimv%nflevg-(compteurb-1)*bloclev)
-              do jl=3,min(decalage+tbloc+2,klx)-decalage
-                sortie(JL,compteurc,ji)=(entree(JL,compteurc,ji)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc,ji)&
-                 & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc,ji))/pas(JL,compteurc)  
-              enddo
-            enddo
+!!            !$acc loop vector private(jl)
+!!            do compteurc=1,min(bloclev,ydgeometry%yrdimv%nflevg-(compteurb-1)*bloclev)
+!!              do jl=3,min(decalage+tbloc+2,klx)-decalage
+!!                sortie(JL,compteurc,ji)=(entree(JL,compteurc,ji)-pcs(JL-2,compteurc)*sortie(JL-2,compteurc,ji)&
+!!                 & -pbs(JL-1,compteurc)*sortie(JL-1,compteurc,ji))/pas(JL,compteurc)  
+!!              enddo
+!!            enddo
             !$acc loop vector private(compteurc,ise)
             do jl=decalage+1,min(decalage+tbloc+2,klx)
               ise=ista+2*(jl-1)
@@ -354,6 +378,10 @@ do jmloc=kmlocsta,kmlocend
              sortie(klx-decalage,compteurc,ji)=entree(klx-decalage,compteurc,ji)
              sortie(klx-1-decalage,compteurc,ji)=entree(klx-1-decalage,compteurc,ji)&
                &-pbs(klx-1-decalage,compteurc)*sortie(klx-decalage,compteurc,ji)
+             do jl=tbloc,max(decalage+1,1)-decalage,-1
+               sortie(JL,compteurc,ji)=entree(JL,compteurc,ji)-pbs(jl,compteurc)*sortie(JL+1,compteurc,ji)&
+                 &-pcs(jl,compteurc)*sortie(JL+2,compteurc,ji)
+             enddo
            enddo
          else
            ise=ista+2*(decalage+tbloc+1-1)
@@ -362,16 +390,20 @@ do jmloc=kmlocsta,kmlocend
              compteur=compteurc+(compteurb-1)*bloclev
              sortie(tbloc+1,compteurc,ji)=pspdivp(ise+ji-1,compteur)!!zspdivpl(decalage+tbloc+1,compteur,ji,jmloc)
              sortie(tbloc+2,compteurc,ji)=pspdivp(ise+ji+1,compteur)!!zspdivpl(decalage+tbloc+2,compteur,ji,jmloc)
+             do jl=tbloc,max(decalage+1,1)-decalage,-1
+               sortie(JL,compteurc,ji)=entree(JL,compteurc,ji)-pbs(jl,compteurc)*sortie(JL+1,compteurc,ji)&
+                 &-pcs(jl,compteurc)*sortie(JL+2,compteurc,ji)
+             enddo
            enddo
          endif
-         !$acc loop vector private(jl)
-         do compteurc=1,min(bloclev,ydgeometry%yrdimv%nflevg-(compteurb-1)*bloclev)
-           !$acc loop seq
-           do jl=tbloc,max(decalage+1,1)-decalage,-1
-             sortie(JL,compteurc,ji)=entree(JL,compteurc,ji)-pbs(jl,compteurc)*sortie(JL+1,compteurc,ji)&
-               &-pcs(jl,compteurc)*sortie(JL+2,compteurc,ji)
-           enddo
-         enddo
+!!         !$acc loop vector private(jl)
+!!         do compteurc=1,min(bloclev,ydgeometry%yrdimv%nflevg-(compteurb-1)*bloclev)
+!!           !$acc loop seq
+!!           do jl=tbloc,max(decalage+1,1)-decalage,-1
+!!             sortie(JL,compteurc,ji)=entree(JL,compteurc,ji)-pbs(jl,compteurc)*sortie(JL+1,compteurc,ji)&
+!!               &-pcs(jl,compteurc)*sortie(JL+2,compteurc,ji)
+!!           enddo
+!!         enddo
          !$acc loop vector private(compteurc)
          do jl=decalage+tbloc+2,max(decalage+1,1),-1
            ise=ista+2*(jl-1)
