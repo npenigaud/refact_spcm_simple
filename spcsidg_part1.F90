@@ -1,6 +1,6 @@
 #if defined(_OPENACC)
 SUBROUTINE SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, PSDIVP,PSPDIVP,taillec,&
-  &zsdivpl,zspdivpl ,pas,pbs,pcs,entree,sortie,param_mxture, kmlocsta, kmlocend)
+  &pas,pbs,pcs,entree,sortie,param_mxture, kmlocsta, kmlocend)
 
 #else
 SUBROUTINE SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, PSDIVP, PSPDIVP ,kmlocsta, kmlocend)
@@ -27,8 +27,6 @@ REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 integer(kind=jpim)               :: taillec
 integer(kind=jpim), parameter    :: tbloc=54!!62
 integer(kind=jpim),parameter     :: bloclev=10!!8!!54-10 meilleur pour l'instant
-REAL(KIND=JPRB),   intent(inout) :: ZSDIVPL (1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,ydgeometry%yrdim%nump)
-REAL(KIND=JPRB),   intent(inout) :: ZSPDIVPL(1:YDGEOMETRY%YRDIM%NSMAX+1,YDGEOMETRY%YRDIMV%NFLEVG,2,ydgeometry%yrdim%nump)
 real(kind=jprb),   intent(in)    :: param_mxture(:,:,:)
 real(kind=jprb),   intent(inout) :: pas(tbloc+3,bloclev)
 real(kind=jprb),   intent(inout) :: pbs(tbloc+3,bloclev)
@@ -58,7 +56,7 @@ ASSOCIATE(NSMAX=>YDDIM%NSMAX,NFLEVG=>YDDIMV%NFLEVG,SIHEG=>YDDYN%SIHEG,SIHEG2=>YD
 
 !             Inversion of two tridiagonal systems (Helmholtz equation)
 !                --> (SIMI*DIVprim(t+dt)).
-!$acc data present(ydgeometry,psdivp,pspdivp,zsdivpl,zspdivpl,ydgeometry%yrdim%nsmax,ydgeometry%yrdimv%nflevg,pas,pbs,pcs,entree,sortie)
+!$acc data present(ydgeometry,psdivp,pspdivp,ydgeometry%yrdim%nsmax,ydgeometry%yrdimv%nflevg,pas,pbs,pcs,entree,sortie)
 !$acc data present(ydgeometry%YrLAP%MYMS,ydgeometry%yrmp%NSPSTAF,param_mxture)
 
 #if defined(_OPENACC)

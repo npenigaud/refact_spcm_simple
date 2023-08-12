@@ -1,7 +1,7 @@
 INTERFACE
 #if defined(_OPENACC)
 SUBROUTINE SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, PSDIVP, PSPDIVP,taillec,&
-  &zsdivpl,zspdivpl,pas,pbs,pcs,entree,sortie,param_mxture,kmlocsta,kmlocend)
+  &pas,pbs,pcs,entree,sortie,param_mxture,kmlocsta,kmlocend)
 !$acc routine vector
 #else
 SUBROUTINE SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, PSDIVP, PSPDIVP,kmlocsta,kmlocend)
@@ -21,14 +21,12 @@ REAL(KIND=JPRB),   INTENT(IN)    :: PSDIVP (kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 REAL(KIND=JPRB),   INTENT(INOUT) :: PSPDIVP(kspec2v,YDGEOMETRY%YRDIMV%NFLEVG)
 #if defined(_OPENACC)
 integer(kind=jpim)               :: taillec
-real(kind=JPRB),   intent(inout) :: zsdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,ydgeometry%yrdim%nump)
-real(kind=JPRB),   intent(inout) :: zspdivpl(ydgeometry%yrdim%nsmax+1,ydgeometry%yrdimv%nflevg,2,ydgeometry%yrdim%nump)
 real(kind=jprb),   intent(in)    :: param_mxture(:,:,:)
-real(kind=jprb),   intent(inout) :: pas(129,9)
-real(kind=jprb),   intent(inout) :: pbs(129,9)
-real(kind=jprb),   intent(inout) :: pcs(129,9)
-real(kind=jprb),   intent(inout) :: entree(129,9)
-real(kind=jprb),   intent(inout) :: sortie(129,9)
+real(kind=jprb),   intent(inout) :: pas(2001)
+real(kind=jprb),   intent(inout) :: pbs(2001)
+real(kind=jprb),   intent(inout) :: pcs(2001)
+real(kind=jprb),   intent(inout) :: entree(2001)
+real(kind=jprb),   intent(inout) :: sortie(2001)
 #endif
 END SUBROUTINE SPCSIDG_PART1
 

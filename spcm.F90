@@ -59,7 +59,7 @@ CHARACTER (LEN=64) :: CLFILE, CLPROC, CLCASE
 LOGICAL :: LLVERBOSE, LLWRITEGRIB1, LLWRITETEXT1, LLWRITEGRIB2, LLWRITETEXT2, LLSTATGP, LLSTATSP
 
 
-integer::jmloc,ista,iend,im,is0,is0c,is0cfin
+integer::jmloc,ista,iend,im,is0,is0c,is0cfin,numjmloc
 
 REAL(KIND=JPHOOK)  :: zhook_handle,zhook_handle2
 integer            :: repetition,repetition2
@@ -169,10 +169,12 @@ pspsvd2(:,:)=pspsvd(:,:)
 #endif
 
 !is0=ydgeometry%yrlap%nse0L(ydgeometry%yrmp%nptrmf(mysetn))
-print *,"nombre de niveaux : ",ydgeometry%yrmp%nptrmf(mysetn+1)-ydgeometry%yrmp%nptrmf(mysetn)
-do jmloc =ydgeometry%yrmp%nptrmf(mysetn),ydgeometry%yrmp%nptrmf(mysetn+1)-1
+numjmloc=ydgeometry%yrmp%nptrmf(mysetn+1)-ydgeometry%yrmp%nptrmf(mysetn)
+print *,"nombre de niveaux : ",numjmloc
+write (*,fmt="(a,i0,a,i0,a)",advance="no") "{'mpi':",myproc,",'numjmloc':",numjmloc,",'ims':["
+do jmloc =ydgeometry%yrmp%nptrmf(mysetn),ydgeometry%yrmp%nptrmf(mysetn+1)-2
   im=ydgeometry%yrlap%myms(jmloc)
-  print *,im
+  write (*,fmt="(i0,a)",advance="no") im,","
 !  is0c=ydgeometry%yrlap%nse0L(jmloc)+1
 !  is0cfin=is0c+ydgeometry%yrdim%nsmax-im 
 !  ista=ydgeometry%yrmp%nspstaf(im)
@@ -194,6 +196,8 @@ do jmloc =ydgeometry%yrmp%nptrmf(mysetn),ydgeometry%yrmp%nptrmf(mysetn+1)-1
 !  print *,"siheg2 3",ydmodel%yrml_dyn%yrdyn%siheg(4,ista:iend,2)
 !
 enddo
+im=ydgeometry%yrlap%myms(ydgeometry%yrmp%nptrmf(mysetn+1)-1)
+write (*,fmt="(i0,a)") im,"]}"
 
 !print *, "long ind / long spec div 2 "
 !print *, is0cfin-is0, iend/2

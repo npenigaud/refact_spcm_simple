@@ -110,8 +110,8 @@ real(kind=jprb)                  :: pb(taillec)
 real(kind=jprb)                  :: pc(taillec)
 real(kind=jprb)                  :: entree(taillec)
 real(kind=jprb)                  :: sortie(taillec)
-real(kind=JPRB)                  :: zsdivpl(ydgeometry%yrdim%NSMAX+1,ydgeometry%yrdimv%NFLEVG,2,ydgeometry%yrdim%nump)
-real(kind=JPRB)                  :: zspdivpl(ydgeometry%yrdim%NSMAX+1,ydgeometry%yrdimv%NFLEVG,2,ydgeometry%yrdim%nump)
+real(kind=JPRB)                  :: zsphi(kspec2v,0:ydgeometry%yrdimv%NFLEVG+1)
+real(kind=JPRB)                  :: zout(kspec2v,0:ydgeometry%yrdimv%NFLEVG)
 #else
 real(kind=jprb)   ,intent(in)    :: simit(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
 real(kind=jprb)   ,intent(in)    :: simot(YDGEOMETRY%YRDIMV%NFLEVG,YDGEOMETRY%YRDIMV%NFLEVG)
@@ -183,7 +183,7 @@ ZBDT2=(ZBDT*ydgeometry%yrgem%RSTRET)**2
 !*        2.2  OpenACC memory
 #if defined(_OPENACC)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',0,ZHOOK_HANDLE2)
-!$acc data create(zsdivp,zspdivp,zsdiv,zhelp,zst,zsp,zsdivpl,zspdivpl,pa,pb,pc,entree,sortie)
+!$acc data create(zsdivp,zspdivp,zsdiv,zhelp,zst,zsp,zsphi,zout,pa,pb,pc,entree,sortie)
 !$acc data present(YDGEOMETRY,YDGEOMETRY%YRLAP,YDGEOMETRY%YRLAP%NVALUE,YDGEOMETRY%YRLAP%RLAPIN,YDGEOMETRY%YRLAP%RLAPDI,ydgeometry%yrdimv%NFLEVG,ydgeometry%yrdim%NSMAX,YDDYN,YDDYN%SIVP)
 !$acc data present(pspdivg,psptg,pspspg,YDRIP,ydgeometry%yrmp%NPTRMF,ydgeometry%YRLAP,ydgeometry%yrmp%NSPSTAF,ydgeometry%yrgem%RSTRET)
 IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',1,ZHOOK_HANDLE2)
@@ -192,7 +192,7 @@ IF (LHOOK) CALL DR_HOOK('SPCSI_transferts1',1,ZHOOK_HANDLE2)
 
 !*        2.3  Computes right-hand side of Helmholtz equation.
 #if defined(_OPENACC)
-CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,ydgeometry%yrdimv%NFLEVG,KSPEC2V,ZSDIV,PSPTG(:,:),PSPSPG(1:kspec2v),zsdivpl,zspdivpl) 
+CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,ydgeometry%yrdimv%NFLEVG,KSPEC2V,ZSDIV,PSPTG(:,:),PSPSPG(1:kspec2v),zsphi,zout) 
 #else
 CALL SIGAM_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,ydgeometry%yrdimv%NFLEVG,KSPEC2V,ZSDIV,PSPTG(:,:),PSPSPG(1:kspec2v)) !!!ispcol remplacé par kspec2V
 #endif
@@ -357,7 +357,7 @@ IF (LSIDG) THEN
 
 if (lhook) CALL DR_HOOK('SPCSI_sidg1',0,zhook_handle2)
 #if defined(_OPENACC) 
-    CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V,ZSDIVP,ZSPDIVP,taillec,zsdivpl,zspdivpl,pa,pb,pc,entree,sortie,param_mxture,ydgeometry%yrmp%NPTRMF(mysetn),ydgeometry%yrmp%NPTRMF(mysetn+1)-1)
+    CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V,ZSDIVP,ZSPDIVP,taillec,pa,pb,pc,entree,sortie,param_mxture,ydgeometry%yrmp%NPTRMF(mysetn),ydgeometry%yrmp%NPTRMF(mysetn+1)-1)
 #else
     CALL SPCSIDG_PART1 (YDGEOMETRY, YDDYN, KSPEC2V, ZSDIVP,ZSPDIVP,ydgeometry%yrmp%NPTRMF(mysetn),ydgeometry%yrmp%NPTRMF(mysetn+1)-1)
 #endif
@@ -416,7 +416,7 @@ IF (LSIDG) THEN
 
 if (lhook) CALL DR_HOOK('SPCSI_sidg2',0,zhook_handle2)
 #if defined(_OPENACC) 
-    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V,PSPDIVG,ZHELP,zsdivpl,zspdivpl,ydgeometry%yrmp%NPTRMF(mysetn),ydgeometry%yrmp%NPTRMF(mysetn+1)-1)
+    CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V,PSPDIVG,ZHELP,ydgeometry%yrmp%NPTRMF(mysetn),ydgeometry%yrmp%NPTRMF(mysetn+1)-1)
 #else
     CALL SPCSIDG_PART2 (YDGEOMETRY, KSPEC2V, PSPDIVG, ZHELP,ydgeometry%yrmp%NPTRMF(mysetn),ydgeometry%yrmp%NPTRMF(mysetn+1)-1)
 #endif
@@ -457,7 +457,7 @@ ENDIF
 !                                    and [  nu * (GMBAR**2 * DIVprim(t+dt)) ]
 
 #if defined(_OPENACC)
-CALL SITNU_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,ydgeometry%yrdimv%NFLEVG,KSPEC2V,ZHELP,ZST,ZSP,zsdivpl,zspdivpl)
+CALL SITNU_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,ydgeometry%yrdimv%NFLEVG,KSPEC2V,ZHELP,ZST,ZSP,zsphi,zout)
 #else
 CALL SITNU_SP_OPENMP(YDGEOMETRY,YDCST,YDDYN,ydgeometry%yrdimv%NFLEVG,KSPEC2V,ZHELP,ZST,ZSP)
 #endif
